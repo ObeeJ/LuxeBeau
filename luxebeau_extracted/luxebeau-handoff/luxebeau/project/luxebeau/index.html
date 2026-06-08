@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LuxeBeau — Beauty at Your Doorstep</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://api.fontshare.com/v2/css?f[]=clash-display@400,500,600,700&display=swap" rel="stylesheet" />
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Sora', sans-serif;
+      background: #FAFAFA;
+      color: #222222;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #F3F3F3; }
+    ::-webkit-scrollbar-thumb { background: #D3D3D3; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #B881FF; }
+
+    /* Inputs reset */
+    input, select, textarea, button { font-family: inherit; }
+    input:focus, select:focus, textarea:focus { outline: none; }
+
+    /* Hide scrollbar utility */
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+    /* Selection color */
+    ::selection { background: #B881FF; color: #fff; }
+
+    /* Smooth page transitions */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .page-enter { animation: fadeUp 0.3s ease forwards; }
+
+    /* Loading spinner */
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Hover lift utility */
+    .lift { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+    .lift:hover { transform: translateY(-4px); box-shadow: 0 12px 32px rgba(67,0,123,0.12); }
+
+    /* Fix for sticky elements */
+    .sticky-top { position: sticky; top: 88px; }
+
+    /* Table reset */
+    table { border-collapse: collapse; width: 100%; }
+
+    /* White-space pre for multiline text */
+    .pre { white-space: pre-line; }
+
+    /* Text truncate */
+    .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    /* Hide native number input spinners */
+    input[type=number]::-webkit-inner-spin-button,
+    input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <!-- Shared primitives, data & UI components -->
+  <script type="text/babel" src="shared.jsx"></script>
+
+  <!-- Page components -->
+  <script type="text/babel" src="landing.jsx"></script>
+  <script type="text/babel" src="shop-services.jsx"></script>
+  <script type="text/babel" src="commerce.jsx"></script>
+  <script type="text/babel" src="dashboards.jsx"></script>
+  <script type="text/babel" src="partnership.jsx"></script>
+
+  <!-- App router — must be last -->
+  <script type="text/babel" src="app.jsx"></script>
+</body>
+</html>
