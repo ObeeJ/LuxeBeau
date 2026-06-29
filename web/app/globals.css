@@ -1,38 +1,54 @@
 @import "tailwindcss";
 
 /* ───────────────────────────────────────────────
-   LuxeBeau — "The Velvet Atelier"
+   LuxeBeau
    Dark editorial luxury: plum velvet, lavender ink,
    champagne gold. Built for the Nigerian beauty market.
    ─────────────────────────────────────────────── */
 
 :root {
   /* Canvas */
-  --velvet-950: #0b0514;   /* page canvas — near-black plum */
-  --velvet-900: #120a20;   /* raised surface */
-  --velvet-800: #1c1130;   /* card surface */
-  --velvet-700: #2a1b47;   /* hover surface / borders on dark */
+  --velvet-950: #0b0514;
+  /* page canvas — near-black plum */
+  --velvet-900: #120a20;
+  /* raised surface */
+  --velvet-800: #1c1130;
+  /* card surface */
+  --velvet-700: #2a1b47;
+  /* hover surface / borders on dark */
 
   /* Purple core */
-  --royal-600: #6d3fb8;    /* brand purple */
-  --royal-500: #8254d6;    /* interactive */
-  --royal-400: #9b74e8;    /* hover */
+  --royal-600: #6d3fb8;
+  /* brand purple */
+  --royal-500: #8254d6;
+  /* interactive */
+  --royal-400: #9b74e8;
+  /* hover */
 
   /* Lavender ink (text on dark) */
-  --lavender-100: #f1eafe; /* primary text on dark */
-  --lavender-200: #d9c9f6; /* secondary text */
-  --lavender-400: #a98fd9; /* muted text — 4.6:1 on velvet-950 */
+  --lavender-100: #f1eafe;
+  /* primary text on dark */
+  --lavender-200: #d9c9f6;
+  /* secondary text */
+  --lavender-400: #a98fd9;
+  /* muted text — 4.6:1 on velvet-950 */
 
   /* Champagne gold accent */
-  --gold-300: #e8cf9a;     /* gold text on dark */
-  --gold-400: #d4af6a;     /* gold accents, rules */
-  --gold-500: #b8924e;     /* gold on light */
+  --gold-300: #e8cf9a;
+  /* gold text on dark */
+  --gold-400: #d4af6a;
+  /* gold accents, rules */
+  --gold-500: #b8924e;
+  /* gold on light */
 
   /* Paper sections (light editorial breaks) */
-  --paper-50: #faf7f2;     /* warm cream */
+  --paper-50: #faf7f2;
+  /* warm cream */
   --paper-100: #f3ede3;
-  --paper-ink: #1d1228;    /* text on paper */
-  --paper-muted: #5d4a73;  /* secondary on paper — 6.2:1 */
+  --paper-ink: #1d1228;
+  /* text on paper */
+  --paper-muted: #5d4a73;
+  /* secondary on paper — 6.2:1 */
 
   /* Semantic */
   --success: #7fd6a4;
@@ -180,7 +196,11 @@ a {
   color: var(--lavender-100);
   transition: border-color 0.18s ease;
 }
-.lb-input::placeholder { color: color-mix(in srgb, var(--lavender-400) 60%, transparent); }
+
+.lb-input::placeholder {
+  color: color-mix(in srgb, var(--lavender-400) 60%, transparent);
+}
+
 .lb-input:focus-visible {
   outline: none;
   border-color: var(--royal-400);
@@ -190,21 +210,39 @@ a {
 /* ─── Keyframes ─── */
 
 @keyframes aurora {
-  0% { transform: translate3d(-2%, 0, 0) scale(1); }
-  100% { transform: translate3d(2%, -3%, 0) scale(1.06); }
+  0% {
+    transform: translate3d(-2%, 0, 0) scale(1);
+  }
+
+  100% {
+    transform: translate3d(2%, -3%, 0) scale(1.06);
+  }
 }
 
 @keyframes rise {
-  from { opacity: 0; transform: translateY(22px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(22px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes marquee {
-  from { transform: translateX(0); }
-  to { transform: translateX(-50%); }
+  from {
+    transform: translateX(0);
+  }
+
+  to {
+    transform: translateX(-50%);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
+
   *,
   *::before,
   *::after {
