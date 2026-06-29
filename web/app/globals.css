@@ -1,0 +1,216 @@
+@import "tailwindcss";
+
+/* ───────────────────────────────────────────────
+   LuxeBeau — "The Velvet Atelier"
+   Dark editorial luxury: plum velvet, lavender ink,
+   champagne gold. Built for the Nigerian beauty market.
+   ─────────────────────────────────────────────── */
+
+:root {
+  /* Canvas */
+  --velvet-950: #0b0514;   /* page canvas — near-black plum */
+  --velvet-900: #120a20;   /* raised surface */
+  --velvet-800: #1c1130;   /* card surface */
+  --velvet-700: #2a1b47;   /* hover surface / borders on dark */
+
+  /* Purple core */
+  --royal-600: #6d3fb8;    /* brand purple */
+  --royal-500: #8254d6;    /* interactive */
+  --royal-400: #9b74e8;    /* hover */
+
+  /* Lavender ink (text on dark) */
+  --lavender-100: #f1eafe; /* primary text on dark */
+  --lavender-200: #d9c9f6; /* secondary text */
+  --lavender-400: #a98fd9; /* muted text — 4.6:1 on velvet-950 */
+
+  /* Champagne gold accent */
+  --gold-300: #e8cf9a;     /* gold text on dark */
+  --gold-400: #d4af6a;     /* gold accents, rules */
+  --gold-500: #b8924e;     /* gold on light */
+
+  /* Paper sections (light editorial breaks) */
+  --paper-50: #faf7f2;     /* warm cream */
+  --paper-100: #f3ede3;
+  --paper-ink: #1d1228;    /* text on paper */
+  --paper-muted: #5d4a73;  /* secondary on paper — 6.2:1 */
+
+  /* Semantic */
+  --success: #7fd6a4;
+  --warning: #e8c468;
+  --danger: #f08a8a;
+  --danger-strong: #c0392b;
+
+  --background: var(--velvet-950);
+  --foreground: var(--lavender-100);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  --color-velvet-950: var(--velvet-950);
+  --color-velvet-900: var(--velvet-900);
+  --color-velvet-800: var(--velvet-800);
+  --color-velvet-700: var(--velvet-700);
+
+  --color-royal-600: var(--royal-600);
+  --color-royal-500: var(--royal-500);
+  --color-royal-400: var(--royal-400);
+
+  --color-lavender-100: var(--lavender-100);
+  --color-lavender-200: var(--lavender-200);
+  --color-lavender-400: var(--lavender-400);
+
+  --color-gold-300: var(--gold-300);
+  --color-gold-400: var(--gold-400);
+  --color-gold-500: var(--gold-500);
+
+  --color-paper-50: var(--paper-50);
+  --color-paper-100: var(--paper-100);
+  --color-paper-ink: var(--paper-ink);
+  --color-paper-muted: var(--paper-muted);
+
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --color-danger-strong: var(--danger-strong);
+
+  /* shadcn semantic tokens mapped onto the Velvet Atelier palette */
+  --color-card: var(--velvet-800);
+  --color-card-foreground: var(--lavender-100);
+  --color-popover: var(--velvet-900);
+  --color-popover-foreground: var(--lavender-100);
+  --color-primary: var(--royal-500);
+  --color-primary-foreground: var(--lavender-100);
+  --color-secondary: var(--velvet-700);
+  --color-secondary-foreground: var(--lavender-200);
+  --color-muted: var(--velvet-800);
+  --color-muted-foreground: var(--lavender-400);
+  --color-accent: var(--velvet-700);
+  --color-accent-foreground: var(--gold-300);
+  --color-destructive: var(--danger-strong);
+  --color-destructive-foreground: var(--lavender-100);
+  --color-border: var(--velvet-700);
+  --color-input: var(--velvet-700);
+  --color-ring: var(--gold-400);
+  --radius: 1rem;
+  --radius-sm: calc(var(--radius) * 0.5);
+  --radius-md: calc(var(--radius) * 0.75);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.5);
+
+  --font-display: var(--font-fraunces), Georgia, serif;
+  --font-sans: var(--font-hanken), system-ui, sans-serif;
+
+  --animate-aurora: aurora 14s ease-in-out infinite alternate;
+  --animate-rise: rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-marquee: marquee 38s linear infinite;
+}
+
+/* ─── Base ─── */
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--royal-500);
+  color: var(--lavender-100);
+}
+
+button,
+[role="button"],
+a {
+  cursor: pointer;
+}
+
+:focus-visible {
+  outline: 2px solid var(--gold-400);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+/* ─── Atmosphere ─── */
+
+.grain::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 60;
+  opacity: 0.05;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.aurora-field {
+  background:
+    radial-gradient(42rem 28rem at 18% 8%, rgba(109, 63, 184, 0.32), transparent 60%),
+    radial-gradient(36rem 26rem at 84% 18%, rgba(212, 175, 106, 0.10), transparent 55%),
+    radial-gradient(50rem 34rem at 55% 96%, rgba(130, 84, 214, 0.18), transparent 60%);
+}
+
+.gold-rule {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--gold-400) 30%, var(--gold-400) 70%, transparent);
+}
+
+.text-gold-gradient {
+  background: linear-gradient(105deg, var(--gold-300), #f6e7c4 45%, var(--gold-400));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.card-velvet {
+  background: linear-gradient(160deg, var(--velvet-800), var(--velvet-900));
+  border: 1px solid var(--velvet-700);
+}
+
+/* Shared form control used by dashboard editors. */
+.lb-input {
+  width: 100%;
+  border-radius: 0.5rem;
+  border: 1px solid var(--velvet-700);
+  background: var(--velvet-900);
+  padding: 0.625rem 0.75rem;
+  font-size: 0.875rem;
+  color: var(--lavender-100);
+  transition: border-color 0.18s ease;
+}
+.lb-input::placeholder { color: color-mix(in srgb, var(--lavender-400) 60%, transparent); }
+.lb-input:focus-visible {
+  outline: none;
+  border-color: var(--royal-400);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--royal-500) 30%, transparent);
+}
+
+/* ─── Keyframes ─── */
+
+@keyframes aurora {
+  0% { transform: translate3d(-2%, 0, 0) scale(1); }
+  100% { transform: translate3d(2%, -3%, 0) scale(1.06); }
+}
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(22px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
