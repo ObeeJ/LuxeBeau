@@ -4,11 +4,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { ShoppingBag, Menu, X, Sparkles, LogOut, LayoutDashboard } from "lucide-react";
-import { useCart, useAuth } from "@/lib/store";
+import { ShoppingBag, Menu, X, LogOut, LayoutDashboard, Sun, Moon } from "lucide-react";
+import { useCart, useAuth, useTheme } from "@/lib/store";
 import { useAuthModal } from "@/components/auth/auth-dialog";
 import { Button } from "@/components/ui/button";
 import ShiftingDropDown from "@/components/ui/shifting-dropdown";
+import { LuxeBeauLogo } from "@/components/site/logo";
 
 const links = [
   { href: "/shop", label: "Shop" },
@@ -22,6 +23,7 @@ export default function SiteNav() {
   const user = useAuth(s => s.user);
   const signOut = useAuth(s => s.signOut);
   const showAuth = useAuthModal(s => s.show);
+  const { theme, toggleTheme } = useTheme();
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
 
@@ -33,18 +35,25 @@ export default function SiteNav() {
   return (
     <header className="sticky top-0 z-50 border-b border-velvet-700/60 bg-velvet-950/80 backdrop-blur-xl">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
-        <Link href="/" className="flex items-center gap-2" aria-label="LuxeBeau home">
-          <Sparkles className="h-5 w-5 text-gold-400" aria-hidden />
-          <span className="font-display text-xl font-semibold tracking-wide">
-            Luxe<span className="text-gold-gradient italic">Beau</span>
-          </span>
-        </Link>
+        <LuxeBeauLogo size={26} textSize="text-xl" />
 
         <nav className="hidden items-center gap-8 md:flex" aria-label="Primary">
           <ShiftingDropDown />
         </nav>
 
         <div className="flex items-center gap-2 sm:gap-3">
+          <button
+            onClick={toggleTheme}
+            className="rounded-full border border-velvet-700 p-2.5 text-lavender-400 transition-colors duration-200 hover:border-gold-400/60 hover:text-gold-400"
+            aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+          >
+            {theme === "dark" ? (
+              <Sun className="h-4 w-4" aria-hidden />
+            ) : (
+              <Moon className="h-4 w-4" aria-hidden />
+            )}
+          </button>
+
           <Link
             href="/cart"
             className="relative rounded-full border border-velvet-700 p-2.5 transition-colors duration-200 hover:border-gold-400/60"

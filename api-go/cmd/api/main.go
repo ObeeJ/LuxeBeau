@@ -142,11 +142,21 @@ func main() {
 		v1.GET("/artisans", bookingHandler.ListArtisans)
 		v1.GET("/artisans/:id", bookingHandler.GetArtisanProfile)
 
-		// Paystack Webhook (no auth)
-		v1.POST("/webhooks/paystack", orderHandler.PaystackWebhook)
-		v1.POST("/webhooks/flutterwave", orderHandler.FlutterwaveWebhook)
-		v1.POST("/webhooks/monnify", orderHandler.MonnifyWebhook)
-		v1.POST("/webhooks/crypto", orderHandler.CryptoWebhook)
+		// Payment webhooks — no user session, but each is authenticated by
+		// verifying the provider signature over the raw body (fail-closed: a
+		// missing secret returns 503, never trusts an unsigned payload).
+		v1.POST("/webhooks/paystack",
+			middleware.RequireHMACSignature(os.Getenv("PAYSTACK_SECRET_KEY"), "x-paystack-signature"),
+			orderHandler.PaystackWebhook)
+		v1.POST("/webhooks/flutterwave",
+			middleware.RequireSharedSecret(os.Getenv("FLUTTERWAVE_SECRET_HASH"), "verif-hash"),
+			orderHandler.FlutterwaveWebhook)
+		v1.POST("/webhooks/monnify",
+			middleware.RequireHMACSignature(os.Getenv("MONNIFY_SECRET"), "monnify-signature"),
+			orderHandler.MonnifyWebhook)
+		v1.POST("/webhooks/crypto",
+			middleware.RequireSharedSecret(os.Getenv("CRYPTO_WEBHOOK_SECRET"), "x-webhook-secret"),
+			orderHandler.CryptoWebhook)
 	}
 
 	// ── Protected Routes ────────────────────────────────────

@@ -252,3 +252,40 @@ a {
     scroll-behavior: auto !important;
   }
 }
+
+/* ─── Light mode ─────────────────────────────────────────────
+   Remap base palette tokens on .light so every component that
+   references velvet-*, lavender-*, gold-* tokens (or the
+   semantic bg-background / text-foreground aliases) flips
+   automatically — no per-component class changes needed.
+   ─────────────────────────────────────────────────────────── */
+
+.light {
+  /* Canvas: warm cream instead of near-black plum */
+  --velvet-950: #faf7f2;
+  --velvet-900: #f3ede3;
+  --velvet-800: #ffffff;
+  --velvet-700: #ddd0ee;
+
+  /* Text: deep plum on cream (reversed from dark) */
+  --lavender-100: #1d1228;
+  --lavender-200: #3d2657;
+  --lavender-400: #5d4a73;
+
+  /* Gold: deeper warmth so it reads on cream */
+  --gold-300: #b8924e;
+  --gold-400: #966f30;
+  --gold-500: #7a5a22;
+
+  /* Semantic roots */
+  --background: #faf7f2;
+  --foreground: #1d1228;
+}
+
+/* Gold gradient wordmark needs richer tones on cream */
+.light .text-gold-gradient {
+  background: linear-gradient(105deg, #8b6914, #c8953a 45%, #6d4f0f);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}

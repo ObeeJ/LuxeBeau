@@ -64,19 +64,19 @@ export async function apiFetch<T>(
       signal,
     });
   } catch {
-    throw new ApiError("NETWORK", "We could not reach LuxeBeau. Check your connection and try again.", 0);
+    throw new ApiError("NETWORK", "Connection lost. Please check your internet connection and try again.", 0);
   }
 
   let json: unknown;
   try {
     json = await res.json();
   } catch {
-    throw new ApiError("BAD_RESPONSE", "The server returned an unexpected response.", res.status);
+    throw new ApiError("BAD_RESPONSE", "We are experiencing temporary system issues. Please try again in a few moments.", res.status);
   }
 
   const parsed = envelope.safeParse(json);
   if (!parsed.success) {
-    throw new ApiError("BAD_RESPONSE", "The server returned an unexpected response.", res.status);
+    throw new ApiError("BAD_RESPONSE", "We are experiencing temporary system issues. Please try again in a few moments.", res.status);
   }
 
   if (!parsed.data.success || !res.ok) {
@@ -121,12 +121,12 @@ export type AuthResult = z.infer<typeof authResultSchema>;
 const phoneRule = z
   .string()
   .transform(v => v.replace(/\s+/g, ""))
-  .refine(v => /^0[789][01]\d{8}$/.test(v), "Enter a valid Nigerian number, for example 0803 123 4567.");
+  .refine(v => /^0[789][01]\d{8}$/.test(v), "Enter a valid Nigerian phone number, for example 0803 123 4567.");
 
 export const registerSchema = z.object({
-  name: z.string().min(2, "Tell us your full name."),
+  name: z.string().min(2, "Enter your full name to continue."),
   email: z.string().email("Enter a valid email address."),
-  password: z.string().min(8, "Use at least 8 characters."),
+  password: z.string().min(8, "Passwords must be at least eight characters."),
   phone: phoneRule,
   role: z.enum(["buyer", "seller", "artisan"]).default("buyer"),
 });
@@ -134,15 +134,15 @@ export type RegisterInput = z.infer<typeof registerSchema>;
 
 export const loginSchema = z.object({
   email: z.string().email("Enter a valid email address."),
-  password: z.string().min(1, "Enter your password."),
+  password: z.string().min(1, "Enter your password to continue."),
 });
 export type LoginInput = z.infer<typeof loginSchema>;
 
 export const deliverySchema = z.object({
-  name: z.string().min(2, "Enter your full name so the rider can find you."),
+  name: z.string().min(2, "Enter your full name so the dispatch rider can find you."),
   phone: phoneRule,
-  address: z.string().min(8, "Add a full street address with a landmark."),
-  city: z.string().min(2, "Select your city."),
+  address: z.string().min(8, "Enter your full street address, including a nearby landmark to guide the dispatch rider."),
+  city: z.string().min(2, "Select your delivery city."),
   state: z.string().min(2, "Select your state."),
 });
 export type DeliveryInput = z.infer<typeof deliverySchema>;

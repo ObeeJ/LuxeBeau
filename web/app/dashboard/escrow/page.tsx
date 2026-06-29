@@ -17,6 +17,7 @@ import {
 import { type Escrow } from "@/lib/api";
 import { formatNaira } from "@/lib/format";
 import { useToast } from "@/components/ui/slide-in-notifications";
+import { getFriendlyErrorMessage } from "@/lib/errors";
 
 const stateTone: Record<string, string> = {
   pending: "bg-warning/15 text-warning",
@@ -59,7 +60,7 @@ export default function EscrowCenter() {
   const act = (fn: typeof fund, id: string, ok: string, reason?: string) =>
     fn.mutate(
       { id, reason },
-      { onSuccess: () => toast(ok, "success"), onError: e => toast(e instanceof Error ? e.message : "Action failed.", "error") },
+      { onSuccess: () => toast(ok, "success"), onError: e => toast(getFriendlyErrorMessage(e, "We couldn't perform this action. Please check your internet connection and try again."), "error") },
     );
 
   const buying = escrows.data?.buying ?? [];
@@ -100,13 +101,13 @@ export default function EscrowCenter() {
                 {buying.map(e => (
                   <EscrowCard key={e.id} e={e} side="buyer">
                     {e.state === "pending" && (
-                      <button onClick={() => act(fund, e.id, "Escrow funded.")} disabled={fund.isPending} className="rounded-full bg-gold-400 px-4 py-2 text-xs font-bold text-velvet-950 transition-colors hover:bg-gold-300 disabled:opacity-60">Fund now</button>
+                      <button onClick={() => act(fund, e.id, "Payment completed successfully. Your funds are secured in escrow.")} disabled={fund.isPending} className="rounded-full bg-gold-400 px-4 py-2 text-xs font-bold text-velvet-950 transition-colors hover:bg-gold-300 disabled:opacity-60">Fund now</button>
                     )}
                     {e.state === "funded" && (
                       <>
-                        <button onClick={() => act(release, e.id, "Released to the seller. Thank you!")} disabled={release.isPending} className="rounded-full bg-success/90 px-4 py-2 text-xs font-bold text-velvet-950 transition-colors hover:bg-success disabled:opacity-60">Confirm received</button>
+                        <button onClick={() => act(release, e.id, "Funds released to the seller successfully. Thank you for using LuxeBeau!")} disabled={release.isPending} className="rounded-full bg-success/90 px-4 py-2 text-xs font-bold text-velvet-950 transition-colors hover:bg-success disabled:opacity-60">Confirm received</button>
                         <button
-                          onClick={() => { const r = window.prompt("What went wrong? (this opens a dispute)"); if (r) act(dispute, e.id, "Dispute opened. Our team will review.", r); }}
+                          onClick={() => { const r = window.prompt("What went wrong? (this opens a dispute)"); if (r) act(dispute, e.id, "Dispute has been formally opened. Our support team will review the details and contact both parties.", r); }}
                           disabled={dispute.isPending}
                           className="rounded-full border border-danger/50 px-4 py-2 text-xs font-semibold text-danger transition-colors hover:bg-danger/10 disabled:opacity-60"
                         >Open dispute</button>
@@ -144,8 +145,8 @@ export default function EscrowCenter() {
           onClose={() => setShowForm(false)}
           onSubmit={input =>
             createEscrow.mutate(input, {
-              onSuccess: () => { toast("Escrow link created. Share it with your buyer.", "success"); setShowForm(false); },
-              onError: e => toast(e instanceof Error ? e.message : "Could not create escrow.", "error"),
+              onSuccess: () => { toast("Escrow link created successfully! Share it with your buyer to secure payment.", "success"); setShowForm(false); },
+              onError: e => toast(getFriendlyErrorMessage(e, "We couldn't create your escrow link. Please try again."), "error"),
             })
           }
         />

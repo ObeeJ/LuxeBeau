@@ -23,6 +23,7 @@ import { useCreateOrder } from "@/lib/queries";
 import { deliverySchema } from "@/lib/api";
 import { useAuthModal } from "@/components/auth/auth-dialog";
 import { useToast } from "@/components/ui/slide-in-notifications";
+import { getFriendlyErrorMessage } from "@/lib/errors";
 
 type Step = "bag" | "delivery" | "payment" | "done";
 type PayMethod = "card" | "transfer" | "ussd" | "wallet";
@@ -58,7 +59,7 @@ export default function CartPage() {
 
   const goToDelivery = () => {
     if (!user) {
-      toast("Please sign in to check out.", "info");
+      toast("Please sign in to complete your purchase.", "info");
       showAuth("login", () => setStep("delivery"));
       return;
     }
@@ -95,9 +96,9 @@ export default function CartPage() {
           setOrderRef(result.reference ?? `LB-${result.id}`);
           clear();
           setStep("done");
-          toast("Payment confirmed through Paystack. Receipt sent to your email.", "success");
+          toast("Payment confirmed! Your order is being processed, and we've emailed your receipt.", "success");
         },
-        onError: () => toast("We could not complete your payment. Please try again.", "error"),
+        onError: err => toast(getFriendlyErrorMessage(err, "We couldn't complete your payment. Please try again or use another payment method."), "error"),
       },
     );
   };
@@ -176,7 +177,7 @@ export default function CartPage() {
                                   <p className="text-sm text-lavender-400">{product.brand}</p>
                                 </div>
                                 <button
-                                  onClick={() => { remove(product.id); toast(`${product.name} removed.`, "info"); }}
+                                  onClick={() => { remove(product.id); toast(`${product.name} removed from your bag.`, "info"); }}
                                   className="rounded-full p-2 text-lavender-400 transition-colors hover:text-danger"
                                   aria-label={`Remove ${product.name}`}
                                 >

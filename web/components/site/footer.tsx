@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Sparkles } from "lucide-react";
+import { LuxeBeauMark, LuxeBeauWordmark } from "@/components/site/logo";
 
 const columns = [
   {
@@ -34,10 +34,8 @@ export default function SiteFooter() {
       <div className="mx-auto grid max-w-7xl gap-12 px-4 py-16 sm:px-6 md:grid-cols-[1.4fr_repeat(3,1fr)]">
         <div>
           <div className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-gold-400" aria-hidden />
-            <span className="font-display text-2xl font-semibold">
-              Luxe<span className="text-gold-gradient italic">Beau</span>
-            </span>
+            <LuxeBeauMark size={30} />
+            <LuxeBeauWordmark className="text-2xl" />
           </div>
           <p className="mt-4 max-w-xs text-sm leading-relaxed text-lavender-400">
             Nigeria&apos;s luxury beauty marketplace. Curated products for melanin-rich skin,

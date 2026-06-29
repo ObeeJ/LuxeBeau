@@ -136,7 +136,7 @@ function ShopContent() {
                     <button
                       onClick={() => {
                         add(product);
-                        toast(`${product.name} added to your bag.`, "success");
+                        toast(`${product.name} has been added to your shopping bag.`, "success");
                       }}
                       className="rounded-full bg-royal-500 px-5 py-2.5 text-sm font-semibold transition-colors duration-200 hover:bg-royal-400"
                     >

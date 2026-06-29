@@ -23,6 +23,7 @@ import { useAdminEscrows, useAdminUsers, useDeleteUser, useResolveEscrow, useUpd
 import { type User } from "@/lib/api";
 import { formatNaira } from "@/lib/format";
 import { useToast } from "@/components/ui/slide-in-notifications";
+import { getFriendlyErrorMessage } from "@/lib/errors";
 
 const roleTone: Record<string, string> = {
   admin: "bg-gold-400/15 text-gold-300",
@@ -79,8 +80,8 @@ export default function AdminDashboard() {
     updateUser.mutate(
       { id: u.id, patch: { status: next } },
       {
-        onSuccess: () => toast(`${u.name} ${next === "suspended" ? "suspended" : "reactivated"}.`, "success"),
-        onError: e => toast(e instanceof Error ? e.message : "Update failed.", "error"),
+        onSuccess: () => toast(`${u.name} has been successfully ${next === "suspended" ? "suspended" : "reactivated"}.`, "success"),
+        onError: e => toast(getFriendlyErrorMessage(e, "Failed to update user status."), "error"),
       },
     );
   };
@@ -90,17 +91,17 @@ export default function AdminDashboard() {
     verifyUser.mutate(
       { id: u.id, cac_number: cac || undefined },
       {
-        onSuccess: () => toast(`${u.name} verified.`, "success"),
-        onError: e => toast(e instanceof Error ? e.message : "Verification failed.", "error"),
+        onSuccess: () => toast(`${u.name} has been successfully verified.`, "success"),
+        onError: e => toast(getFriendlyErrorMessage(e, "Verification failed."), "error"),
       },
     );
   };
 
   const remove = (u: User) => {
-    if (!window.confirm(`Permanently remove ${u.name}? This cannot be undone.`)) return;
+    if (!window.confirm(`Are you sure you want to permanently remove ${u.name}? This action cannot be undone.`)) return;
     deleteUser.mutate(u.id, {
-      onSuccess: () => toast(`${u.name} removed.`, "success"),
-      onError: e => toast(e instanceof Error ? e.message : "Delete failed.", "error"),
+      onSuccess: () => toast(`${u.name} has been successfully removed.`, "success"),
+      onError: e => toast(getFriendlyErrorMessage(e, "Failed to remove user."), "error"),
     });
   };
 
@@ -109,8 +110,8 @@ export default function AdminDashboard() {
     updateUser.mutate(
       { id: u.id, patch: { role: newRole } },
       {
-        onSuccess: () => toast(`${u.name} is now a ${newRole}.`, "success"),
-        onError: e => toast(e instanceof Error ? e.message : "Role change failed.", "error"),
+        onSuccess: () => toast(`${u.name}'s role has been successfully updated to ${newRole}.`, "success"),
+        onError: e => toast(getFriendlyErrorMessage(e, "Failed to change user role."), "error"),
       },
     );
   };
@@ -329,12 +330,12 @@ export default function AdminDashboard() {
                   {(e.state === "disputed" || e.state === "funded") && (
                     <>
                       <button
-                        onClick={() => resolveEscrow.mutate({ id: e.id, decision: "release" }, { onSuccess: () => toast("Released to payee.", "success"), onError: err => toast(err instanceof Error ? err.message : "Failed.", "error") })}
+                        onClick={() => resolveEscrow.mutate({ id: e.id, decision: "release" }, { onSuccess: () => toast("Funds successfully released to payee.", "success"), onError: err => toast(getFriendlyErrorMessage(err, "Failed to release funds."), "error") })}
                         disabled={resolveEscrow.isPending}
                         className="rounded-full bg-success/90 px-4 py-2 text-xs font-bold text-velvet-950 transition-colors hover:bg-success disabled:opacity-60"
                       >Release</button>
                       <button
-                        onClick={() => resolveEscrow.mutate({ id: e.id, decision: "refund" }, { onSuccess: () => toast("Refunded to buyer.", "success"), onError: err => toast(err instanceof Error ? err.message : "Failed.", "error") })}
+                        onClick={() => resolveEscrow.mutate({ id: e.id, decision: "refund" }, { onSuccess: () => toast("Funds successfully refunded to buyer.", "success"), onError: err => toast(getFriendlyErrorMessage(err, "Failed to refund funds."), "error") })}
                         disabled={resolveEscrow.isPending}
                         className="rounded-full border border-danger/50 px-4 py-2 text-xs font-semibold text-danger transition-colors hover:bg-danger/10 disabled:opacity-60"
                       >Refund</button>

@@ -134,7 +134,7 @@ export default function ProductPage({ params }: { params: Promise<{ slug: string
             <button
               onClick={() => {
                 add(product, qty);
-                toast(`${product.name} ×${qty} added to your bag.`, "success");
+                toast(`${qty} × ${product.name} added to your bag. Ready to glow?`, "success");
               }}
               className="mt-6 w-full rounded-full bg-royal-500 py-4 text-sm font-semibold transition-colors duration-200 hover:bg-royal-400"
             >

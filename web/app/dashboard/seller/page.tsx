@@ -18,6 +18,7 @@ import {
 import { type ApiProduct } from "@/lib/api";
 import { formatNaira } from "@/lib/format";
 import { useToast } from "@/components/ui/slide-in-notifications";
+import { getFriendlyErrorMessage } from "@/lib/errors";
 
 const CATEGORIES = ["Skincare", "Haircare", "Makeup", "Fragrance", "Body"] as const;
 
@@ -62,23 +63,23 @@ export default function SellerDashboard() {
   }
 
   const remove = (p: ApiProduct) => {
-    if (!window.confirm(`Remove "${p.name}" from your shelf? This cannot be undone.`)) return;
+    if (!window.confirm(`Are you sure you want to remove "${p.name}" from your shelf? This action cannot be undone.`)) return;
     deleteProduct.mutate(p.id, {
-      onSuccess: () => toast(`${p.name} removed.`, "success"),
-      onError: e => toast(e instanceof Error ? e.message : "Delete failed.", "error"),
+      onSuccess: () => toast(`${p.name} has been successfully removed from your catalog.`, "success"),
+      onError: e => toast(getFriendlyErrorMessage(e, "We couldn't remove this product. Please try again."), "error"),
     });
   };
 
   const submit = (input: SellerProductInput) => {
-    const onError = (e: unknown) => toast(e instanceof Error ? e.message : "Save failed.", "error");
+    const onError = (e: unknown) => toast(getFriendlyErrorMessage(e, "We couldn't save your product. Please check your fields and try again."), "error");
     if (editing?.mode === "edit") {
       updateProduct.mutate(
         { id: editing.product.id, input },
-        { onSuccess: () => { toast(`${input.name} updated.`, "success"); setEditing(null); }, onError },
+        { onSuccess: () => { toast(`${input.name} has been successfully updated.`, "success"); setEditing(null); }, onError },
       );
     } else {
       createProduct.mutate(input, {
-        onSuccess: () => { toast(`${input.name} listed.`, "success"); setEditing(null); },
+        onSuccess: () => { toast(`${input.name} has been successfully listed on LuxeBeau.`, "success"); setEditing(null); },
         onError,
       });
     }
@@ -227,7 +228,7 @@ export default function SellerDashboard() {
             <p className="text-3xl font-display font-semibold text-white">{formatNaira(salesRevenue * 0.95)}</p>
             <button
               onClick={() => {
-                toast(`Payout of ${formatNaira(salesRevenue * 0.95)} successfully initiated to verified merchant bank account.`, "success");
+                toast(`Payout request for ${formatNaira(salesRevenue * 0.95)} submitted. It will reflect in your GTBank account within twenty-four hours.`, "success");
               }}
               className="w-full h-10 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 hover:opacity-90 font-semibold text-xs transition-opacity flex items-center justify-center gap-1.5"
             >

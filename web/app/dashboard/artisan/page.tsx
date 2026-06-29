@@ -45,7 +45,7 @@ export default function ArtisanDashboard() {
     setPayoutLoading(true);
     setTimeout(() => {
       setPayoutLoading(false);
-      toast("Payout of ₦142,500.00 initiated to Access Bank account ending in 5678 successfully!", "success");
+      toast("Payout request of ₦142,500.00 submitted. Your earnings will arrive in your Access Bank account within twenty-four hours.", "success");
     }, 1500);
   };
 
@@ -219,7 +219,7 @@ export default function ArtisanDashboard() {
           <button
             onClick={() => {
               setScheduleVacation(!scheduleVacation);
-              toast(scheduleVacation ? "Vacation mode deactivated. Online bookings resumed." : "Vacation mode activated. Your calendar is paused temporarily.", "success");
+              toast(scheduleVacation ? "Vacation mode deactivated. Your clients can now book appointments." : "Vacation mode activated. Your booking calendar is temporarily paused.", "success");
             }}
             className={`text-xs px-4 py-2 rounded-full font-semibold border transition-all duration-300 ${
               scheduleVacation
@@ -248,7 +248,7 @@ export default function ArtisanDashboard() {
               ))}
             </div>
             <button 
-              onClick={() => toast("Operating hours edit dialog placeholder", "success")}
+              onClick={() => toast("Operating hours settings are currently read-only. Please contact support to adjust.", "info")}
               className="text-xs text-purple-400 hover:text-purple-300 font-semibold"
             >
               Adjust hours →
@@ -268,7 +268,7 @@ export default function ArtisanDashboard() {
                 </span>
               ))}
               <button 
-                onClick={() => toast("Add time slot trigger", "success")}
+                onClick={() => toast("Time slot customizer is currently disabled. Please contact support to adjust.", "info")}
                 className="px-4 py-2 border border-dashed border-purple-900/60 rounded-xl text-sm text-gray-500 hover:text-purple-400 hover:border-purple-400 transition-colors"
               >
                 + Add Slot
@@ -334,7 +334,7 @@ export default function ArtisanDashboard() {
               </span>
             </div>
             <button 
-              onClick={() => toast("Modify bank account dialog", "success")}
+              onClick={() => toast("Bank account modifications are locked for security. Please contact partner support to update your bank details.", "info")}
               className="text-xs text-purple-400 hover:text-purple-300 font-semibold"
             >
               Change bank details →

@@ -18,6 +18,7 @@ import { useLogin, useRegister } from "@/lib/queries";
 import { loginSchema, registerSchema, ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/store";
 import { useToast } from "@/components/ui/slide-in-notifications";
+import { getFriendlyErrorMessage } from "@/lib/errors";
 
 type Mode = "login" | "register";
 
@@ -75,7 +76,7 @@ export function AuthDialog() {
       login.mutate(parsed.data, {
         onSuccess: ({ token, user }) => {
           signIn(token, user);
-          toast(`Welcome back, ${user.name.split(" ")[0]}.`, "success");
+          toast(`Welcome back, ${user.name.split(" ")[0]}! We've loaded your profile.`, "success");
           onDone?.();
           close();
           reset();
@@ -91,7 +92,7 @@ export function AuthDialog() {
       register.mutate(parsed.data, {
         onSuccess: ({ token, user }) => {
           signIn(token, user);
-          toast(`Welcome to LuxeBeau, ${user.name.split(" ")[0]}.`, "success");
+          toast(`Welcome to LuxeBeau, ${user.name.split(" ")[0]}! Let's find your perfect style.`, "success");
           onDone?.();
           close();
           reset();
@@ -114,8 +115,8 @@ export function AuthDialog() {
           </DialogTitle>
           <DialogDescription className="text-lavender-400">
             {mode === "login"
-              ? "Sign in to book artisans and track your orders."
-              : "Create your account to shop and book in minutes."}
+              ? "Sign in to access your dashboard, track orders, and secure booking slots."
+              : "Join LuxeBeau to discover vetted artisans and premium local beauty brands."}
           </DialogDescription>
         </DialogHeader>
 
@@ -206,6 +207,5 @@ function fieldErrors(error: { issues: ReadonlyArray<{ path: PropertyKey[]; messa
 }
 
 function messageFor(err: unknown) {
-  if (err instanceof ApiError) return err.message;
-  return "Something went wrong. Please try again.";
+  return getFriendlyErrorMessage(err);
 }

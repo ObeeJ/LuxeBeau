@@ -92,6 +92,26 @@ export const useCartStore = create<CartState>()(
   ),
 );
 
+/* ── Theme store ─────────────────────────────────────────────
+   Persists "dark" | "light" preference. ThemeApplier in
+   providers.tsx syncs this to the <html> class on every mount. */
+interface ThemeState {
+  theme: "dark" | "light";
+  toggleTheme: () => void;
+  setTheme: (t: "dark" | "light") => void;
+}
+
+export const useTheme = create<ThemeState>()(
+  persist(
+    (set) => ({
+      theme: "dark",
+      toggleTheme: () => set((s) => ({ theme: s.theme === "dark" ? "light" : "dark" })),
+      setTheme: (theme) => set({ theme }),
+    }),
+    { name: "lb_theme" },
+  ),
+);
+
 /* Derived selector: exposes item count and subtotal plus a `detailed` view
    (shape kept stable for existing call sites) without a catalogue join. */
 export function useCart() {

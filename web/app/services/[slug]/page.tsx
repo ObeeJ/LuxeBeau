@@ -23,6 +23,7 @@ import { useToast } from "@/components/ui/slide-in-notifications";
 import { useAuth } from "@/lib/store";
 import { useArtisan, useCreateBooking } from "@/lib/queries";
 import { type ArtisanService } from "@/lib/api";
+import { getFriendlyErrorMessage } from "@/lib/errors";
 import { useAuthModal } from "@/components/auth/auth-dialog";
 import { Button } from "@/components/ui/button";
 
@@ -113,16 +114,16 @@ export default function ArtisanPage({ params }: { params: Promise<{ slug: string
       {
         onSuccess: result => {
           setConfirmedRef(result.reference ?? `BK-${result.id}`);
-          toast("Deposit received. Your slot is locked in.", "success");
+          toast("Appointment secured! Your deposit was received and your slot is locked in.", "success");
         },
-        onError: () => toast("We could not hold your slot. Please try again.", "error"),
+        onError: err => toast(getFriendlyErrorMessage(err, "We couldn't secure your slot. Please try again in a few moments."), "error"),
       },
     );
   };
 
   const handleConfirm = () => {
     if (!user) {
-      toast("Please sign in to hold your booking.", "info");
+      toast("Please sign in to secure your booking slot.", "info");
       showAuth("login", submitBooking);
       return;
     }

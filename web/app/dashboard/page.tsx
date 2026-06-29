@@ -25,6 +25,7 @@ import { useMyBookings, useMyOrders, useSubmitKyc } from "@/lib/queries";
 import { formatNaira } from "@/lib/format";
 import { useAuthModal } from "@/components/auth/auth-dialog";
 import { useToast } from "@/components/ui/slide-in-notifications";
+import { getFriendlyErrorMessage } from "@/lib/errors";
 
 const workspaces = [
   { href: "/dashboard/seller", icon: Store, title: "Seller studio", body: "Track orders, payouts and product performance for your beauty brand.", roles: ["seller", "admin"] },
@@ -128,15 +129,15 @@ export default function DashboardHome() {
             className="mt-4"
             onSubmit={e => {
               e.preventDefault();
-              if (kycValue.trim().length < 10) {
-                toast("Enter a valid NIN or BVN.", "error");
+              if (!/^\d{11}$/.test(kycValue.trim())) {
+                toast(`Please enter a valid eleven-digit ${kycType.toUpperCase()} number.`, "error");
                 return;
               }
               submitKyc.mutate(
                 { type: kycType, value: kycValue.trim() },
                 {
-                  onSuccess: r => toast(r.kyc_status === "verified" ? "Identity verified." : "Submitted for review.", "success"),
-                  onError: err => toast(err instanceof Error ? err.message : "Verification failed.", "error"),
+                  onSuccess: r => toast(r.kyc_status === "verified" ? "Identity successfully verified. Thank you for keeping LuxeBeau secure." : "Verification documents submitted successfully. We will review your profile within twenty-four hours.", "success"),
+                  onError: err => toast(getFriendlyErrorMessage(err, "Verification failed. Please check the number and try again."), "error"),
                 },
               );
             }}
