@@ -2,32 +2,55 @@ package booking
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"math/rand"
+	"strings"
 	"time"
 
+	"gorm.io/gorm"
 	"luxebeau/internal/domain"
 )
 
 type bookingService struct {
 	repo   domain.BookingRepository
+	db     *gorm.DB
 	logger *slog.Logger
 }
 
-func NewBookingService(repo domain.BookingRepository, logger *slog.Logger) domain.BookingService {
-	return &bookingService{repo: repo, logger: logger}
+func NewBookingService(repo domain.BookingRepository, db *gorm.DB, logger *slog.Logger) domain.BookingService {
+	return &bookingService{repo: repo, db: db, logger: logger}
 }
 
 func (s *bookingService) BookService(ctx context.Context, buyerID string, artisanID uint, serviceName string, date time.Time, slotTime string, svcType string) (*domain.Booking, error) {
-	// Reserve the slot atomically
-	if err := s.repo.ReserveSlot(ctx, artisanID, date, slotTime); err != nil {
-		s.logger.Warn("Slot reservation failed", slog.Any("artisan_id", artisanID), slog.String("slot", slotTime), slog.Any("error", err))
-		return nil, fmt.Errorf("slot unavailable: %w", err)
+	// Wrap the entire slot reservation and booking insertion inside a transaction
+	tx := s.db.Begin()
+	if tx.Error != nil {
+		return nil, tx.Error
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	// Reserve the slot atomically in the transaction context
+	result := tx.WithContext(ctx).Model(&domain.BookingSlot{}).
+		Where("artisan_id = ? AND slot_date = ? AND slot_time = ? AND reserved = ?", artisanID, date, slotTime, false).
+		Update("reserved", true)
+	if result.Error != nil {
+		tx.Rollback()
+		return nil, result.Error
+	}
+	if result.RowsAffected == 0 {
+		tx.Rollback()
+		return nil, fmt.Errorf("slot is no longer available")
 	}
 
-	artisan, err := s.repo.GetArtisanByID(ctx, artisanID)
-	if err != nil || artisan == nil {
+	var artisan domain.Artisan
+	if err := tx.WithContext(ctx).First(&artisan, artisanID).Error; err != nil {
+		tx.Rollback()
 		return nil, fmt.Errorf("artisan not found")
 	}
 
@@ -43,12 +66,17 @@ func (s *bookingService) BookService(ctx context.Context, buyerID string, artisa
 		Status:      "pending",
 	}
 
-	if err := s.repo.CreateBooking(ctx, booking); err != nil {
-		s.logger.Error("Failed to create booking", slog.Any("error", err))
+	if err := tx.WithContext(ctx).Create(booking).Error; err != nil {
+		tx.Rollback()
+		s.logger.Error("Failed to create booking in transaction", slog.Any("error", err))
 		return nil, fmt.Errorf("failed to create booking: %w", err)
 	}
 
-	s.logger.Info("Booking created", slog.String("id", booking.ID), slog.String("buyer", buyerID))
+	if err := tx.Commit().Error; err != nil {
+		return nil, fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	s.logger.Info("Booking created successfully in transaction", slog.String("id", booking.ID), slog.String("buyer", buyerID))
 	return booking, nil
 }
 
@@ -76,4 +104,94 @@ func (s *bookingService) ListArtisans(ctx context.Context, specialty, location s
 
 func (s *bookingService) ConfirmBooking(ctx context.Context, bookingID string) error {
 	return s.repo.UpdateBookingStatus(ctx, bookingID, "confirmed")
+}
+
+func (s *bookingService) ListMyBookings(ctx context.Context, userID string) ([]domain.Booking, error) {
+	// If the user owns an artisan profile, surface their incoming bookings;
+	// otherwise surface the bookings they made as a buyer. The artisan lookup
+	// goes through the service's db handle so the repository port stays frozen.
+	var artisan domain.Artisan
+	err := s.db.WithContext(ctx).Where("user_id = ?", userID).First(&artisan).Error
+	if err == nil {
+		return s.repo.ListBookingsByArtisan(ctx, artisan.ID)
+	}
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, err
+	}
+	return s.repo.ListBookingsByBuyer(ctx, userID)
+}
+
+func (s *bookingService) OnboardArtisan(ctx context.Context, userID string, artisan *domain.Artisan) (*domain.Artisan, error) {
+	existing, err := s.repo.GetArtisanByUserID(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check existing artisan profile: %w", err)
+	}
+
+	tx := s.db.WithContext(ctx).Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	if existing != nil {
+		existing.Specialty = artisan.Specialty
+		existing.Craft = artisan.Craft
+		existing.Studio = artisan.Studio
+		existing.PriceFrom = artisan.PriceFrom
+		existing.Location = artisan.Location
+		existing.City = artisan.City
+		existing.Area = artisan.Area
+		existing.Bio = artisan.Bio
+		existing.Available = true
+
+		if err := tx.Save(existing).Error; err != nil {
+			tx.Rollback()
+			return nil, fmt.Errorf("failed to update artisan profile: %w", err)
+		}
+		artisan = existing
+	} else {
+		artisan.UserID = userID
+		artisan.Rating = 5.0
+		artisan.JobsCompleted = 0
+		artisan.Verified = false
+		artisan.Available = true
+		artisan.Slug = strings.ToLower(strings.ReplaceAll(artisan.Studio, " ", "-"))
+		
+		tints := [][]string{
+			{"#ec4899", "#8b5cf6"},
+			{"#3b82f6", "#10b981"},
+			{"#f59e0b", "#ef4444"},
+		}
+		selectedTint := tints[rand.Intn(len(tints))]
+		artisan.BgColor = selectedTint[0]
+		artisan.FgColor = selectedTint[1]
+
+		if err := tx.Create(artisan).Error; err != nil {
+			tx.Rollback()
+			return nil, fmt.Errorf("failed to create artisan profile: %w", err)
+		}
+	}
+
+	if err := tx.Model(&domain.User{}).Where("id = ?", userID).Update("role", "artisan").Error; err != nil {
+		tx.Rollback()
+		return nil, fmt.Errorf("failed to update user role: %w", err)
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return nil, fmt.Errorf("transaction commit failed: %w", err)
+	}
+
+	return s.repo.GetArtisanByID(ctx, artisan.ID)
+}
+
+func (s *bookingService) OnboardSeller(ctx context.Context, userID string, cacNumber string) error {
+	return s.db.WithContext(ctx).Model(&domain.User{}).Where("id = ?", userID).Updates(map[string]interface{}{
+		"role":       "seller",
+		"cac_number": cacNumber,
+	}).Error
+}
+
+func (s *bookingService) GetArtisanByUserID(ctx context.Context, userID string) (*domain.Artisan, error) {
+	return s.repo.GetArtisanByUserID(ctx, userID)
 }

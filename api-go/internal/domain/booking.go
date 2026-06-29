@@ -6,19 +6,28 @@ import (
 )
 
 type Artisan struct {
-	ID             uint      `gorm:"primaryKey;autoIncrement" json:"id"`
-	UserID         string    `gorm:"type:uuid;not null" json:"user_id"`
-	User           User      `gorm:"foreignKey:UserID" json:"user"`
-	Specialty      string    `gorm:"type:varchar(100);not null" json:"specialty" binding:"required"`
-	PriceFrom      int64     `gorm:"type:bigint;not null" json:"price_from" binding:"required"` // stored in Kobo
-	Location       string    `gorm:"type:varchar(150);not null" json:"location" binding:"required"`
-	Experience     string    `gorm:"type:varchar(50)" json:"experience"`
-	JobsCompleted  int       `gorm:"type:integer;default:0" json:"jobs_completed"`
-	Available      bool      `gorm:"type:boolean;default:true" json:"available"`
-	BgColor        string    `gorm:"type:varchar(10)" json:"bg_color"`
-	Bio            string    `gorm:"type:text" json:"bio"`
-	CreatedAt      time.Time `json:"created_at"`
-	UpdatedAt      time.Time `json:"updated_at"`
+	ID            uint        `gorm:"primaryKey;autoIncrement" json:"id"`
+	UserID        string      `gorm:"type:uuid;not null" json:"user_id"`
+	User          User        `gorm:"foreignKey:UserID" json:"user"`
+	Slug          string      `gorm:"type:varchar(150);index" json:"slug"`
+	Specialty     string      `gorm:"type:varchar(100);not null;index:idx_artisan_search" json:"specialty" binding:"required"`
+	Craft         string      `gorm:"type:varchar(100)" json:"craft"`
+	Studio        string      `gorm:"type:varchar(150)" json:"studio"`
+	PriceFrom     int64       `gorm:"type:bigint;not null" json:"price_from" binding:"required"` // stored in Kobo
+	Location      string      `gorm:"type:varchar(150);not null;index:idx_artisan_search" json:"location" binding:"required"`
+	City          string      `gorm:"type:varchar(80)" json:"city"`
+	Area          string      `gorm:"type:varchar(120)" json:"area"`
+	Experience    string      `gorm:"type:varchar(50)" json:"experience"`
+	Rating        float64     `gorm:"type:decimal(2,1);default:0.0" json:"rating"`
+	JobsCompleted int         `gorm:"type:integer;default:0" json:"jobs_completed"`
+	Verified      bool        `gorm:"type:boolean;default:false" json:"verified"`
+	Available     bool        `gorm:"type:boolean;default:true" json:"available"`
+	BgColor       string      `gorm:"type:varchar(10)" json:"bg_color"`
+	FgColor       string      `gorm:"type:varchar(10)" json:"fg_color"`
+	Bio           string      `gorm:"type:text" json:"bio"`
+	Services      ServiceList `gorm:"type:text" json:"services"`
+	CreatedAt     time.Time   `json:"created_at"`
+	UpdatedAt     time.Time   `json:"updated_at"`
 }
 
 type BookingSlot struct {
@@ -51,10 +60,12 @@ type BookingRepository interface {
 	ListBookingsByBuyer(ctx context.Context, buyerID string) ([]Booking, error)
 	ListBookingsByArtisan(ctx context.Context, artisanID uint) ([]Booking, error)
 	GetArtisanByID(ctx context.Context, id uint) (*Artisan, error)
+	GetArtisanByUserID(ctx context.Context, userID string) (*Artisan, error)
 	ListArtisans(ctx context.Context, specialty, location string) ([]Artisan, error)
 	GetAvailableSlots(ctx context.Context, artisanID uint, date time.Time) ([]BookingSlot, error)
 	ReserveSlot(ctx context.Context, artisanID uint, date time.Time, slotTime string) error
 	UpdateBookingStatus(ctx context.Context, id string, status string) error
+	SaveArtisan(ctx context.Context, artisan *Artisan) error
 }
 
 type BookingService interface {
@@ -62,4 +73,8 @@ type BookingService interface {
 	GetArtisanProfile(ctx context.Context, artisanID uint) (*Artisan, []BookingSlot, error)
 	ListArtisans(ctx context.Context, specialty, location string) ([]Artisan, error)
 	ConfirmBooking(ctx context.Context, bookingID string) error
+	ListMyBookings(ctx context.Context, userID string) ([]Booking, error)
+	OnboardArtisan(ctx context.Context, userID string, artisan *Artisan) (*Artisan, error)
+	OnboardSeller(ctx context.Context, userID string, cacNumber string) error
+	GetArtisanByUserID(ctx context.Context, userID string) (*Artisan, error)
 }

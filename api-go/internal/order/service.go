@@ -7,6 +7,7 @@ import (
 	"math/rand"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 	"luxebeau/internal/domain"
 )
 
@@ -41,8 +42,8 @@ func (s *orderService) CreateCheckout(ctx context.Context, buyerID string, items
 
 	for _, item := range items {
 		var prod domain.Product
-		// Lock the row for update to prevent race conditions
-		if err := tx.Set("gorm:query_option", "FOR UPDATE").First(&prod, item.ProductID).Error; err != nil {
+		// Lock the row for update to prevent race conditions (native GORM v2 clause)
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&prod, item.ProductID).Error; err != nil {
 			tx.Rollback()
 			return nil, fmt.Errorf("product %d not found", item.ProductID)
 		}
@@ -92,6 +93,24 @@ func (s *orderService) CreateCheckout(ctx context.Context, buyerID string, items
 		Phone:          phone,
 	}
 
+	if payMethod == "wallet" {
+		var wallet domain.Wallet
+		if err := tx.Where("user_id = ?", buyerID).First(&wallet).Error; err != nil {
+			tx.Rollback()
+			return nil, fmt.Errorf("wallet not found for buyer")
+		}
+		if wallet.Balance < order.Total {
+			tx.Rollback()
+			return nil, fmt.Errorf("insufficient wallet balance (available: %d kobo, required: %d kobo)", wallet.Balance, order.Total)
+		}
+		wallet.Balance -= order.Total
+		if err := tx.Save(&wallet).Error; err != nil {
+			tx.Rollback()
+			return nil, fmt.Errorf("failed to deduct wallet balance: %w", err)
+		}
+		order.PaymentStatus = "paid"
+	}
+
 	if err := tx.Create(order).Error; err != nil {
 		tx.Rollback()
 		return nil, fmt.Errorf("failed to create order: %w", err)
@@ -107,6 +126,10 @@ func (s *orderService) CreateCheckout(ctx context.Context, buyerID string, items
 
 func (s *orderService) GetOrderDetails(ctx context.Context, orderID string) (*domain.Order, error) {
 	return s.orderRepo.GetOrderByID(ctx, orderID)
+}
+
+func (s *orderService) ListMyOrders(ctx context.Context, buyerID string) ([]domain.Order, error) {
+	return s.orderRepo.ListOrdersByBuyer(ctx, buyerID)
 }
 
 func (s *orderService) ProcessPaystackWebhook(ctx context.Context, reference string, status string) error {

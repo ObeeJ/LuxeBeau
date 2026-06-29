@@ -51,6 +51,16 @@ func (h *BookingHandler) CreateBooking(c *gin.Context) {
 	response.Created(c, gin.H{"booking": b})
 }
 
+func (h *BookingHandler) ListMyBookings(c *gin.Context) {
+	userID, _ := c.Get("userID")
+	bookings, err := h.service.ListMyBookings(c.Request.Context(), userID.(string))
+	if err != nil {
+		response.InternalError(c, "Failed to fetch bookings")
+		return
+	}
+	response.OK(c, gin.H{"bookings": bookings})
+}
+
 func (h *BookingHandler) ListArtisans(c *gin.Context) {
 	specialty := c.Query("specialty")
 	location := c.Query("location")
@@ -87,4 +97,85 @@ func (h *BookingHandler) ConfirmBooking(c *gin.Context) {
 		return
 	}
 	response.OK(c, gin.H{"message": "Booking confirmed"})
+}
+
+type OnboardArtisanRequest struct {
+	Specialty string `json:"specialty" binding:"required"`
+	Craft     string `json:"craft" binding:"required"`
+	Studio    string `json:"studio" binding:"required"`
+	PriceFrom int64  `json:"price_from" binding:"required"`
+	Location  string `json:"location" binding:"required"`
+	City      string `json:"city" binding:"required"`
+	Area      string `json:"area" binding:"required"`
+	Bio       string `json:"bio"`
+}
+
+type OnboardSellerRequest struct {
+	CACNumber string `json:"cac_number" binding:"required"`
+}
+
+func (h *BookingHandler) OnboardArtisan(c *gin.Context) {
+	var req OnboardArtisanRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+
+	userID, _ := c.Get("userID")
+
+	artisan := domain.Artisan{
+		Specialty: req.Specialty,
+		Craft:     req.Craft,
+		Studio:    req.Studio,
+		PriceFrom: req.PriceFrom * 100, // Convert to Kobo
+		Location:  req.Location,
+		City:      req.City,
+		Area:      req.Area,
+		Bio:       req.Bio,
+	}
+
+	profile, err := h.service.OnboardArtisan(c.Request.Context(), userID.(string), &artisan)
+	if err != nil {
+		response.InternalError(c, err.Error())
+		return
+	}
+
+	response.OK(c, gin.H{
+		"message": "Artisan onboarded successfully",
+		"profile": profile,
+	})
+}
+
+func (h *BookingHandler) OnboardSeller(c *gin.Context) {
+	var req OnboardSellerRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+
+	userID, _ := c.Get("userID")
+
+	err := h.service.OnboardSeller(c.Request.Context(), userID.(string), req.CACNumber)
+	if err != nil {
+		response.InternalError(c, err.Error())
+		return
+	}
+
+	response.OK(c, gin.H{
+		"message": "Seller onboarded successfully",
+	})
+}
+
+func (h *BookingHandler) GetMyArtisanProfile(c *gin.Context) {
+	userID, _ := c.Get("userID")
+	artisan, err := h.service.GetArtisanByUserID(c.Request.Context(), userID.(string))
+	if err != nil {
+		response.InternalError(c, "Failed to fetch artisan profile")
+		return
+	}
+	if artisan == nil {
+		response.NotFound(c, "Artisan profile not found")
+		return
+	}
+	response.OK(c, gin.H{"artisan": artisan})
 }

@@ -6,20 +6,24 @@ import (
 )
 
 type Product struct {
-	ID            uint      `gorm:"primaryKey;autoIncrement" json:"id"`
-	Name          string    `gorm:"type:varchar(255);not null" json:"name" binding:"required"`
-	Brand         string    `gorm:"type:varchar(100);not null" json:"brand" binding:"required"`
-	Price         int64     `gorm:"type:bigint;not null" json:"price" binding:"required"` // Price stored in Kobo (100 kobo = ₦1)
-	OriginalPrice int64     `gorm:"type:bigint" json:"original_price"`
-	Category      string    `gorm:"type:varchar(50);not null" json:"category" binding:"required"`
-	Stock         int       `gorm:"type:integer;default:0;not null" json:"stock"`
-	Rating        float64   `gorm:"type:decimal(2,1);default:0.0" json:"rating"`
-	ReviewsCount  int       `gorm:"type:integer;default:0" json:"reviews_count"`
-	Badge         string    `gorm:"type:varchar(50)" json:"badge"`
-	BgColor       string    `gorm:"type:varchar(10)" json:"bg_color"`
-	FgColor       string    `gorm:"type:varchar(10)" json:"fg_color"`
-	CreatedAt     time.Time `json:"created_at"`
-	UpdatedAt     time.Time `json:"updated_at"`
+	ID            uint        `gorm:"primaryKey;autoIncrement" json:"id"`
+	SellerID      string      `gorm:"type:uuid;index" json:"seller_id"` // owning seller (User.ID)
+	Slug          string      `gorm:"type:varchar(255);index" json:"slug"`
+	Name          string      `gorm:"type:varchar(255);not null" json:"name" binding:"required"`
+	Brand         string      `gorm:"type:varchar(100);not null" json:"brand" binding:"required"`
+	Price         int64       `gorm:"type:bigint;not null" json:"price" binding:"required"` // Price stored in Kobo (100 kobo = ₦1)
+	OriginalPrice int64       `gorm:"type:bigint" json:"original_price"`
+	Category      string      `gorm:"type:varchar(50);not null" json:"category" binding:"required"`
+	Stock         int         `gorm:"type:integer;default:0;not null" json:"stock"`
+	Rating        float64     `gorm:"type:decimal(2,1);default:0.0" json:"rating"`
+	ReviewsCount  int         `gorm:"type:integer;default:0" json:"reviews_count"`
+	Badge         string      `gorm:"type:varchar(50)" json:"badge"`
+	Blurb         string      `gorm:"type:text" json:"blurb"`
+	Details       StringArray `gorm:"type:text" json:"details"`
+	BgColor       string      `gorm:"type:varchar(10)" json:"bg_color"`
+	FgColor       string      `gorm:"type:varchar(10)" json:"fg_color"`
+	CreatedAt     time.Time   `json:"created_at"`
+	UpdatedAt     time.Time   `json:"updated_at"`
 }
 
 type ProductRepository interface {

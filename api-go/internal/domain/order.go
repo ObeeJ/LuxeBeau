@@ -47,5 +47,6 @@ type OrderService interface {
 		Qty       int  `json:"qty"`
 	}, address, city, state, phone, payMethod string) (*Order, error)
 	GetOrderDetails(ctx context.Context, orderID string) (*Order, error)
+	ListMyOrders(ctx context.Context, buyerID string) ([]Order, error)
 	ProcessPaystackWebhook(ctx context.Context, reference string, status string) error
 }

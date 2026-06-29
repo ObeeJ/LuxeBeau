@@ -100,9 +100,81 @@ func AuthMiddleware(service domain.UserService) gin.HandlerFunc {
 			return
 		}
 
+		if user.Status == "suspended" {
+			response.Fail(c, 403, "ACCOUNT_SUSPENDED", "Your account has been suspended.")
+			c.Abort()
+			return
+		}
+
 		c.Set("user", user)
 		c.Set("userID", user.ID)
 		c.Set("userRole", user.Role)
 		c.Next()
 	}
+}
+
+// RequireRole gates a route to one or more roles. It must run after
+// AuthMiddleware (which injects "userRole"). Admin-only routes use this so the
+// admin surface is never reachable by buyers, sellers or artisans.
+func RequireRole(roles ...string) gin.HandlerFunc {
+	allowed := make(map[string]bool, len(roles))
+	for _, r := range roles {
+		allowed[r] = true
+	}
+	return func(c *gin.Context) {
+		role, _ := c.Get("userRole")
+		roleStr, _ := role.(string)
+		if !allowed[roleStr] {
+			response.Fail(c, 403, "FORBIDDEN", "You do not have access to this resource.")
+			c.Abort()
+			return
+		}
+		c.Next()
+	}
+}
+
+func (h *AuthHandler) GetWallet(c *gin.Context) {
+	userID, exists := c.Get("userID")
+	if !exists {
+		response.Unauthorized(c, "Not authenticated")
+		return
+	}
+
+	wallet, err := h.service.GetWallet(c.Request.Context(), userID.(string))
+	if err != nil {
+		h.logger.Error("Failed to fetch wallet", slog.Any("error", err))
+		response.InternalError(c, "Failed to fetch wallet")
+		return
+	}
+
+	response.OK(c, gin.H{"wallet": wallet})
+}
+
+type CreditWalletRequest struct {
+	Amount int64 `json:"amount" binding:"required,gt=0"`
+}
+
+func (h *AuthHandler) CreditWallet(c *gin.Context) {
+	userID, exists := c.Get("userID")
+	if !exists {
+		response.Unauthorized(c, "Not authenticated")
+		return
+	}
+
+	var req CreditWalletRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+
+	err := h.service.CreditWallet(c.Request.Context(), userID.(string), req.Amount)
+	if err != nil {
+		h.logger.Error("Failed to credit wallet", slog.Any("error", err))
+		response.InternalError(c, "Failed to credit wallet")
+		return
+	}
+
+	// Fetch updated wallet
+	wallet, _ := h.service.GetWallet(c.Request.Context(), userID.(string))
+	response.OK(c, gin.H{"message": "Wallet credited successfully", "wallet": wallet})
 }

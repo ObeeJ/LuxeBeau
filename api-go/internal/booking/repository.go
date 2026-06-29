@@ -95,3 +95,18 @@ func (r *gormBookingRepository) ReserveSlot(ctx context.Context, artisanID uint,
 func (r *gormBookingRepository) UpdateBookingStatus(ctx context.Context, id string, status string) error {
 	return r.db.WithContext(ctx).Model(&domain.Booking{}).Where("id = ?", id).Update("status", status).Error
 }
+
+func (r *gormBookingRepository) GetArtisanByUserID(ctx context.Context, userID string) (*domain.Artisan, error) {
+	var a domain.Artisan
+	if err := r.db.WithContext(ctx).Preload("User").Where("user_id = ?", userID).First(&a).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &a, nil
+}
+
+func (r *gormBookingRepository) SaveArtisan(ctx context.Context, artisan *domain.Artisan) error {
+	return r.db.WithContext(ctx).Save(artisan).Error
+}

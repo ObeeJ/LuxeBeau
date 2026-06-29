@@ -9,12 +9,17 @@ import (
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 
+	"luxebeau/internal/admin"
 	"luxebeau/internal/auth"
 	"luxebeau/internal/booking"
 	"luxebeau/internal/catalog"
 	"luxebeau/internal/domain"
+	"luxebeau/internal/escrow"
+	"luxebeau/internal/kyc"
 	"luxebeau/internal/middleware"
 	"luxebeau/internal/order"
+	"luxebeau/internal/seed"
+	"luxebeau/internal/seller"
 )
 
 func main() {
@@ -26,7 +31,12 @@ func main() {
 	// ── Environment ─────────────────────────────────────────
 	port := envOrDefault("PORT", "8080")
 	dbURL := envOrDefault("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/luxebeau?sslmode=disable")
-	jwtSecret := envOrDefault("JWT_SECRET", "luxebeau-dev-secret-change-in-prod")
+	
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		logger.Error("FATAL: JWT_SECRET environment variable is not set. Server execution halted.")
+		os.Exit(1)
+	}
 
 	// ── Database (GORM + Supabase PostgreSQL) ───────────────
 	db, err := gorm.Open(postgres.Open(dbURL), &gorm.Config{})
@@ -44,36 +54,66 @@ func main() {
 	// ── Auto-Migrate ────────────────────────────────────────
 	if err := db.AutoMigrate(
 		&domain.User{},
+		&domain.Wallet{},
 		&domain.Product{},
 		&domain.Artisan{},
 		&domain.BookingSlot{},
 		&domain.Booking{},
 		&domain.Order{},
 		&domain.OrderItem{},
+		&domain.Escrow{},
+		&domain.LedgerEntry{},
 	); err != nil {
 		logger.Error("Auto-migration failed", slog.Any("error", err))
 		os.Exit(1)
 	}
 	logger.Info("Database migrations completed")
 
+	// ── Seed catalogue (idempotent) ─────────────────────────
+	if err := seed.Run(db, logger); err != nil {
+		logger.Error("Catalogue seed failed", slog.Any("error", err))
+	}
+
+	// ── Seed Database ───────────────────────────────────────
+	seedDatabase(db, logger)
+
 	// ── Dependency Injection Wiring ─────────────────────────
 	// Repositories (data access layer)
 	userRepo := auth.NewGormUserRepository(db)
+	walletRepo := auth.NewGormWalletRepository(db)
 	productRepo := catalog.NewGormProductRepository(db)
 	bookingRepo := booking.NewGormBookingRepository(db)
 	orderRepo := order.NewGormOrderRepository(db)
 
 	// Services (business logic layer)
-	authService := auth.NewAuthService(userRepo, jwtSecret, logger)
+	authService := auth.NewAuthService(userRepo, walletRepo, jwtSecret, logger)
 	catalogService := catalog.NewCatalogService(productRepo, logger)
-	bookingService := booking.NewBookingService(bookingRepo, logger)
+	bookingService := booking.NewBookingService(bookingRepo, db, logger)
 	orderService := order.NewOrderService(orderRepo, productRepo, db, logger)
+
+	// Admin (internal governance) + KYC (identity verification)
+	adminRepo := admin.NewGormRepository(db)
+	adminService := admin.NewService(adminRepo, logger)
+	premblyProvider := kyc.NewPremblyProvider(os.Getenv("PREMBLY_API_KEY"), os.Getenv("PREMBLY_APP_ID"), logger)
+	kycService := kyc.NewService(premblyProvider, db, logger)
 
 	// Handlers (HTTP presentation layer)
 	authHandler := auth.NewAuthHandler(authService, logger)
 	catalogHandler := catalog.NewCatalogHandler(catalogService, logger)
 	bookingHandler := booking.NewBookingHandler(bookingService, logger)
 	orderHandler := order.NewOrderHandler(orderService, logger)
+	adminHandler := admin.NewHandler(adminService, logger)
+	kycHandler := kyc.NewHandler(kycService, logger)
+
+	// Seller surface (manage own products + view own sales)
+	sellerService := seller.NewService(seller.NewGormRepository(db), logger)
+	sellerHandler := seller.NewHandler(sellerService, logger)
+
+	// Escrow engine (held funds; wallet rail live, cNGN stub; WhatsApp notifier)
+	escrowRails := escrow.NewRegistry(escrow.NewWalletSettlement(logger), escrow.NewCNGNSettlement(logger))
+	escrowNotifier := escrow.NewWhatsAppNotifier(os.Getenv("WHATSAPP_TOKEN"), os.Getenv("WHATSAPP_PHONE_ID"), logger)
+	escrowService := escrow.NewService(escrow.NewGormRepository(db), escrowRails, escrowNotifier, logger)
+	escrowHandler := escrow.NewHandler(escrowService, logger)
 
 	// ── Router ──────────────────────────────────────────────
 	gin.SetMode(gin.ReleaseMode)
@@ -90,9 +130,9 @@ func main() {
 	// ── Public Routes ───────────────────────────────────────
 	v1 := r.Group("/api/v1")
 	{
-		// Auth
-		v1.POST("/auth/register", authHandler.Register)
-		v1.POST("/auth/login", authHandler.Login)
+		// Auth (Rate Limited to 5 req/sec burst 10 to protect logins/register)
+		v1.POST("/auth/register", middleware.RateLimiter(5, 10), authHandler.Register)
+		v1.POST("/auth/login", middleware.RateLimiter(5, 10), authHandler.Login)
 
 		// Public Catalog
 		v1.GET("/products", catalogHandler.ListProducts)
@@ -104,6 +144,9 @@ func main() {
 
 		// Paystack Webhook (no auth)
 		v1.POST("/webhooks/paystack", orderHandler.PaystackWebhook)
+		v1.POST("/webhooks/flutterwave", orderHandler.FlutterwaveWebhook)
+		v1.POST("/webhooks/monnify", orderHandler.MonnifyWebhook)
+		v1.POST("/webhooks/crypto", orderHandler.CryptoWebhook)
 	}
 
 	// ── Protected Routes ────────────────────────────────────
@@ -116,13 +159,64 @@ func main() {
 		// Products (seller/admin only — can add middleware later)
 		protected.POST("/products", catalogHandler.CreateProduct)
 
-		// Bookings
-		protected.POST("/bookings", bookingHandler.CreateBooking)
+		// Bookings (Rate Limited to 2 req/sec burst 5 to protect scheduler state)
+		protected.POST("/bookings", middleware.RateLimiter(2, 5), bookingHandler.CreateBooking)
 		protected.PATCH("/bookings/:id/confirm", bookingHandler.ConfirmBooking)
 
 		// Orders
 		protected.POST("/orders", orderHandler.CreateOrder)
 		protected.GET("/orders/:id", orderHandler.GetOrder)
+		protected.GET("/me/orders", orderHandler.ListMyOrders)
+
+		// Bookings (the signed-in user's own bookings, role-aware)
+		protected.GET("/me/bookings", bookingHandler.ListMyBookings)
+
+		// Identity verification (NIN/BVN via Prembly)
+		protected.POST("/me/kyc", kycHandler.Submit)
+		protected.POST("/me/artisan-onboard", bookingHandler.OnboardArtisan)
+		protected.POST("/me/seller-onboard", bookingHandler.OnboardSeller)
+		protected.GET("/me/artisan", bookingHandler.GetMyArtisanProfile)
+
+		// ── Escrow (held funds + B2B2C escrow links) ─────────
+		protected.GET("/escrows", escrowHandler.List)
+		protected.POST("/escrows", escrowHandler.Create)
+		protected.GET("/escrows/:id", escrowHandler.Get)
+		protected.POST("/escrows/:id/fund", escrowHandler.Fund)
+		protected.POST("/escrows/:id/release", escrowHandler.Release)
+		protected.POST("/escrows/:id/refund", escrowHandler.Refund)
+		protected.POST("/escrows/:id/dispute", escrowHandler.Dispute)
+
+		// ── Seller surface (own products + sales) ────────────
+		sellerGroup := protected.Group("/me")
+		sellerGroup.Use(auth.RequireRole("seller", "admin"))
+		{
+			sellerGroup.GET("/products", sellerHandler.ListProducts)
+			sellerGroup.POST("/products", sellerHandler.CreateProduct)
+			sellerGroup.PATCH("/products/:id", sellerHandler.UpdateProduct)
+			sellerGroup.DELETE("/products/:id", sellerHandler.DeleteProduct)
+			sellerGroup.GET("/sales", sellerHandler.ListSales)
+		}
+
+		// ── Admin console (internal only) ────────────────────
+		adminGroup := protected.Group("/admin")
+		adminGroup.Use(auth.RequireRole("admin"))
+		{
+			adminGroup.GET("/users", adminHandler.ListUsers)
+			adminGroup.GET("/users/:id", adminHandler.GetUser)
+			adminGroup.PATCH("/users/:id", adminHandler.UpdateUser)
+			adminGroup.POST("/users/:id/verify", adminHandler.VerifyUser)
+			adminGroup.DELETE("/users/:id", adminHandler.DeleteUser)
+			adminGroup.GET("/products", adminHandler.ListProducts)
+			adminGroup.DELETE("/products/:id", adminHandler.DeleteProduct)
+			adminGroup.GET("/orders", adminHandler.ListOrders)
+			adminGroup.GET("/bookings", adminHandler.ListBookings)
+			adminGroup.GET("/escrows", escrowHandler.AdminList)
+			adminGroup.POST("/escrows/:id/resolve", escrowHandler.AdminResolve)
+		}
+
+		// Wallets
+		protected.GET("/wallets/me", authHandler.GetWallet)
+		protected.POST("/wallets/credit", authHandler.CreditWallet)
 	}
 
 	// ── Start Server ────────────────────────────────────────
