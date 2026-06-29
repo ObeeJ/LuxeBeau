@@ -1,0 +1,10 @@
+# Go Binaries and Build Artifacts
+api
+/api
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
