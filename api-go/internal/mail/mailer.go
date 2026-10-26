@@ -105,7 +105,23 @@ func (m *Mailer) SendVerificationCode(ctx context.Context, to, name, code string
 		Subject:    fmt.Sprintf("%s is your LuxeBeau code", code),
 		Preheader:  "Enter this code to confirm your email. It expires in 10 minutes.",
 		FooterNote: "You received this because someone used this address to create a LuxeBeau account.",
-		Data:       map[string]string{"Name": firstName(name), "Code": code},
+		Data: map[string]string{"Name": firstName(name), "Code": code, "Heading": "Confirm your email",
+			"Intro":    "enter this code on LuxeBeau to finish setting up your account.",
+			"Footnote": "The code expires in 10 minutes. If you didn't try to sign up, you can ignore this email; no account is active until the code is entered."},
+	}, text)
+}
+
+// SendLoginCode is the second step of an admin sign-in. Synchronous: the
+// sign-in can't finish without it.
+func (m *Mailer) SendLoginCode(ctx context.Context, to, name, code string) error {
+	text := fmt.Sprintf("Hi %s,\n\nYour LuxeBeau admin sign-in code is %s.\nIt expires in 10 minutes.\n\nIf this wasn't you, someone has your password: change it now.\n", firstName(name), code)
+	return m.send(ctx, to, "verify_code", page{
+		Subject:    fmt.Sprintf("%s is your LuxeBeau sign-in code", code),
+		Preheader:  "Admin sign-in code. It expires in 10 minutes.",
+		FooterNote: "You received this because someone signed in to a LuxeBeau admin account with this address.",
+		Data: map[string]string{"Name": firstName(name), "Code": code, "Heading": "Admin sign-in",
+			"Intro":    "enter this code to finish signing in to LuxeBeau admin.",
+			"Footnote": "The code expires in 10 minutes. If you didn't just sign in, someone has your password: change it now and tell the team."},
 	}, text)
 }
 
@@ -226,6 +242,53 @@ func (m *Mailer) BookingConfirmed(ctx context.Context, to, name string, b Bookin
 		Data: map[string]any{"Heading": "Your booking is confirmed", "Intro": intro, "Summary": rows,
 			"Button": Button{"View your bookings", m.appURL + "/dashboard"}},
 	}, bookingText(intro, rows, m.appURL+"/dashboard"))
+}
+
+// notice sends a short message using the generic heading/intro/summary
+// layout (templates/booking.html).
+func (m *Mailer) notice(ctx context.Context, to string, p page, heading, intro string, rows []Row, note string, button Button) error {
+	p.Data = map[string]any{"Heading": heading, "Intro": intro, "Summary": rows, "Note": note, "Button": button}
+	return m.send(ctx, to, "booking", p, bookingText(intro, rows, button.URL))
+}
+
+// PartnerApproved tells a seller or artisan an admin approved them.
+func (m *Mailer) PartnerApproved(ctx context.Context, to, name, role string) error {
+	what, link := "your products are now live in the shop", m.appURL+"/dashboard/seller"
+	if role == "artisan" {
+		what, link = "your profile is now live and clients can book you", m.appURL+"/dashboard/artisan"
+	}
+	intro := fmt.Sprintf("Hi %s, you're approved: %s.", firstName(name), what)
+	return m.notice(ctx, to, page{
+		Subject:    "You're approved on LuxeBeau",
+		Preheader:  "Your partner account is live.",
+		FooterNote: "You received this because you applied to sell or work on LuxeBeau.",
+	}, "You're approved", intro, nil, "", Button{"Open your studio", link})
+}
+
+// FulfilmentEmail describes a seller's progress on part of an order.
+type FulfilmentEmail struct {
+	OrderID string
+	Stage   string // shipped or delivered
+	Seller  string
+	Items   []string
+	Note    string
+}
+
+// OrderProgress tells the buyer some of their items shipped or arrived.
+func (m *Mailer) OrderProgress(ctx context.Context, to, name string, f FulfilmentEmail) error {
+	heading, subject, intro := "On its way", "Order %s has shipped", "Hi %s, %s has sent your items."
+	if f.Stage == "delivered" {
+		heading, subject, intro = "Delivered", "Order %s was delivered", "Hi %s, %s marked your items as delivered."
+	}
+	rows := []Row{{"Order", f.OrderID}, {"Items", strings.Join(f.Items, ", ")}}
+	if f.Note != "" {
+		rows = append(rows, Row{"Tracking", f.Note})
+	}
+	return m.notice(ctx, to, page{
+		Subject:    fmt.Sprintf(subject, f.OrderID),
+		Preheader:  strings.Join(f.Items, ", "),
+		FooterNote: "You received this because you placed an order on LuxeBeau.",
+	}, heading, fmt.Sprintf(intro, firstName(name), f.Seller), rows, "", Button{"View your order", m.appURL + "/dashboard"})
 }
 
 func firstName(name string) string {

@@ -39,6 +39,7 @@ function Field({ id, label, error, children }: { id: string; label: string; erro
 function ArtisanForm({ existing }: { existing?: Artisan }) {
   const router = useRouter();
   const updateUser = useAuth(s => s.updateUser);
+  const currentRole = useAuth(s => s.user?.role);
   const onboard = useOnboardArtisan();
 
   const [specialty, setSpecialty] = useState<string>(SPECIALTIES[0]);
@@ -79,7 +80,8 @@ function ArtisanForm({ existing }: { existing?: Artisan }) {
       },
       {
         onSuccess: () => {
-          updateUser({ role: "artisan" });
+          // A new partner role goes to admin review (api-go booking.becomePartner).
+          updateUser({ role: "artisan", ...(currentRole !== "artisan" && { verified: false }) });
           router.push("/dashboard/artisan");
         },
         onError: err => setErrors({ form: getFriendlyErrorMessage(err, "We couldn't save your profile. Please try again.") }),
@@ -167,7 +169,8 @@ export default function ArtisanOnboarding() {
         body="Braiders, gele artists, makeup artists, barbers, nail techs and estheticians."
         points={[
           "Clients find you by craft, city and whether you visit them at home.",
-          "Clients request open slots; you confirm them from your artisan studio.",
+          "Set your services and weekly hours; clients request open times and you confirm them.",
+          "We review new artisans before your profile goes live.",
           "Every confirmed job adds to the count clients see on your profile.",
         ]}
       >

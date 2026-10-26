@@ -46,6 +46,7 @@ func (m *mockUserRepo) GetByEmail(ctx context.Context, email string) (*domain.Us
 type noopCodes struct{}
 
 func (noopCodes) SendVerificationCode(context.Context, string, string, string) error { return nil }
+func (noopCodes) SendLoginCode(context.Context, string, string, string) error        { return nil }
 
 func TestE2EPaymentIntegration(t *testing.T) {
 	// 1. Setup SQLite in-memory DB
@@ -107,11 +108,16 @@ func TestE2EPaymentIntegration(t *testing.T) {
 	}
 
 	// 6. Seed a Product (Luxe Facial Cleanser, price: ₦12,500 = 1,250,000 kobo, stock: 5)
+	seller := &domain.User{ID: "e2e-seller", Name: "Seller", Email: "e2e-seller@test.ng", Role: "seller", Verified: true}
+	if err := db.Create(seller).Error; err != nil {
+		t.Fatalf("failed to seed seller: %v", err)
+	}
 	prod := &domain.Product{
-		Name:  "Luxe Facial Cleanser",
-		Brand: "LuxeBeau",
-		Price: 1250000,
-		Stock: 5,
+		SellerID: seller.ID,
+		Name:     "Luxe Facial Cleanser",
+		Brand:    "LuxeBeau",
+		Price:    1250000,
+		Stock:    5,
 	}
 	if err := db.Create(prod).Error; err != nil {
 		t.Fatalf("failed to seed product: %v", err)

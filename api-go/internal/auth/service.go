@@ -35,11 +35,15 @@ var (
 	ErrInvalidCode        = errors.New("invalid or expired code")
 	ErrTooManyCodes       = errors.New("too many codes requested")
 	ErrInvalidInput       = errors.New("invalid input")
+	// ErrSecondFactorRequired: the password (or Google) step passed for an
+	// admin and a sign-in code was emailed; no session is issued yet.
+	ErrSecondFactorRequired = errors.New("second factor required")
 )
 
 // CodeSender delivers verification codes (implemented by the mail package).
 type CodeSender interface {
 	SendVerificationCode(ctx context.Context, to, name, code string) error
+	SendLoginCode(ctx context.Context, to, name, code string) error
 }
 
 // Service owns identity: registration, email verification, password and
@@ -228,6 +232,46 @@ func (s *Service) Login(ctx context.Context, email, password string) (*domain.Us
 		}
 		return nil, ErrEmailNotVerified
 	}
+	if user.Role == "admin" {
+		return user, s.requireSecondFactor(ctx, user)
+	}
+	return user, nil
+}
+
+// requireSecondFactor emails an admin a one-time sign-in code. It always
+// ends in ErrSecondFactorRequired unless the email can't be sent. If a code
+// went out in the last minute, that code stays valid and no new one is sent.
+func (s *Service) requireSecondFactor(ctx context.Context, user *domain.User) error {
+	code, err := s.otp.Issue(ctx, user.ID, PurposeAdminLogin)
+	if errors.Is(err, ErrTooManyCodes) {
+		return ErrSecondFactorRequired
+	}
+	if err != nil {
+		return fmt.Errorf("issue login code: %w", err)
+	}
+	if err := s.codes.SendLoginCode(ctx, user.Email, user.Name, code); err != nil {
+		return fmt.Errorf("send login code: %w", err)
+	}
+	return ErrSecondFactorRequired
+}
+
+// VerifyLogin completes an admin sign-in with the emailed code. Codes are
+// only issued after the password or Google step, so the code proves both.
+func (s *Service) VerifyLogin(ctx context.Context, email, code string) (*domain.User, error) {
+	email, err := normaliseEmail(email)
+	if err != nil {
+		return nil, ErrInvalidCode
+	}
+	user, err := s.repo.GetByEmail(ctx, email)
+	if err != nil || user.Role != "admin" {
+		return nil, ErrInvalidCode
+	}
+	if err := s.otp.Verify(ctx, user.ID, PurposeAdminLogin, code); err != nil {
+		return nil, ErrInvalidCode
+	}
+	if user.Status == "suspended" {
+		return nil, ErrAccountSuspended
+	}
 	return user, nil
 }
 
@@ -257,6 +301,9 @@ func (s *Service) GoogleSignIn(ctx context.Context, credential string) (*domain.
 		if user.Status == "suspended" {
 			return nil, ErrAccountSuspended
 		}
+		if user.Role == "admin" {
+			return &user, s.requireSecondFactor(ctx, &user)
+		}
 		return &user, nil
 	}
 	if !errors.Is(err, gorm.ErrRecordNotFound) {
@@ -274,6 +321,9 @@ func (s *Service) GoogleSignIn(ctx context.Context, credential string) (*domain.
 		existing.GoogleSub, existing.EmailVerified = &sub, true
 		if existing.Status == "suspended" {
 			return nil, ErrAccountSuspended
+		}
+		if existing.Role == "admin" {
+			return existing, s.requireSecondFactor(ctx, existing)
 		}
 		return existing, nil
 	}

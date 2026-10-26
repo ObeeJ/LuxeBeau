@@ -28,8 +28,14 @@ type Artisan struct {
 	FgColor       string      `gorm:"type:varchar(10)" json:"fg_color"`
 	Bio           string      `gorm:"type:text" json:"bio"`
 	Services      ServiceList `gorm:"type:text" json:"services"`
-	CreatedAt     time.Time   `json:"created_at"`
-	UpdatedAt     time.Time   `json:"updated_at"`
+	// Availability: weekly opening hours generate bookable start times of
+	// SlotMinutes each; DaysOff (YYYY-MM-DD) suppress whole days.
+	WeeklyHours  WeeklyHours `gorm:"type:text" json:"weekly_hours"`
+	SlotMinutes  int         `gorm:"type:integer;not null;default:60" json:"slot_minutes"`
+	DaysOff      StringArray `gorm:"type:text" json:"days_off"`
+	SlotsThrough *time.Time  `gorm:"type:date" json:"-"` // weekly slots exist up to this date
+	CreatedAt    time.Time   `json:"created_at"`
+	UpdatedAt    time.Time   `json:"updated_at"`
 }
 
 // Artisan service modes: where an artisan is willing to work.
@@ -57,6 +63,30 @@ type BookingSlot struct {
 	SlotDate  time.Time `gorm:"type:date;not null;uniqueIndex:idx_artisan_slot" json:"slot_date"`
 	SlotTime  string    `gorm:"type:varchar(10);not null;uniqueIndex:idx_artisan_slot" json:"slot_time"` // e.g. "14:00"
 	Reserved  bool      `gorm:"type:boolean;default:false" json:"reserved"`
+	Source    string    `gorm:"type:varchar(10);not null;default:'weekly'" json:"source"` // weekly or manual
+	BookingID string    `gorm:"type:varchar(50);index" json:"booking_id,omitempty"`
+}
+
+// AvailableDay lists the start times a service can be booked on one date.
+type AvailableDay struct {
+	Date  string   `json:"date"`
+	Times []string `json:"times"`
+}
+
+// Slot sources.
+const (
+	SlotWeekly = "weekly"
+	SlotManual = "manual"
+)
+
+// FindService returns the artisan's service with this exact name.
+func (a *Artisan) FindService(name string) (ArtisanService, bool) {
+	for _, s := range a.Services {
+		if s.Name == name {
+			return s, true
+		}
+	}
+	return ArtisanService{}, false
 }
 
 type Booking struct {
@@ -92,8 +122,13 @@ type BookingRepository interface {
 
 type BookingService interface {
 	BookService(ctx context.Context, buyerID string, artisanID uint, serviceName string, date time.Time, slotTime string, svcType string, address string) (*Booking, error)
-	GetArtisanProfile(ctx context.Context, artisanID uint) (*Artisan, []BookingSlot, error)
+	// GetArtisanProfile and ListArtisans are public: approved artisans only,
+	// with the account reduced to non-contact fields.
+	GetArtisanProfile(ctx context.Context, artisanID uint) (*Artisan, error)
 	ListArtisans(ctx context.Context, specialty, location string) ([]Artisan, error)
+	Availability(ctx context.Context, artisanID uint, serviceName string, days int) ([]AvailableDay, error)
+	// ArtisanUser returns the artisan's account for notifications.
+	ArtisanUser(ctx context.Context, artisanID uint) (*User, error)
 	ConfirmBooking(ctx context.Context, bookingID, actorID string, admin bool) (*Booking, error)
 	ListMyBookings(ctx context.Context, userID string) ([]Booking, error)
 	OnboardArtisan(ctx context.Context, userID string, artisan *Artisan) (*Artisan, error)

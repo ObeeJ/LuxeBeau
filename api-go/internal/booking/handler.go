@@ -96,14 +96,22 @@ func (h *BookingHandler) CreateBooking(c *gin.Context) {
 	case errors.Is(err, ErrArtisanNotFound):
 		response.NotFound(c, "Artisan not found")
 		return
+	case errors.Is(err, ErrServiceNotFound):
+		response.BadRequest(c, "Choose one of this artisan's services.")
+		return
+	case errors.Is(err, ErrDateInPast):
+		response.BadRequest(c, "Choose a date from today onwards.")
+		return
 	case err != nil:
-		h.logger.Error("create booking failed", slog.Any("error", err))
 		response.InternalError(c, "We couldn't reserve that slot. Please try again.")
 		return
 	}
 
 	if h.mailer != nil {
-		if artisan, _, aerr := h.service.GetArtisanProfile(c.Request.Context(), req.ArtisanID); aerr == nil && artisan != nil {
+		artisan, aerr := h.service.GetArtisanProfile(c.Request.Context(), req.ArtisanID)
+		account, uerr := h.service.ArtisanUser(c.Request.Context(), req.ArtisanID)
+		if aerr == nil && uerr == nil {
+			artisan.User = *account
 			info := bookingEmail(b, artisan, buyer.Name)
 			to, name := buyer.Email, buyer.Name
 			h.mailer.Go("booking_requested", func(ctx context.Context) error { return h.mailer.BookingRequested(ctx, to, name, info) })
@@ -147,13 +155,45 @@ func (h *BookingHandler) GetArtisanProfile(c *gin.Context) {
 		return
 	}
 
-	artisan, slots, err := h.service.GetArtisanProfile(c.Request.Context(), uint(id))
+	artisan, err := h.service.GetArtisanProfile(c.Request.Context(), uint(id))
 	if err != nil {
 		response.NotFound(c, "Artisan not found")
 		return
 	}
 
-	response.OK(c, gin.H{"artisan": artisan, "available_slots": slots})
+	response.OK(c, gin.H{"artisan": artisan})
+}
+
+// Availability: GET /artisans/:id/availability?service=&days=
+func (h *BookingHandler) Availability(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		response.BadRequest(c, "Invalid artisan ID")
+		return
+	}
+	service := c.Query("service")
+	if service == "" || len(service) > 80 {
+		response.BadRequest(c, "Choose a service.")
+		return
+	}
+	days, _ := strconv.Atoi(c.DefaultQuery("days", "14"))
+	if days < 1 || days > 42 {
+		days = 14
+	}
+	out, err := h.service.Availability(c.Request.Context(), uint(id), service, days)
+	switch {
+	case errors.Is(err, ErrArtisanNotFound):
+		response.NotFound(c, "Artisan not found")
+		return
+	case errors.Is(err, ErrServiceNotFound):
+		response.NotFound(c, "Service not found")
+		return
+	case err != nil:
+		h.logger.Error("availability failed", slog.Any("error", err))
+		response.InternalError(c, "We couldn't load availability. Please try again.")
+		return
+	}
+	response.OK(c, gin.H{"days": out})
 }
 
 // ConfirmBooking: only the booked artisan (or an admin) may confirm.
@@ -222,6 +262,10 @@ func (h *BookingHandler) OnboardArtisan(c *gin.Context) {
 	}
 
 	profile, err := h.service.OnboardArtisan(c.Request.Context(), userID.(string), &artisan)
+	if errors.Is(err, ErrRoleChangeNotAllowed) {
+		response.Forbidden(c, "Admin accounts can't become partners.")
+		return
+	}
 	if err != nil {
 		h.logger.Error("onboard artisan failed", slog.Any("error", err))
 		response.InternalError(c, "We couldn't save your profile. Please try again.")
@@ -243,7 +287,12 @@ func (h *BookingHandler) OnboardSeller(c *gin.Context) {
 
 	userID, _ := c.Get("userID")
 
-	if err := h.service.OnboardSeller(c.Request.Context(), userID.(string), req.CACNumber); err != nil {
+	err := h.service.OnboardSeller(c.Request.Context(), userID.(string), req.CACNumber)
+	if errors.Is(err, ErrRoleChangeNotAllowed) {
+		response.Forbidden(c, "Admin accounts can't become partners.")
+		return
+	}
+	if err != nil {
 		h.logger.Error("onboard seller failed", slog.Any("error", err))
 		response.InternalError(c, "We couldn't save your registration. Please try again.")
 		return

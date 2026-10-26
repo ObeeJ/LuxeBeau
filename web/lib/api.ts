@@ -9,12 +9,12 @@ const envelope = z.object({
   success: z.boolean(),
   data: z.unknown().optional(),
   error: z
-    .object({ code: z.string(), message: z.string() })
+    .object({ code: z.string(), message: z.string(), details: z.unknown().optional() })
     .nullish(),
 });
 
 export class ApiError extends Error {
-  constructor(public code: string, message: string, public status: number) {
+  constructor(public code: string, message: string, public status: number, public details?: unknown) {
     super(message);
     this.name = "ApiError";
   }
@@ -96,6 +96,7 @@ export async function apiFetch<T>(
       parsed.data.error?.code ?? "ERROR",
       parsed.data.error?.message ?? "Something went wrong. Please try again.",
       res.status,
+      parsed.data.error?.details,
     );
   }
 
@@ -395,11 +396,19 @@ export const apiOrderSchema = z.object({
   shipping_status: z.string().nullish(),
   payment_method: z.string().nullish(),
   city: z.string().nullish(),
+  state: z.string().nullish(),
+  address: z.string().nullish(),
+  phone: z.string().nullish(),
   created_at: z.string().nullish(),
+  buyer: z.object({ name: z.string().nullish() }).nullish(),
   items: z
     .array(
       z.object({
+        id: z.number().nullish(),
         qty: z.number().nullish(),
+        price: z.number().nullish(),
+        fulfillment_status: z.string().nullish(),
+        tracking_note: z.string().nullish(),
         product: z.object({ name: z.string().nullish(), brand: z.string().nullish(), image_url: z.string().nullish() }).nullish(),
       }),
     )
@@ -417,6 +426,19 @@ export interface MyOrder {
   city: string;
   date: string;
   itemSummary: string;
+  items: OrderLine[];
+  buyer: string;
+  address: string;
+  phone: string;
+  /** Latest tracking note any seller left on the order. */
+  trackingNote: string;
+}
+
+export interface OrderLine {
+  name: string;
+  qty: number;
+  stage: string;
+  note: string;
 }
 
 export function toMyOrder(o: z.infer<typeof apiOrderSchema>): MyOrder {
@@ -432,8 +454,61 @@ export function toMyOrder(o: z.infer<typeof apiOrderSchema>): MyOrder {
     city: o.city ?? "",
     date: (o.created_at ?? "").slice(0, 10),
     itemSummary: names.join(", ") || `${items.length} item(s)`,
+    items: items.map(i => ({
+      name: i.product?.name ?? "Item",
+      qty: i.qty ?? 1,
+      stage: i.fulfillment_status || "pending",
+      note: i.tracking_note ?? "",
+    })),
+    buyer: o.buyer?.name ?? "",
+    address: [o.address, o.city, o.state].filter(Boolean).join(", "),
+    phone: o.phone ?? "",
+    trackingNote: items.map(i => i.tracking_note).filter(Boolean).at(-1) ?? "",
   };
 }
+
+/* ── Artisan availability ── */
+
+export const availabilityResponseSchema = z.object({
+  days: z.array(z.object({ date: z.string(), times: z.array(z.string()) })).nullish(),
+});
+export type AvailableDay = { date: string; times: string[] };
+
+export interface DayHours {
+  weekday: number; // 0 = Sunday
+  start: string; // HH:MM
+  end: string;
+}
+
+export const scheduleSchema = z.object({
+  weekly_hours: z.array(z.object({ weekday: z.number(), start: z.string(), end: z.string() })).nullish(),
+  slot_minutes: z.number(),
+  days_off: z.array(z.string()).nullish(),
+});
+
+export const slotSchema = z.object({
+  id: z.number(),
+  slot_date: z.string(),
+  slot_time: z.string(),
+  reserved: z.boolean().nullish(),
+  source: z.string().nullish(),
+});
+export const slotsResponseSchema = z.object({ slots: z.array(slotSchema).nullish() });
+export type Slot = z.infer<typeof slotSchema>;
+
+/* ── Admin: partners awaiting approval ── */
+export const applicationsResponseSchema = z.object({
+  applications: z
+    .array(
+      z.object({
+        user: userSchema,
+        artisan: apiArtisanSchema.nullish(),
+        products: z.number().nullish(),
+      }),
+    )
+    .nullish(),
+});
+export type Application = NonNullable<z.infer<typeof applicationsResponseSchema>["applications"]>[number];
 
 export const apiBookingSchema = z.object({
   id: z.string(),

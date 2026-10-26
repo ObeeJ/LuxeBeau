@@ -3,8 +3,10 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Plus, X } from "lucide-react";
-import { Figures, PageHeader, Panel, RecordList, RecordRow, StatusPill, Table, Tabs } from "@/components/dashboard/widgets";
+import { Figures, PageHeader, Panel, RecordList, StatusPill, Table, Tabs } from "@/components/dashboard/widgets";
 import { IdentityPanel } from "@/components/dashboard/identity";
+import { PendingApproval } from "@/components/dashboard/pending-approval";
+import { SaleRow } from "@/components/dashboard/sale-row";
 import { ImageField } from "@/components/dashboard/image-field";
 import { Photo } from "@/components/site/catalog";
 import { EmptyState, FieldError, LoadError } from "@/components/site/states";
@@ -88,9 +90,11 @@ export default function SellerDashboard() {
     <div className="space-y-5">
       <PageHeader
         title="Seller studio"
-        subtitle={user.verified ? `${user.name} · Verified seller` : `${user.name} · Verification pending`}
+        subtitle={user.verified ? `${user.name} · Approved seller` : `${user.name} · Awaiting approval`}
         action={<Button onClick={() => setEditing({ mode: "new" })}><Plus aria-hidden /> Add product</Button>}
       />
+
+      {!user.verified && user.role === "seller" && <PendingApproval kind="seller" />}
 
       <Figures
         items={[
@@ -166,15 +170,7 @@ export default function SellerDashboard() {
             <EmptyState>No orders yet. Orders that include your products appear here.</EmptyState>
           ) : (
             <RecordList>
-              {sales.map(o => (
-                <RecordRow
-                  key={o.id}
-                  title={o.itemSummary}
-                  meta={`${o.id} · ${o.date}${o.city ? ` · ${o.city}` : ""} · ${o.paymentStatus === "paid" ? "Paid" : "Awaiting payment"}`}
-                  amount={formatNaira(o.totalNGN)}
-                  status={<StatusPill status={o.shippingStatus === "pending" ? "to ship" : o.shippingStatus} />}
-                />
-              ))}
+              {sales.map(o => <SaleRow key={o.id} order={o} />)}
             </RecordList>
           )}
         </Panel>

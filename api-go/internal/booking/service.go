@@ -2,6 +2,8 @@ package booking
 
 import (
 	"context"
+	crand "crypto/rand"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -11,6 +13,7 @@ import (
 
 	"gorm.io/gorm"
 	"luxebeau/internal/domain"
+	"luxebeau/internal/schedule"
 )
 
 type bookingService struct {
@@ -25,21 +28,53 @@ func NewBookingService(repo domain.BookingRepository, db *gorm.DB, logger *slog.
 
 // Errors the handler maps to client-facing messages.
 var (
-	ErrSlotTaken        = errors.New("slot is no longer available")
+	ErrSlotTaken        = schedule.ErrSlotTaken
 	ErrArtisanNotFound  = errors.New("artisan not found")
 	ErrVisitUnavailable = errors.New("this artisan does not offer that type of visit")
 	ErrAddressRequired  = errors.New("an address is required for home visits")
 	ErrBookingNotFound  = errors.New("booking not found")
 	ErrNotYourBooking   = errors.New("not your booking")
+	ErrServiceNotFound  = errors.New("service not found")
+	ErrDateInPast       = errors.New("date is in the past")
 )
+
+// newBookingID returns BK- plus 8 random hex characters.
+func newBookingID() (string, error) {
+	b := make([]byte, 4)
+	if _, err := crand.Read(b); err != nil {
+		return "", err
+	}
+	return "BK-" + strings.ToUpper(hex.EncodeToString(b)), nil
+}
+
+// bookableArtisan loads an artisan buyers may book: approved by an admin
+// (users.verified) and marked available.
+func (s *bookingService) bookableArtisan(ctx context.Context, artisanID uint) (*domain.Artisan, error) {
+	var a domain.Artisan
+	err := s.db.WithContext(ctx).
+		Joins("JOIN users ON users.id = artisans.user_id AND users.verified = ?", true).
+		Where("artisans.id = ? AND artisans.available = ?", artisanID, true).
+		First(&a).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrArtisanNotFound
+		}
+		return nil, err
+	}
+	return &a, nil
+}
 
 func (s *bookingService) BookService(ctx context.Context, buyerID string, artisanID uint, serviceName string, date time.Time, slotTime string, svcType string, address string) (*domain.Booking, error) {
 	address = strings.TrimSpace(address)
 
-	// Validate the visit type against the artisan before touching the slot.
-	var artisan domain.Artisan
-	if err := s.db.WithContext(ctx).First(&artisan, artisanID).Error; err != nil {
-		return nil, ErrArtisanNotFound
+	// Validate everything about the request before touching any slot.
+	artisan, err := s.bookableArtisan(ctx, artisanID)
+	if err != nil {
+		return nil, err
+	}
+	service, ok := artisan.FindService(serviceName)
+	if !ok {
+		return nil, ErrServiceNotFound
 	}
 	if !artisan.Offers(svcType) {
 		return nil, ErrVisitUnavailable
@@ -50,78 +85,111 @@ func (s *bookingService) BookService(ctx context.Context, buyerID string, artisa
 	if svcType != domain.ServiceHome {
 		address = ""
 	}
-
-	// Wrap the slot reservation and booking insertion in one transaction
-	tx := s.db.Begin()
-	if tx.Error != nil {
-		return nil, tx.Error
+	if date.Before(schedule.Today()) {
+		return nil, ErrDateInPast
 	}
-	defer func() {
-		if r := recover(); r != nil {
-			tx.Rollback()
-		}
-	}()
-
-	// Reserve the slot atomically in the transaction context
-	result := tx.WithContext(ctx).Model(&domain.BookingSlot{}).
-		Where("artisan_id = ? AND slot_date = ? AND slot_time = ? AND reserved = ?", artisanID, date, slotTime, false).
-		Update("reserved", true)
-	if result.Error != nil {
-		tx.Rollback()
-		return nil, result.Error
-	}
-	if result.RowsAffected == 0 {
-		tx.Rollback()
-		return nil, ErrSlotTaken
+	// Make sure weekly slots exist for the requested date.
+	if err := schedule.Ensure(ctx, s.db, artisan); err != nil {
+		return nil, err
 	}
 
+	id, err := newBookingID()
+	if err != nil {
+		return nil, err
+	}
+	amount := service.Price
+	if amount <= 0 {
+		amount = artisan.PriceFrom
+	}
 	booking := &domain.Booking{
-		ID:          fmt.Sprintf("BK-%05d", rand.Intn(90000)+10000),
+		ID:          id,
 		BuyerID:     buyerID,
 		ArtisanID:   artisanID,
-		ServiceName: serviceName,
+		ServiceName: service.Name,
 		BookingDate: date,
 		BookingTime: slotTime,
 		ServiceType: svcType,
 		Address:     address,
-		Amount:      artisan.PriceFrom,
+		Amount:      amount,
 		Status:      "pending",
 	}
 
-	if err := tx.WithContext(ctx).Create(booking).Error; err != nil {
-		tx.Rollback()
-		s.logger.Error("Failed to create booking in transaction", slog.Any("error", err))
-		return nil, fmt.Errorf("failed to create booking: %w", err)
+	// Reserve every slot the service needs and insert the booking atomically.
+	err = s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := schedule.Reserve(tx, artisan, date, slotTime, service.DurationMins, id); err != nil {
+			return err
+		}
+		return tx.Create(booking).Error
+	})
+	if err != nil {
+		if !errors.Is(err, ErrSlotTaken) && !errors.Is(err, schedule.ErrInvalidSlot) {
+			s.logger.Error("create booking failed", slog.Any("error", err))
+		}
+		if errors.Is(err, schedule.ErrInvalidSlot) {
+			return nil, ErrSlotTaken
+		}
+		return nil, err
 	}
 
-	if err := tx.Commit().Error; err != nil {
-		return nil, fmt.Errorf("failed to commit transaction: %w", err)
-	}
-
-	s.logger.Info("Booking created successfully in transaction", slog.String("id", booking.ID), slog.String("buyer", buyerID))
+	s.logger.Info("booking created", slog.String("id", booking.ID), slog.Uint64("artisan", uint64(artisanID)))
 	return booking, nil
 }
 
-func (s *bookingService) GetArtisanProfile(ctx context.Context, artisanID uint) (*domain.Artisan, []domain.BookingSlot, error) {
-	artisan, err := s.repo.GetArtisanByID(ctx, artisanID)
-	if err != nil {
-		return nil, nil, err
-	}
-	if artisan == nil {
-		return nil, nil, fmt.Errorf("artisan not found")
-	}
+// publicUser trims the preloaded account to fields safe to show anyone.
+func publicUser(db *gorm.DB) *gorm.DB {
+	return db.Select("id", "name", "verified")
+}
 
-	today := time.Now().Truncate(24 * time.Hour)
-	slots, err := s.repo.GetAvailableSlots(ctx, artisanID, today)
-	if err != nil {
-		return nil, nil, err
+func (s *bookingService) GetArtisanProfile(ctx context.Context, artisanID uint) (*domain.Artisan, error) {
+	if _, err := s.bookableArtisan(ctx, artisanID); err != nil {
+		return nil, err
 	}
-
-	return artisan, slots, nil
+	var a domain.Artisan
+	if err := s.db.WithContext(ctx).Preload("User", publicUser).First(&a, artisanID).Error; err != nil {
+		return nil, err
+	}
+	return &a, nil
 }
 
 func (s *bookingService) ListArtisans(ctx context.Context, specialty, location string) ([]domain.Artisan, error) {
-	return s.repo.ListArtisans(ctx, specialty, location)
+	var artisans []domain.Artisan
+	q := s.db.WithContext(ctx).Preload("User", publicUser).
+		Joins("JOIN users ON users.id = artisans.user_id AND users.verified = ?", true).
+		Where("artisans.available = ?", true)
+	if specialty != "" {
+		q = q.Where("LOWER(artisans.specialty) LIKE ?", "%"+strings.ToLower(specialty)+"%")
+	}
+	if location != "" {
+		q = q.Where("LOWER(artisans.location) LIKE ?", "%"+strings.ToLower(location)+"%")
+	}
+	if err := q.Order("artisans.rating DESC, artisans.id").Find(&artisans).Error; err != nil {
+		return nil, err
+	}
+	return artisans, nil
+}
+
+// Availability lists start times where the named service fits.
+func (s *bookingService) Availability(ctx context.Context, artisanID uint, serviceName string, days int) ([]domain.AvailableDay, error) {
+	artisan, err := s.bookableArtisan(ctx, artisanID)
+	if err != nil {
+		return nil, err
+	}
+	service, ok := artisan.FindService(serviceName)
+	if !ok {
+		return nil, ErrServiceNotFound
+	}
+	return schedule.Availability(ctx, s.db, artisan, service.DurationMins, days)
+}
+
+func (s *bookingService) ArtisanUser(ctx context.Context, artisanID uint) (*domain.User, error) {
+	var u domain.User
+	err := s.db.WithContext(ctx).
+		Joins("JOIN artisans ON artisans.user_id = users.id").
+		Where("artisans.id = ?", artisanID).First(&u).Error
+	if err != nil {
+		return nil, err
+	}
+	return &u, nil
 }
 
 // ConfirmBooking lets the booked artisan (or an admin) confirm a pending
@@ -212,9 +280,9 @@ func (s *bookingService) OnboardArtisan(ctx context.Context, userID string, arti
 		}
 	}
 
-	if err := tx.Model(&domain.User{}).Where("id = ?", userID).Update("role", "artisan").Error; err != nil {
+	if err := becomePartner(tx, userID, "artisan"); err != nil {
 		tx.Rollback()
-		return nil, fmt.Errorf("failed to update user role: %w", err)
+		return nil, err
 	}
 
 	if err := tx.Commit().Error; err != nil {
@@ -224,11 +292,37 @@ func (s *bookingService) OnboardArtisan(ctx context.Context, userID string, arti
 	return s.repo.GetArtisanByID(ctx, artisan.ID)
 }
 
+// ErrRoleChangeNotAllowed stops an admin from turning into a partner.
+var ErrRoleChangeNotAllowed = errors.New("this account can't become a partner")
+
+// becomePartner switches a user to a partner role. Taking on a new role
+// (buyer to seller, seller to artisan) puts the account back in the admin
+// approval queue; resubmitting the same role keeps an existing approval.
+func becomePartner(tx *gorm.DB, userID, role string) error {
+	var u domain.User
+	if err := tx.Select("id", "role").First(&u, "id = ?", userID).Error; err != nil {
+		return fmt.Errorf("load user: %w", err)
+	}
+	if u.Role == "admin" {
+		return ErrRoleChangeNotAllowed
+	}
+	if u.Role == role {
+		return nil
+	}
+	if err := tx.Model(&domain.User{}).Where("id = ?", userID).
+		Updates(map[string]any{"role": role, "verified": false, "kyc_status": "pending"}).Error; err != nil {
+		return fmt.Errorf("update user role: %w", err)
+	}
+	return tx.Model(&domain.Artisan{}).Where("user_id = ?", userID).Update("verified", false).Error
+}
+
 func (s *bookingService) OnboardSeller(ctx context.Context, userID string, cacNumber string) error {
-	return s.db.WithContext(ctx).Model(&domain.User{}).Where("id = ?", userID).Updates(map[string]interface{}{
-		"role":       "seller",
-		"cac_number": cacNumber,
-	}).Error
+	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := becomePartner(tx, userID, "seller"); err != nil {
+			return err
+		}
+		return tx.Model(&domain.User{}).Where("id = ?", userID).Update("cac_number", cacNumber).Error
+	})
 }
 
 func (s *bookingService) GetArtisanByUserID(ctx context.Context, userID string) (*domain.Artisan, error) {

@@ -135,13 +135,14 @@ func main() {
 	}, logger)
 	catalogHandler := catalog.NewCatalogHandler(catalogService, logger)
 	bookingHandler := booking.NewBookingHandler(bookingService, mailer, images, logger)
+	studio := booking.NewStudio(db, logger)
 	orderHandler := order.NewOrderHandler(orderService, logger).WithMailer(mailer)
-	adminHandler := admin.NewHandler(adminService, logger)
+	adminHandler := admin.NewHandler(adminService, mailer, logger)
 	kycHandler := kyc.NewHandler(kycService, logger)
 
 	// Seller surface (manage own products + view own sales)
 	sellerService := seller.NewService(seller.NewGormRepository(db), logger)
-	sellerHandler := seller.NewHandler(sellerService, images, logger)
+	sellerHandler := seller.NewHandler(sellerService, images, mailer, logger)
 
 	// Escrow engine (held funds; wallet rail live, cNGN stub; WhatsApp notifier)
 	escrowRails := escrow.NewRegistry(escrow.NewWalletSettlement(logger), escrow.NewCNGNSettlement(logger))
@@ -200,6 +201,7 @@ func main() {
 		v1.POST("/auth/resend-code", authLimit, authHandler.ResendCode)
 		v1.POST("/auth/login", authLimit, authHandler.Login)
 		v1.POST("/auth/google", authLimit, authHandler.Google)
+		v1.POST("/auth/verify-login", authLimit, authHandler.VerifyLogin)
 		v1.POST("/auth/refresh", middleware.RateLimiter(2, 10), authHandler.Refresh)
 		v1.POST("/auth/logout", authHandler.Logout)
 
@@ -210,6 +212,7 @@ func main() {
 		// Public Artisans
 		v1.GET("/artisans", bookingHandler.ListArtisans)
 		v1.GET("/artisans/:id", bookingHandler.GetArtisanProfile)
+		v1.GET("/artisans/:id/availability", middleware.RateLimiter(5, 20), bookingHandler.Availability)
 	}
 
 	// ── Protected Routes ────────────────────────────────────
@@ -220,7 +223,7 @@ func main() {
 		protected.GET("/auth/me", authHandler.Me)
 
 		// Products (seller/admin only — can add middleware later)
-		protected.POST("/products", catalogHandler.CreateProduct)
+		protected.POST("/products", auth.RequireRole("admin"), catalogHandler.CreateProduct)
 
 		// Bookings (Rate Limited to 2 req/sec burst 5 to protect scheduler state)
 		protected.POST("/bookings", middleware.RateLimiter(2, 5), bookingHandler.CreateBooking)
@@ -239,6 +242,18 @@ func main() {
 		protected.POST("/me/artisan-onboard", bookingHandler.OnboardArtisan)
 		protected.POST("/me/seller-onboard", bookingHandler.OnboardSeller)
 		protected.GET("/me/artisan", bookingHandler.GetMyArtisanProfile)
+
+		// Artisan studio: services, opening hours and one-off slots
+		artisanGroup := protected.Group("/me/artisan")
+		artisanGroup.Use(auth.RequireRole("artisan"))
+		{
+			artisanGroup.PUT("/services", studio.PutServices)
+			artisanGroup.GET("/schedule", studio.GetScheduleHandler)
+			artisanGroup.PUT("/schedule", studio.PutSchedule)
+			artisanGroup.GET("/slots", studio.GetSlots)
+			artisanGroup.POST("/slots", studio.PostSlot)
+			artisanGroup.DELETE("/slots/:id", studio.DeleteSlot)
+		}
 
 		// Photo uploads (direct to Cloudflare Images) for partners
 		protected.POST("/me/uploads/image", auth.RequireRole("seller", "artisan", "admin"), middleware.RateLimiter(1, 10), images.UploadHandler(logger))
@@ -261,12 +276,14 @@ func main() {
 			sellerGroup.PATCH("/products/:id", sellerHandler.UpdateProduct)
 			sellerGroup.DELETE("/products/:id", sellerHandler.DeleteProduct)
 			sellerGroup.GET("/sales", sellerHandler.ListSales)
+			sellerGroup.PATCH("/sales/:orderId", sellerHandler.Fulfil)
 		}
 
 		// ── Admin console (internal only) ────────────────────
 		adminGroup := protected.Group("/admin")
 		adminGroup.Use(auth.RequireRole("admin"))
 		{
+			adminGroup.GET("/applications", adminHandler.ListApplications)
 			adminGroup.GET("/users", adminHandler.ListUsers)
 			adminGroup.GET("/users/:id", adminHandler.GetUser)
 			adminGroup.PATCH("/users/:id", adminHandler.UpdateUser)

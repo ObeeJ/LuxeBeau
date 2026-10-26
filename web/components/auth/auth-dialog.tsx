@@ -7,13 +7,14 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useGoogleSignIn, useLogin, useRegister, useResendCode, useVerifyEmail } from "@/lib/queries";
+import { useGoogleSignIn, useLogin, useRegister, useResendCode, useVerifyEmail, useVerifyLogin } from "@/lib/queries";
 import { ApiError, loginSchema, registerSchema, type User } from "@/lib/api";
 import { useAuth } from "@/lib/store";
 import { getFriendlyErrorMessage } from "@/lib/errors";
 import { FieldError } from "@/components/site/states";
 
-type Mode = "signin" | "register" | "verify";
+/* "verify" confirms a new email; "admin-code" is the admin sign-in step. */
+type Mode = "signin" | "register" | "verify" | "admin-code";
 
 interface AuthModalState {
   open: boolean;
@@ -121,7 +122,9 @@ export function AuthDialog() {
   const verify = useVerifyEmail();
   const resend = useResendCode();
   const google = useGoogleSignIn();
-  const busy = login.isPending || register.isPending || verify.isPending || google.isPending;
+  const verifyLogin = useVerifyLogin();
+  const busy = login.isPending || register.isPending || verify.isPending || google.isPending || verifyLogin.isPending;
+  const codeStep = mode === "verify" || mode === "admin-code";
 
   // Each open starts at the requested step with a clean form.
   const [openedFor, setOpenedFor] = useState<string | null>(null);
@@ -158,6 +161,22 @@ export function AuthDialog() {
 
   const fail = (err: unknown) => setFormError(getFriendlyErrorMessage(err));
 
+  /* Admins confirm every sign-in with an emailed code. The API returns the
+     account email so the Google path knows which account to confirm. */
+  const toAdminCode = (err: ApiError) => {
+    const details = err.details as { email?: unknown } | undefined;
+    if (typeof details?.email === "string") setEmail(details.email);
+    setMode("admin-code");
+    setCode("");
+    setFormError("");
+  };
+
+  const onAuthError = (err: unknown) => {
+    if (err instanceof ApiError && err.code === "SECOND_FACTOR_REQUIRED") return toAdminCode(err);
+    if (err instanceof ApiError && err.code === "EMAIL_NOT_VERIFIED") return toVerify();
+    fail(err);
+  };
+
   const fieldErrors = (issues: ReadonlyArray<{ path: PropertyKey[]; message: string }>) => {
     const out: Record<string, string> = {};
     for (const i of issues) out[String(i.path[0])] ??= i.message;
@@ -174,7 +193,7 @@ export function AuthDialog() {
       if (!parsed.success) return fieldErrors(parsed.error.issues);
       login.mutate(parsed.data, {
         onSuccess: ({ user }) => finish(user),
-        onError: err => (err instanceof ApiError && err.code === "EMAIL_NOT_VERIFIED" ? toVerify() : fail(err)),
+        onError: onAuthError,
       });
     } else if (mode === "register") {
       const parsed = registerSchema.safeParse({ name, email, password });
@@ -189,6 +208,12 @@ export function AuthDialog() {
             ? setErrors({ email: "An account already uses this email. Sign in instead." })
             : fail(err),
       });
+    } else if (mode === "admin-code") {
+      if (!/^\d{6}$/.test(code)) return setErrors({ code: "Enter the 6-digit code." });
+      verifyLogin.mutate(
+        { email, code },
+        { onSuccess: ({ user }) => finish(user), onError: () => setErrors({ code: "That code is incorrect or has expired. Sign in again for a new one." }) },
+      );
     } else {
       if (!/^\d{6}$/.test(code)) return setErrors({ code: "Enter the 6-digit code." });
       verify.mutate(
@@ -199,13 +224,16 @@ export function AuthDialog() {
   };
 
   const onGoogle = (credential: string) =>
-    google.mutate(credential, { onSuccess: ({ user }) => finish(user), onError: fail });
+    google.mutate(credential, { onSuccess: ({ user }) => finish(user), onError: onAuthError });
 
-  const title = mode === "verify" ? "Check your email" : mode === "register" ? "Create your account" : "Sign in";
+  const title =
+    mode === "verify" ? "Check your email" : mode === "admin-code" ? "Confirm it's you" : mode === "register" ? "Create your account" : "Sign in";
   const description =
     mode === "verify"
       ? `Enter the 6-digit code we sent to ${email}.`
-      : reason ?? (mode === "register" ? "Shop, book artisans and track your orders." : "Welcome back to LuxeBeau.");
+      : mode === "admin-code"
+        ? `Admin accounts confirm every sign-in. Enter the code we sent to ${email}.`
+        : reason ?? (mode === "register" ? "Shop, book artisans and track your orders." : "Welcome back to LuxeBeau.");
 
   return (
     <Dialog open={open} onOpenChange={o => (o ? null : close())}>
@@ -215,7 +243,7 @@ export function AuthDialog() {
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
 
-        {mode !== "verify" && GOOGLE_CLIENT_ID && (
+        {!codeStep && GOOGLE_CLIENT_ID && (
           <>
             <GoogleButton onCredential={onGoogle} label={mode === "register" ? "signup_with" : "signin_with"} />
             <div className="flex items-center gap-3 text-[12px] text-muted" aria-hidden>
@@ -233,7 +261,7 @@ export function AuthDialog() {
             </div>
           )}
 
-          {mode !== "verify" ? (
+          {!codeStep ? (
             <>
               <div>
                 <Label htmlFor="auth-email">Email</Label>
@@ -256,7 +284,7 @@ export function AuthDialog() {
             </>
           ) : (
             <div>
-              <Label htmlFor="auth-code" className="sr-only">Verification code</Label>
+              <Label htmlFor="auth-code" className="sr-only">{mode === "admin-code" ? "Sign-in code" : "Verification code"}</Label>
               <input
                 id="auth-code"
                 value={code}
@@ -276,7 +304,7 @@ export function AuthDialog() {
 
           <Button type="submit" size="lg" disabled={busy} className="w-full">
             {busy && <Loader2 className="animate-spin" aria-hidden />}
-            {mode === "signin" ? "Sign in" : mode === "register" ? "Continue" : "Verify email"}
+            {mode === "signin" ? "Sign in" : mode === "register" ? "Continue" : mode === "admin-code" ? "Confirm sign-in" : "Verify email"}
           </Button>
         </form>
 
@@ -306,6 +334,11 @@ export function AuthDialog() {
                 Use a different email
               </button>
             </div>
+          )}
+          {mode === "admin-code" && (
+            <button type="button" onClick={() => { setMode("signin"); setCode(""); setErrors({}); }} className="text-muted underline underline-offset-4">
+              Didn&apos;t get it? Sign in again for a new code
+            </button>
           )}
         </div>
       </DialogContent>

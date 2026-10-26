@@ -18,12 +18,13 @@ func newTestService(t *testing.T) (*Service, *gorm.DB) {
 	if err != nil {
 		t.Fatalf("open sqlite: %v", err)
 	}
-	if err := db.AutoMigrate(&domain.Product{}, &domain.Order{}, &domain.OrderItem{}); err != nil {
+	if err := db.AutoMigrate(&domain.User{}, &domain.Product{}, &domain.Order{}, &domain.OrderItem{}); err != nil {
 		t.Fatalf("migrate: %v", err)
 	}
 	db.Exec("DELETE FROM products")
 	db.Exec("DELETE FROM orders")
 	db.Exec("DELETE FROM order_items")
+	db.Exec("DELETE FROM users")
 	return NewService(NewGormRepository(db), slog.New(slog.NewTextHandler(io.Discard, nil))), db
 }
 
@@ -106,5 +107,104 @@ func TestListSales_OnlyOrdersWithSellerProducts(t *testing.T) {
 	}
 	if len(sales) != 1 || sales[0].ID != "LB-1" {
 		t.Fatalf("expected only LB-1, got %+v", sales)
+	}
+}
+
+func TestListSales_OwnItemsOnlyAndAddressAfterPayment(t *testing.T) {
+	s, db := newTestService(t)
+	ctx := context.Background()
+	pa, _ := s.CreateProduct(ctx, sellerA, &domain.Product{Name: "A", Brand: "b", Price: 1000, Category: "Body"})
+	pb, _ := s.CreateProduct(ctx, sellerB, &domain.Product{Name: "B", Brand: "b", Price: 5000, Category: "Body"})
+	db.Create(&domain.User{ID: "buyer", Name: "Ada Buyer", Email: "ada@test.ng", Phone: "0800"})
+	db.Create(&domain.Order{ID: "LB-M", BuyerID: "buyer", Subtotal: 7000, Total: 8500, DeliveryFee: 1500, PaymentMethod: "card", PaymentStatus: "pending", Address: "1 Road", City: "Lagos", State: "Lagos", Phone: "0800"})
+	db.Create(&domain.OrderItem{OrderID: "LB-M", ProductID: pa.ID, Qty: 2, Price: 1000})
+	db.Create(&domain.OrderItem{OrderID: "LB-M", ProductID: pb.ID, Qty: 1, Price: 5000})
+
+	sales, _ := s.ListSales(ctx, sellerA)
+	if len(sales) != 1 || len(sales[0].Items) != 1 || sales[0].Items[0].ProductID != pa.ID {
+		t.Fatalf("seller A sees other sellers' items: %+v", sales)
+	}
+	o := sales[0]
+	if o.Total != 2000 || o.Subtotal != 2000 {
+		t.Errorf("seller total = %d, want their share 2000", o.Total)
+	}
+	if o.Address != "" || o.Phone != "" {
+		t.Error("delivery details shown before payment")
+	}
+	if o.Buyer.Name != "Ada Buyer" || o.Buyer.Email != "" {
+		t.Errorf("buyer = %+v, want name only", o.Buyer)
+	}
+	db.Model(&domain.Order{}).Where("id = ?", "LB-M").Update("payment_status", "paid")
+	sales, _ = s.ListSales(ctx, sellerA)
+	if sales[0].Address != "1 Road" || sales[0].Phone != "0800" {
+		t.Error("delivery details missing after payment")
+	}
+}
+
+func TestFulfil_OwnItemsForwardOnlyAndOverallStatus(t *testing.T) {
+	s, db := newTestService(t)
+	ctx := context.Background()
+	pa, _ := s.CreateProduct(ctx, sellerA, &domain.Product{Name: "Soap", Brand: "b", Price: 1000, Category: "Body"})
+	pb, _ := s.CreateProduct(ctx, sellerB, &domain.Product{Name: "Oil", Brand: "b", Price: 1000, Category: "Body"})
+	db.Create(&domain.User{ID: "buyer", Name: "Ada Buyer", Email: "ada@test.ng"})
+	db.Create(&domain.Order{ID: "LB-F", BuyerID: "buyer", Subtotal: 2000, Total: 2000, PaymentMethod: "card", PaymentStatus: "pending", Address: "x", City: "Lagos", State: "Lagos", Phone: "0800"})
+	db.Create(&domain.OrderItem{OrderID: "LB-F", ProductID: pa.ID, Qty: 1, Price: 1000})
+	db.Create(&domain.OrderItem{OrderID: "LB-F", ProductID: pb.ID, Qty: 1, Price: 1000})
+
+	if _, err := s.Fulfil(ctx, sellerA, "LB-F", "shipped", ""); err != ErrNotPaid {
+		t.Fatalf("unpaid order: got %v", err)
+	}
+	db.Model(&domain.Order{}).Where("id = ?", "LB-F").Update("payment_status", "paid")
+
+	if _, err := s.Fulfil(ctx, "someone-else", "LB-F", "shipped", ""); err != ErrSaleNotFound {
+		t.Errorf("seller with no items in the order: got %v", err)
+	}
+	if _, err := s.Fulfil(ctx, sellerA, "LB-F", "pending", ""); err != ErrInvalidStage {
+		t.Errorf("moving to pending: got %v", err)
+	}
+	f, err := s.Fulfil(ctx, sellerA, "LB-F", "shipped", "GIG 12345")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !f.Notify || f.BuyerMail != "ada@test.ng" || len(f.Items) != 1 || f.Items[0] != "Soap" {
+		t.Errorf("fulfilment result = %+v", f)
+	}
+	// Seller B hasn't shipped, so the order as a whole is still pending.
+	if f.Order.ShippingStatus != "pending" {
+		t.Errorf("order status = %s, want pending (slowest item)", f.Order.ShippingStatus)
+	}
+	var items []domain.OrderItem
+	db.Where("order_id = ?", "LB-F").Order("product_id").Find(&items)
+	if items[0].FulfillmentStatus != "shipped" || items[0].TrackingNote != "GIG 12345" || items[0].ShippedAt == nil {
+		t.Errorf("seller A item = %+v", items[0])
+	}
+	if items[1].FulfillmentStatus != "pending" {
+		t.Errorf("seller A changed seller B's item to %s", items[1].FulfillmentStatus)
+	}
+	if _, err := s.Fulfil(ctx, sellerA, "LB-F", "processing", ""); err != ErrBackwards {
+		t.Errorf("moving back to processing: got %v", err)
+	}
+	// Same stage again only updates the note and sends no email.
+	if f, err := s.Fulfil(ctx, sellerA, "LB-F", "shipped", "GIG 999"); err != nil || f.Notify {
+		t.Errorf("repeat shipped: notify=%v err=%v", f != nil && f.Notify, err)
+	}
+
+	db.Where("order_id = ?", "LB-F").Order("product_id").Find(&items)
+	if items[0].TrackingNote != "GIG 999" {
+		t.Errorf("tracking note = %q, want the updated note", items[0].TrackingNote)
+	}
+
+	if _, err := s.Fulfil(ctx, sellerB, "LB-F", "delivered", ""); err != nil {
+		t.Fatal(err)
+	}
+	if f, _ := s.Fulfil(ctx, sellerA, "LB-F", "delivered", ""); f.Order.ShippingStatus != "delivered" {
+		t.Errorf("all items delivered but order is %s", f.Order.ShippingStatus)
+	}
+	db.Where("order_id = ?", "LB-F").Order("product_id").Find(&items)
+	if items[1].ShippedAt == nil || items[1].DeliveredAt == nil {
+		t.Error("jumping straight to delivered should stamp shipped_at too")
+	}
+	if items[0].TrackingNote != "GIG 999" {
+		t.Errorf("delivering without a note erased the tracking note: %q", items[0].TrackingNote)
 	}
 }

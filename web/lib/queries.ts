@@ -2,6 +2,13 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 import {
   adminEscrowsResponseSchema,
+  applicationsResponseSchema,
+  availabilityResponseSchema,
+  scheduleSchema,
+  slotSchema,
+  slotsResponseSchema,
+  apiServiceSchema,
+  type DayHours,
   adminUserResponseSchema,
   adminUsersResponseSchema,
   apiFetch,
@@ -305,7 +312,10 @@ export function useVerifyUser() {
   return useMutation({
     mutationFn: ({ id, cac_number }: { id: string; cac_number?: string }) =>
       apiFetch(`/admin/users/${id}/verify`, adminUserResponseSchema, { method: "POST", body: { cac_number } }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "users"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin", "users"] });
+      qc.invalidateQueries({ queryKey: ["admin", "applications"] });
+    },
   });
 }
 
@@ -375,6 +385,17 @@ export function useResendCode() {
   return useMutation({
     mutationFn: (email: string) =>
       apiFetch("/auth/resend-code", z.object({ message: z.string() }), { method: "POST", body: { email } }),
+  });
+}
+
+/* Admin second step: the emailed sign-in code. */
+export function useVerifyLogin() {
+  return useMutation({
+    mutationFn: (input: { email: string; code: string }) =>
+      apiFetch("/auth/verify-login", sessionUserSchema, {
+        method: "POST",
+        body: { email: input.email, code: codeSchema.parse(input.code) },
+      }),
   });
 }
 
@@ -585,5 +606,123 @@ export function useImageUpload() {
       if (!res.ok) throw new ApiError("UPLOAD_FAILED", "The upload didn't finish. Please try again.", res.status);
       return upload.image_url;
     },
+  });
+}
+
+/* ── Booking: real availability for one service (public) ── */
+export function useAvailability(artisanId: string | undefined, service: string, days = 14) {
+  return useQuery({
+    queryKey: ["availability", artisanId, service, days],
+    enabled: Boolean(artisanId && service),
+    staleTime: 30 * 1000,
+    queryFn: async () => {
+      const qs = new URLSearchParams({ service, days: String(days) });
+      const data = await apiFetch(`/artisans/${artisanId}/availability?${qs}`, availabilityResponseSchema);
+      return data.days ?? [];
+    },
+  });
+}
+
+/* ── Artisan studio: services, hours and one-off slots ── */
+
+export interface ServiceInput {
+  name: string;
+  duration_mins: number;
+  price: number; // naira
+  description?: string;
+}
+
+export function useSaveServices() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (services: ServiceInput[]) =>
+      apiFetch("/me/artisan/services", z.object({ services: z.array(apiServiceSchema) }), {
+        method: "PUT",
+        body: { services },
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["me", "artisan"] });
+      qc.invalidateQueries({ queryKey: ["artisans"] });
+    },
+  });
+}
+
+export function useMySchedule(enabled: boolean) {
+  return useQuery({
+    queryKey: ["me", "schedule"],
+    enabled,
+    queryFn: async () => {
+      const s = await apiFetch("/me/artisan/schedule", scheduleSchema, {});
+      return { weeklyHours: (s.weekly_hours ?? []) as DayHours[], slotMinutes: s.slot_minutes || 60, daysOff: s.days_off ?? [] };
+    },
+  });
+}
+
+export function useSaveSchedule() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { weeklyHours: DayHours[]; slotMinutes: number; daysOff: string[] }) =>
+      apiFetch("/me/artisan/schedule", z.object({ message: z.string() }), {
+        method: "PUT",
+        body: { weekly_hours: input.weeklyHours, slot_minutes: input.slotMinutes, days_off: input.daysOff },
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["me", "schedule"] });
+      qc.invalidateQueries({ queryKey: ["me", "slots"] });
+      qc.invalidateQueries({ queryKey: ["availability"] });
+    },
+  });
+}
+
+export function useMySlots(enabled: boolean, days = 14) {
+  return useQuery({
+    queryKey: ["me", "slots", days],
+    enabled,
+    queryFn: async () => (await apiFetch(`/me/artisan/slots?days=${days}`, slotsResponseSchema, {})).slots ?? [],
+  });
+}
+
+export function useAddSlot() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { date: string; time: string }) =>
+      apiFetch("/me/artisan/slots", z.object({ slot: slotSchema }), { method: "POST", body: input }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["me", "slots"] });
+      qc.invalidateQueries({ queryKey: ["availability"] });
+    },
+  });
+}
+
+export function useRemoveSlot() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => apiFetch(`/me/artisan/slots/${id}`, z.object({ message: z.string() }), { method: "DELETE" }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["me", "slots"] });
+      qc.invalidateQueries({ queryKey: ["availability"] });
+    },
+  });
+}
+
+/* ── Seller: move own items in an order forward ── */
+export function useFulfil() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ orderId, status, trackingNote }: { orderId: string; status: "processing" | "shipped" | "delivered"; trackingNote?: string }) =>
+      apiFetch(`/me/sales/${encodeURIComponent(orderId)}`, z.object({ status: z.string(), order_status: z.string() }), {
+        method: "PATCH",
+        body: { status, tracking_note: trackingNote ?? "" },
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["me", "sales"] }),
+  });
+}
+
+/* ── Admin: partner applications ── */
+export function useApplications(enabled: boolean) {
+  return useQuery({
+    queryKey: ["admin", "applications"],
+    enabled,
+    queryFn: async () => (await apiFetch("/admin/applications", applicationsResponseSchema, {})).applications ?? [],
   });
 }

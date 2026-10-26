@@ -2,6 +2,7 @@ package booking
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"os"
 	"sync"
@@ -12,6 +13,7 @@ import (
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"luxebeau/internal/domain"
+	"luxebeau/internal/schedule"
 )
 
 type mockBookingRepo struct {
@@ -55,6 +57,9 @@ func (m *mockBookingRepo) GetArtisanByID(ctx context.Context, id uint) (*domain.
 func (m *mockBookingRepo) GetArtisanByUserID(ctx context.Context, userID string) (*domain.Artisan, error) {
 	var a domain.Artisan
 	err := m.db.Where("user_id = ?", userID).First(&a).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil // same contract as the gorm repository
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -87,146 +92,127 @@ func (m *mockBookingRepo) UpdateBookingStatus(ctx context.Context, id string, st
 	return m.db.Model(&domain.Booking{}).Where("id = ?", id).Update("status", status).Error
 }
 
-func TestBookService_SuccessAndDoubleBooking(t *testing.T) {
-	// 1. Setup SQLite in-memory DB
-	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
+func newTestService(t *testing.T, name string) (*gorm.DB, domain.BookingService) {
+	t.Helper()
+	db, err := gorm.Open(sqlite.Open("file:"+name+"?mode=memory&cache=shared"), &gorm.Config{})
 	if err != nil {
 		t.Fatalf("failed to connect database: %v", err)
 	}
-
-	err = db.AutoMigrate(&domain.User{}, &domain.Artisan{}, &domain.BookingSlot{}, &domain.Booking{})
-	if err != nil {
+	sqlDB, _ := db.DB()
+	sqlDB.SetMaxOpenConns(1) // SQLite: serialise writers instead of "table is locked"
+	if err := db.AutoMigrate(&domain.User{}, &domain.Artisan{}, &domain.BookingSlot{}, &domain.Booking{}); err != nil {
 		t.Fatalf("failed to migrate db: %v", err)
 	}
-
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
-	repo := &mockBookingRepo{db: db}
-	service := NewBookingService(repo, db, logger)
+	return db, NewBookingService(&mockBookingRepo{db: db}, db, logger)
+}
 
-	// 2. Seed User
-	user := domain.User{
-		ID:    uuid.NewString(),
-		Name:  "Chidinma Obi",
-		Email: "chidinma@luxe.com",
-		Role:  "artisan",
+// everyDay opens 09:00-18:00 on all seven days so tests don't depend on
+// which weekday "tomorrow" is.
+func everyDay() domain.WeeklyHours {
+	h := domain.WeeklyHours{}
+	for wd := 0; wd <= 6; wd++ {
+		h = append(h, domain.DayHours{Weekday: wd, Start: "09:00", End: "18:00"})
 	}
+	return h
+}
+
+func seedArtisan(t *testing.T, db *gorm.DB, email, mode string, approved bool) domain.Artisan {
+	t.Helper()
+	user := domain.User{ID: uuid.NewString(), Name: "Artisan " + email, Email: email, Role: "artisan", Verified: approved}
 	if err := db.Create(&user).Error; err != nil {
-		t.Fatalf("failed to seed user: %v", err)
+		t.Fatalf("seed user: %v", err)
 	}
+	a := domain.Artisan{
+		UserID: user.ID, Specialty: "Hair Stylist", Location: "Lagos", PriceFrom: 1000000,
+		ServiceMode: mode, Available: true, SlotMinutes: 60, WeeklyHours: everyDay(),
+		Services: domain.ServiceList{
+			{Name: "Trim", DurationMins: 45, Price: 1500000},
+			{Name: "Full Braiding", DurationMins: 120, Price: 4500000},
+		},
+	}
+	if err := db.Create(&a).Error; err != nil {
+		t.Fatalf("seed artisan: %v", err)
+	}
+	return a
+}
 
-	// 3. Seed Artisan
-	artisan := domain.Artisan{
-		UserID:      user.ID,
-		Specialty:   "Hair Stylist",
-		Location:    "Lagos",
-		PriceFrom:   2500000, // ₦25,000
-		ServiceMode: domain.ServiceBoth,
-	}
-	if err := db.Create(&artisan).Error; err != nil {
-		t.Fatalf("failed to seed artisan: %v", err)
-	}
+func tomorrow() time.Time { return schedule.Today().AddDate(0, 0, 1) }
 
-	slotDate := time.Now().Truncate(24 * time.Hour)
-	slotTime := "10:00"
+const addr = "12 Admiralty Way, Lekki"
 
-	// 4. Seed Booking Slot
-	slot := domain.BookingSlot{
-		ArtisanID: artisan.ID,
-		SlotDate:  slotDate,
-		SlotTime:  slotTime,
-		Reserved:  false,
-	}
-	if err := db.Create(&slot).Error; err != nil {
-		t.Fatalf("failed to seed slot: %v", err)
-	}
+func TestBookService_MultiSlotAndDoubleBooking(t *testing.T) {
+	db, service := newTestService(t, "multi_slot")
+	ctx := context.Background()
+	a := seedArtisan(t, db, "chidinma@luxe.com", domain.ServiceBoth, true)
+	day := tomorrow()
 
-	// 5. Perform successful booking
-	b1, err := service.BookService(context.Background(), "buyer-123", artisan.ID, "Full Braiding", slotDate, slotTime, "home", "12 Admiralty Way, Lekki")
+	// A two-hour service with one-hour slots takes 10:00 and 11:00.
+	b1, err := service.BookService(ctx, "buyer-123", a.ID, "Full Braiding", day, "10:00", "home", addr)
 	if err != nil {
 		t.Fatalf("expected successful booking, got error: %v", err)
 	}
-
-	if b1.Status != "pending" {
-		t.Errorf("expected booking status to be pending, got %s", b1.Status)
+	if b1.Status != "pending" || b1.Amount != 4500000 {
+		t.Errorf("booking = %s / %d, want pending / service price 4500000", b1.Status, b1.Amount)
+	}
+	var reserved []domain.BookingSlot
+	db.Where("artisan_id = ? AND reserved = ?", a.ID, true).Order("slot_time").Find(&reserved)
+	if len(reserved) != 2 || reserved[0].SlotTime != "10:00" || reserved[1].SlotTime != "11:00" || reserved[1].BookingID != b1.ID {
+		t.Fatalf("reserved slots = %+v, want 10:00 and 11:00 tied to %s", reserved, b1.ID)
 	}
 
-	// Verify slot is now reserved in database
-	var updatedSlot domain.BookingSlot
-	db.First(&updatedSlot, "artisan_id = ? AND slot_date = ? AND slot_time = ?", artisan.ID, slotDate, slotTime)
-	if !updatedSlot.Reserved {
-		t.Errorf("expected slot to be marked as reserved")
+	// Any booking overlapping 10:00-12:00 is refused and changes nothing.
+	for _, start := range []string{"10:00", "11:00", "09:00"} {
+		if _, err := service.BookService(ctx, "buyer-456", a.ID, "Full Braiding", day, start, "home", addr); err != ErrSlotTaken {
+			t.Errorf("overlapping booking at %s: got %v, want ErrSlotTaken", start, err)
+		}
+	}
+	var count int64
+	db.Model(&domain.BookingSlot{}).Where("artisan_id = ? AND reserved = ?", a.ID, true).Count(&count)
+	if count != 2 {
+		t.Errorf("a refused booking reserved slots: %d reserved, want 2", count)
+	}
+	// The next free run is fine; the last slot of the day can't hold two hours.
+	if _, err := service.BookService(ctx, "buyer-456", a.ID, "Full Braiding", day, "12:00", "home", addr); err != nil {
+		t.Errorf("booking at 12:00: %v", err)
+	}
+	if _, err := service.BookService(ctx, "buyer-789", a.ID, "Full Braiding", day, "17:00", "home", addr); err != ErrSlotTaken {
+		t.Errorf("two-hour booking at 17:00 with hours ending 18:00: got %v", err)
 	}
 
-	// 6. Try to book the exact same slot again (should fail)
-	_, err = service.BookService(context.Background(), "buyer-456", artisan.ID, "Wash & Set", slotDate, slotTime, "home", "12 Admiralty Way, Lekki")
-	if err == nil {
-		t.Errorf("expected error when booking already reserved slot, got nil")
-	} else if err.Error() != "slot is no longer available" {
-		t.Errorf("expected 'slot is no longer available' error, got: %v", err)
+	avail, err := service.Availability(ctx, a.ID, "Full Braiding", 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, d := range avail {
+		if d.Date != day.Format("2006-01-02") {
+			continue
+		}
+		for _, tm := range d.Times {
+			if tm == "09:00" || tm == "10:00" || tm == "11:00" || tm == "12:00" || tm == "13:00" || tm == "17:00" {
+				t.Errorf("availability offers %s, which overlaps a booking or runs past closing", tm)
+			}
+		}
 	}
 }
 
 func TestBookService_ConcurrencyDoubleBooking(t *testing.T) {
-	// 1. Setup SQLite in-memory DB
-	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
-	if err != nil {
-		t.Fatalf("failed to connect database: %v", err)
+	db, service := newTestService(t, "concurrency")
+	a := seedArtisan(t, db, "chidinma.concurrent@luxe.com", domain.ServiceBoth, true)
+	day := tomorrow()
+	if err := schedule.Ensure(context.Background(), db, &a); err != nil {
+		t.Fatal(err)
 	}
 
-	err = db.AutoMigrate(&domain.User{}, &domain.Artisan{}, &domain.BookingSlot{}, &domain.Booking{})
-	if err != nil {
-		t.Fatalf("failed to migrate db: %v", err)
-	}
-
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
-	repo := &mockBookingRepo{db: db}
-	service := NewBookingService(repo, db, logger)
-
-	// 2. Seed User
-	user := domain.User{
-		ID:    uuid.NewString(),
-		Name:  "Chidinma Obi",
-		Email: "chidinma.concurrent@luxe.com",
-		Role:  "artisan",
-	}
-	db.Create(&user)
-
-	// 3. Seed Artisan
-	artisan := domain.Artisan{
-		UserID:      user.ID,
-		Specialty:   "Hair Stylist",
-		Location:    "Lagos",
-		PriceFrom:   2500000,
-		ServiceMode: domain.ServiceBoth,
-	}
-	db.Create(&artisan)
-
-	slotDate := time.Now().Truncate(24 * time.Hour)
-	slotTime := "14:00"
-
-	// 4. Seed Booking Slot
-	slot := domain.BookingSlot{
-		ArtisanID: artisan.ID,
-		SlotDate:  slotDate,
-		SlotTime:  slotTime,
-		Reserved:  false,
-	}
-	db.Create(&slot)
-
-	// 5. Concurrent booking attempts
 	const goroutines = 10
 	var wg sync.WaitGroup
 	wg.Add(goroutines)
-
-	successCount := 0
-	failCount := 0
+	successCount, failCount := 0, 0
 	var mu sync.Mutex
-
 	for i := 0; i < goroutines; i++ {
 		go func(buyerID string) {
 			defer wg.Done()
-			_, err := service.BookService(context.Background(), buyerID, artisan.ID, "Pedicure", slotDate, slotTime, "home", "12 Admiralty Way, Lekki")
-
+			_, err := service.BookService(context.Background(), buyerID, a.ID, "Trim", day, "14:00", "home", addr)
 			mu.Lock()
 			defer mu.Unlock()
 			if err == nil {
@@ -236,70 +222,130 @@ func TestBookService_ConcurrencyDoubleBooking(t *testing.T) {
 			}
 		}(string(rune('A' + i)))
 	}
-
 	wg.Wait()
 
-	if successCount != 1 {
-		t.Errorf("expected exactly 1 success, got %d", successCount)
+	if successCount != 1 || failCount != goroutines-1 {
+		t.Errorf("successes = %d, failures = %d; want 1 and %d", successCount, failCount, goroutines-1)
 	}
-	if failCount != goroutines-1 {
-		t.Errorf("expected %d failures, got %d", goroutines-1, failCount)
-	}
-
-	// Double check database has only 1 booking record for this slot
 	var count int64
-	db.Model(&domain.Booking{}).Where("artisan_id = ? AND booking_date = ? AND booking_time = ?", artisan.ID, slotDate, slotTime).Count(&count)
+	db.Model(&domain.Booking{}).Where("artisan_id = ? AND booking_time = ?", a.ID, "14:00").Count(&count)
 	if count != 1 {
 		t.Errorf("expected exactly 1 booking record in db, got %d", count)
 	}
 }
 
-func TestBookService_VisitTypeAndConfirmOwnership(t *testing.T) {
-	db, err := gorm.Open(sqlite.Open("file:visit_rules?mode=memory&cache=shared"), &gorm.Config{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := db.AutoMigrate(&domain.User{}, &domain.Artisan{}, &domain.BookingSlot{}, &domain.Booking{}); err != nil {
-		t.Fatal(err)
-	}
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
-	service := NewBookingService(&mockBookingRepo{db: db}, db, logger)
+func TestBookService_ApprovalServiceAndDateRules(t *testing.T) {
+	db, service := newTestService(t, "rules")
 	ctx := context.Background()
+	pending := seedArtisan(t, db, "pending@luxe.com", domain.ServiceBoth, false)
+	approved := seedArtisan(t, db, "approved@luxe.com", domain.ServiceBoth, true)
 
-	owner := domain.User{ID: uuid.NewString(), Name: "Studio Owner", Email: "owner@luxe.com", Role: "artisan"}
-	db.Create(&owner)
-	studioOnly := domain.Artisan{UserID: owner.ID, Specialty: "Nails", Location: "Lagos", PriceFrom: 100000, ServiceMode: domain.ServiceStudio}
-	db.Create(&studioOnly)
-	day := time.Now().Truncate(24 * time.Hour)
-	db.Create(&domain.BookingSlot{ArtisanID: studioOnly.ID, SlotDate: day, SlotTime: "09:00"})
+	if _, err := service.BookService(ctx, "b", pending.ID, "Trim", tomorrow(), "10:00", "studio", ""); err != ErrArtisanNotFound {
+		t.Errorf("booking an unapproved artisan: got %v, want ErrArtisanNotFound", err)
+	}
+	if _, err := service.GetArtisanProfile(ctx, pending.ID); err == nil {
+		t.Error("an unapproved artisan's public profile is visible")
+	}
+	if _, err := service.Availability(ctx, pending.ID, "Trim", 7); err != ErrArtisanNotFound {
+		t.Errorf("availability for an unapproved artisan: got %v", err)
+	}
+	list, err := service.ListArtisans(ctx, "", "")
+	if err != nil || len(list) != 1 || list[0].ID != approved.ID {
+		t.Fatalf("public list = %d artisans (%v), want only the approved one", len(list), err)
+	}
+	if list[0].User.Email != "" || list[0].User.Phone != "" {
+		t.Error("public artisan list exposes the account's email or phone")
+	}
+	profile, err := service.GetArtisanProfile(ctx, approved.ID)
+	if err != nil || profile.User.Email != "" || profile.User.Name == "" {
+		t.Errorf("public profile: err=%v email=%q name=%q; want name only", err, profile.User.Email, profile.User.Name)
+	}
 
-	if _, err := service.BookService(ctx, "buyer-1", studioOnly.ID, "Gel", day, "09:00", "home", "12 Admiralty Way"); err != ErrVisitUnavailable {
+	if _, err := service.BookService(ctx, "b", approved.ID, "Not On Menu", tomorrow(), "10:00", "studio", ""); err != ErrServiceNotFound {
+		t.Errorf("unknown service: got %v, want ErrServiceNotFound", err)
+	}
+	yesterday := schedule.Today().AddDate(0, 0, -1)
+	if _, err := service.BookService(ctx, "b", approved.ID, "Trim", yesterday, "10:00", "studio", ""); err != ErrDateInPast {
+		t.Errorf("past date: got %v, want ErrDateInPast", err)
+	}
+	beyond := schedule.Today().AddDate(0, 0, schedule.WindowDays+5)
+	if _, err := service.BookService(ctx, "b", approved.ID, "Trim", beyond, "10:00", "studio", ""); err != ErrSlotTaken {
+		t.Errorf("date beyond the booking window: got %v, want ErrSlotTaken", err)
+	}
+}
+
+func TestBookService_VisitTypeAndConfirmOwnership(t *testing.T) {
+	db, service := newTestService(t, "visit_rules")
+	ctx := context.Background()
+	studioOnly := seedArtisan(t, db, "owner@luxe.com", domain.ServiceStudio, true)
+	day := tomorrow()
+
+	if _, err := service.BookService(ctx, "buyer-1", studioOnly.ID, "Trim", day, "09:00", "home", addr); err != ErrVisitUnavailable {
 		t.Fatalf("home visit with studio-only artisan: got %v", err)
 	}
-	var slot domain.BookingSlot
-	db.First(&slot, "artisan_id = ?", studioOnly.ID)
-	if slot.Reserved {
+	var reserved int64
+	db.Model(&domain.BookingSlot{}).Where("artisan_id = ? AND reserved = ?", studioOnly.ID, true).Count(&reserved)
+	if reserved != 0 {
 		t.Fatal("a rejected booking must not reserve the slot")
 	}
 
-	homeOwner := domain.User{ID: uuid.NewString(), Name: "Mobile Artisan", Email: "mobile@luxe.com", Role: "artisan"}
-	db.Create(&homeOwner)
-	mobile := domain.Artisan{UserID: homeOwner.ID, Specialty: "Gele", Location: "Lagos", PriceFrom: 100000, ServiceMode: domain.ServiceHome}
-	db.Create(&mobile)
-	db.Create(&domain.BookingSlot{ArtisanID: mobile.ID, SlotDate: day, SlotTime: "11:00"})
-	if _, err := service.BookService(ctx, "buyer-1", mobile.ID, "Gele", day, "11:00", "home", ""); err != ErrAddressRequired {
+	mobile := seedArtisan(t, db, "mobile@luxe.com", domain.ServiceHome, true)
+	if _, err := service.BookService(ctx, "buyer-1", mobile.ID, "Trim", day, "11:00", "home", ""); err != ErrAddressRequired {
 		t.Fatalf("home visit without address: got %v", err)
 	}
-	b, err := service.BookService(ctx, "buyer-1", mobile.ID, "Gele", day, "11:00", "home", "4 Bourdillon Road, Ikoyi")
+	b, err := service.BookService(ctx, "buyer-1", mobile.ID, "Trim", day, "11:00", "home", "4 Bourdillon Road, Ikoyi")
 	if err != nil {
 		t.Fatalf("valid home booking: %v", err)
 	}
 
-	if _, err := service.ConfirmBooking(ctx, b.ID, owner.ID, false); err != ErrNotYourBooking {
+	if _, err := service.ConfirmBooking(ctx, b.ID, studioOnly.UserID, false); err != ErrNotYourBooking {
 		t.Fatalf("another artisan confirmed the booking: %v", err)
 	}
-	confirmed, err := service.ConfirmBooking(ctx, b.ID, homeOwner.ID, false)
+	confirmed, err := service.ConfirmBooking(ctx, b.ID, mobile.UserID, false)
 	if err != nil || confirmed.Status != "confirmed" {
 		t.Fatalf("owner confirm: %v", err)
+	}
+}
+
+func TestOnboarding_RoleChangeNeedsApprovalAndAdminsStay(t *testing.T) {
+	db, service := newTestService(t, "onboarding")
+	ctx := context.Background()
+
+	seller := domain.User{ID: uuid.NewString(), Name: "Approved Seller", Email: "s@luxe.com", Role: "seller", Verified: true, KYCStatus: "verified"}
+	admin := domain.User{ID: uuid.NewString(), Name: "Admin", Email: "a@luxe.com", Role: "admin", Verified: true}
+	db.Create(&seller)
+	db.Create(&admin)
+
+	// Re-submitting the same role keeps the approval.
+	if err := service.OnboardSeller(ctx, seller.ID, "RC123"); err != nil {
+		t.Fatal(err)
+	}
+	var u domain.User
+	db.First(&u, "id = ?", seller.ID)
+	if !u.Verified || u.CACNumber != "RC123" {
+		t.Errorf("same-role resubmission: verified=%v cac=%q", u.Verified, u.CACNumber)
+	}
+
+	// Switching to artisan goes back to the approval queue.
+	profile := &domain.Artisan{Specialty: "Nails", Studio: "Nail Bar", PriceFrom: 100000, Location: "Lagos", ServiceMode: domain.ServiceStudio}
+	if _, err := service.OnboardArtisan(ctx, seller.ID, profile); err != nil {
+		t.Fatal(err)
+	}
+	u = domain.User{}
+	db.First(&u, "id = ?", seller.ID)
+	if u.Role != "artisan" || u.Verified || u.KYCStatus != "pending" {
+		t.Errorf("seller to artisan: role=%s verified=%v kyc=%s; want artisan, unapproved, pending", u.Role, u.Verified, u.KYCStatus)
+	}
+
+	if err := service.OnboardSeller(ctx, admin.ID, "RC1"); err != ErrRoleChangeNotAllowed {
+		t.Errorf("admin seller onboarding: got %v", err)
+	}
+	if _, err := service.OnboardArtisan(ctx, admin.ID, &domain.Artisan{Specialty: "x", Studio: "x", Location: "x", ServiceMode: domain.ServiceStudio}); err != ErrRoleChangeNotAllowed {
+		t.Errorf("admin artisan onboarding: got %v", err)
+	}
+	var after domain.User
+	db.First(&after, "id = ?", admin.ID)
+	if after.Role != "admin" {
+		t.Errorf("admin role changed to %s", after.Role)
 	}
 }

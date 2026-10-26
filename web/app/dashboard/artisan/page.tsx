@@ -6,6 +6,9 @@ import { useRouter } from "next/navigation";
 import { BadgeCheck } from "lucide-react";
 import { Figures, PageHeader, Panel, RecordList, RecordRow, StatusPill, Tabs } from "@/components/dashboard/widgets";
 import { IdentityPanel } from "@/components/dashboard/identity";
+import { ServicesEditor } from "@/components/dashboard/services-editor";
+import { AvailabilityEditor } from "@/components/dashboard/availability-editor";
+import { PendingApproval } from "@/components/dashboard/pending-approval";
 import { Avatar, visitLabel } from "@/components/site/catalog";
 import { EmptyState, FieldError, LoadError } from "@/components/site/states";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -16,13 +19,7 @@ import { type MyBooking } from "@/lib/api";
 import { formatNaira } from "@/lib/format";
 import { getFriendlyErrorMessage } from "@/lib/errors";
 
-type Tab = "bookings" | "profile" | "verification";
-
-function duration(mins: number) {
-  const h = Math.floor(mins / 60);
-  const m = mins % 60;
-  return [h ? `${h} hr` : "", m ? `${m} min` : ""].filter(Boolean).join(" ");
-}
+type Tab = "bookings" | "services" | "availability" | "verification";
 
 export default function ArtisanDashboard() {
   const router = useRouter();
@@ -94,10 +91,13 @@ export default function ArtisanDashboard() {
             }
           />
         </div>
-        {artisan && (
+        {artisan && user.verified && (
           <Button asChild variant="outline"><Link href={`/services/${artisan.slug}`}>View public page</Link></Button>
         )}
+        {artisan && <Button asChild variant="outline"><Link href="/partnership/artisan">Edit profile</Link></Button>}
       </div>
+
+      {!user.verified && <PendingApproval kind="artisan" />}
 
       <Figures
         items={[
@@ -113,7 +113,8 @@ export default function ArtisanDashboard() {
         onChange={setTab}
         tabs={[
           { id: "bookings", label: "Bookings", count: list.length },
-          { id: "profile", label: "Profile" },
+          { id: "services", label: "Services", count: artisan?.services.length },
+          { id: "availability", label: "Availability" },
           { id: "verification", label: "Verification" },
         ]}
       />
@@ -141,31 +142,16 @@ export default function ArtisanDashboard() {
         </div>
       )}
 
-      {tab === "profile" && (
-        <Panel
-          title="Services"
-          action={<Button asChild size="sm" variant="outline"><Link href="/partnership/artisan">Edit profile</Link></Button>}
-        >
-          {profile.isLoading ? (
-            <Skeleton className="h-24 w-full" />
-          ) : profile.isError ? (
-            <LoadError onRetry={() => profile.refetch()} message="We couldn't load your profile." />
-          ) : !artisan || artisan.services.length === 0 ? (
-            <EmptyState>No services listed yet. Clients book from your starting price of {artisan ? formatNaira(artisan.fromNGN) : "—"}.</EmptyState>
-          ) : (
-            <RecordList>
-              {artisan.services.map(s => (
-                <RecordRow key={s.name} title={s.name} subtitle={s.description} meta={duration(s.durationMins)} amount={formatNaira(s.priceNGN)} />
-              ))}
-            </RecordList>
-          )}
-          {artisan && (
-            <p className="mt-4 text-[12px] tracking-[-0.017em] text-muted">
-              {visitLabel(artisan.serviceMode)} · {[artisan.area, artisan.city].filter(Boolean).join(", ")} · From {formatNaira(artisan.fromNGN)}
-            </p>
-          )}
-        </Panel>
-      )}
+      {tab === "services" &&
+        (profile.isLoading ? (
+          <Panel><Skeleton className="h-40 w-full" /></Panel>
+        ) : profile.isError || !artisan ? (
+          <Panel><LoadError onRetry={() => profile.refetch()} message="We couldn't load your profile." /></Panel>
+        ) : (
+          <ServicesEditor key={artisan.id} services={artisan.services} />
+        ))}
+
+      {tab === "availability" && <AvailabilityEditor />}
 
       {tab === "verification" && <IdentityPanel />}
     </div>

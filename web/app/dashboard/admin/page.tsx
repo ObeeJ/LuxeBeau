@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { BadgeCheck, Search } from "lucide-react";
 import { Figures, PageHeader, Panel, StatusPill, Table, Tabs } from "@/components/dashboard/widgets";
+import { ApplicationsPanel } from "@/components/dashboard/applications";
 import { Photo } from "@/components/site/catalog";
 import { EmptyState, FieldError, LoadError } from "@/components/site/states";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -25,7 +26,7 @@ import { type User } from "@/lib/api";
 import { formatNaira } from "@/lib/format";
 import { getFriendlyErrorMessage } from "@/lib/errors";
 
-type Tab = "users" | "orders" | "bookings" | "products" | "escrows";
+type Tab = "applications" | "users" | "orders" | "bookings" | "products" | "escrows";
 
 function Loading() {
   return <Skeleton className="h-48 w-full" />;
@@ -44,7 +45,7 @@ export default function AdminDashboard() {
   const status = useAuth(s => s.status);
   const isAdmin = user?.role === "admin";
 
-  const [tab, setTab] = useState<Tab>("users");
+  const [tab, setTab] = useState<Tab>("applications");
   const [role, setRole] = useState("all");
   const [userStatus, setUserStatus] = useState("all");
   const [search, setSearch] = useState("");
@@ -66,7 +67,7 @@ export default function AdminDashboard() {
 
   const users = useMemo(() => usersQuery.data ?? [], [usersQuery.data]);
   const everyone = useMemo(() => allUsers.data ?? [], [allUsers.data]);
-  const awaiting = everyone.filter(u => (u.role === "seller" || u.role === "artisan") && !u.verified);
+  const awaiting = everyone.filter(u => (u.role === "seller" || u.role === "artisan") && !u.verified && u.status !== "suspended");
 
   if (status === "loading") return <Loading />;
   if (!user || !isAdmin) {
@@ -105,7 +106,7 @@ export default function AdminDashboard() {
       <Figures
         items={[
           { label: "Users", value: allUsers.isLoading ? "—" : String(everyone.length) },
-          { label: "Awaiting verification", value: allUsers.isLoading ? "—" : String(awaiting.length) },
+          { label: "Awaiting approval", value: allUsers.isLoading ? "—" : String(awaiting.length) },
           { label: "Orders (latest 200)", value: orders.isLoading ? "—" : String(orders.data?.length ?? 0) },
           { label: "Bookings (latest 200)", value: bookings.isLoading ? "—" : String(bookings.data?.length ?? 0) },
         ]}
@@ -115,6 +116,7 @@ export default function AdminDashboard() {
         value={tab}
         onChange={setTab}
         tabs={[
+          { id: "applications", label: "Applications", count: allUsers.isLoading ? undefined : awaiting.length },
           { id: "users", label: "Users" },
           { id: "orders", label: "Orders" },
           { id: "bookings", label: "Bookings" },
@@ -124,6 +126,8 @@ export default function AdminDashboard() {
       />
 
       <FieldError>{error}</FieldError>
+
+      {tab === "applications" && <ApplicationsPanel enabled={isAdmin} />}
 
       {tab === "users" && (
         <Panel

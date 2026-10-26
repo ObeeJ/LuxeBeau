@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/store";
 import { useMyBookings, useMyOrders, useWallet } from "@/lib/queries";
 import { formatNaira } from "@/lib/format";
-import { type MyBooking } from "@/lib/api";
+import { type MyBooking, type MyOrder } from "@/lib/api";
 import { useAuthModal } from "@/components/auth/auth-dialog";
 
 type Tab = "orders" | "bookings" | "account";
@@ -24,6 +24,16 @@ function ListSkeleton() {
 }
 
 const paymentLabel = (s: string) => (s === "paid" ? "Paid" : s === "failed" ? "Payment failed" : "Awaiting payment");
+/* Orders can span sellers, so items ship separately. The order's own status
+   is its slowest item; say so when some items are ahead. */
+function orderProgress(o: MyOrder) {
+  const moved = o.items.filter(i => i.stage === "shipped" || i.stage === "delivered").length;
+  const partly = moved > 0 && moved < o.items.length;
+  const status = partly ? "partly shipped" : o.shippingStatus === "pending" ? "processing" : o.shippingStatus;
+  const notes = [partly ? `${moved} of ${o.items.length} items on the way` : "", o.trackingNote ? `Tracking: ${o.trackingNote}` : ""];
+  return { status, subtitle: notes.filter(Boolean).join(" · ") };
+}
+
 const visitText = (t: string) => (t === "home" ? "Home visit" : "At the studio");
 
 function BookingGroup({ title, list }: { title: string; list: MyBooking[] }) {
@@ -106,15 +116,19 @@ export default function DashboardHome() {
             </EmptyState>
           ) : (
             <RecordList>
-              {ordersList.map(o => (
-                <RecordRow
-                  key={o.id}
-                  title={o.itemSummary}
-                  meta={`${o.id} · ${o.date} · ${paymentLabel(o.paymentStatus)}`}
-                  amount={formatNaira(o.totalNGN)}
-                  status={<StatusPill status={o.shippingStatus === "pending" ? "processing" : o.shippingStatus} />}
-                />
-              ))}
+              {ordersList.map(o => {
+                const progress = orderProgress(o);
+                return (
+                  <RecordRow
+                    key={o.id}
+                    title={o.itemSummary}
+                    subtitle={progress.subtitle || undefined}
+                    meta={`${o.id} · ${o.date} · ${paymentLabel(o.paymentStatus)}`}
+                    amount={formatNaira(o.totalNGN)}
+                    status={<StatusPill status={progress.status} />}
+                  />
+                );
+              })}
             </RecordList>
           )}
         </Panel>

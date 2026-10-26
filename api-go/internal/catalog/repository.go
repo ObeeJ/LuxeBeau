@@ -20,9 +20,16 @@ func (r *gormProductRepository) Create(ctx context.Context, prod *domain.Product
 	return r.db.WithContext(ctx).Create(prod).Error
 }
 
+// approvedSellers limits a product query to sellers an admin has approved;
+// this repository serves the public catalogue only.
+func (r *gormProductRepository) approvedSellers(ctx context.Context) *gorm.DB {
+	db := r.db.WithContext(ctx)
+	return db.Where("products.seller_id IN (?)", db.Model(&domain.User{}).Select("id").Where("verified = ?", true))
+}
+
 func (r *gormProductRepository) GetByID(ctx context.Context, id uint) (*domain.Product, error) {
 	var prod domain.Product
-	if err := r.db.WithContext(ctx).First(&prod, id).Error; err != nil {
+	if err := r.approvedSellers(ctx).First(&prod, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
 		}
@@ -33,7 +40,7 @@ func (r *gormProductRepository) GetByID(ctx context.Context, id uint) (*domain.P
 
 func (r *gormProductRepository) List(ctx context.Context, category string, search string, limit, offset int) ([]domain.Product, error) {
 	var products []domain.Product
-	query := r.db.WithContext(ctx)
+	query := r.approvedSellers(ctx)
 
 	if category != "" {
 		query = query.Where("category = ?", category)
