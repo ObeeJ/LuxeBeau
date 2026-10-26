@@ -95,8 +95,9 @@ func TestE2EPaymentIntegration(t *testing.T) {
 		t.Errorf("expected new wallet balance to be 0, got %d", userWallet.Balance)
 	}
 
-	// 5. Credit Wallet with ₦50,000 (5,000,000 kobo)
-	err = userService.CreditWallet(context.Background(), user.ID, 5000000)
+	// 5. Fund the wallet with ₦50,000 (5,000,000 kobo). There is no
+	// self-service credit endpoint; funds arrive server-side.
+	err = auth.NewGormWalletRepository(db).UpdateBalance(context.Background(), user.ID, 5000000)
 	if err != nil {
 		t.Fatalf("failed to credit wallet: %v", err)
 	}

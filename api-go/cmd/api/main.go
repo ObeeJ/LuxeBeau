@@ -81,9 +81,11 @@ func main() {
 	if err := seed.Run(db, logger); err != nil {
 		logger.Error("Catalogue seed failed", slog.Any("error", err))
 	}
-
-	// ── Seed Database ───────────────────────────────────────
-	seedDatabase(db, logger)
+	// Databases seeded before demo passwords became configurable still carry
+	// the old shared password on the demo accounts; replace it.
+	if err := seed.RetireDefaultPassword(db, logger); err != nil {
+		logger.Error("Demo password rotation failed", slog.Any("error", err))
+	}
 
 	// ── Dependency Injection Wiring ─────────────────────────
 	// Repositories (data access layer)
@@ -299,7 +301,6 @@ func main() {
 
 		// Wallets
 		protected.GET("/wallets/me", authHandler.GetWallet)
-		protected.POST("/wallets/credit", authHandler.CreditWallet)
 	}
 
 	// ── Start Server ────────────────────────────────────────
