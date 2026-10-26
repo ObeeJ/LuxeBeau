@@ -15,10 +15,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useLogin, useRegister } from "@/lib/queries";
-import { loginSchema, registerSchema, ApiError } from "@/lib/api";
+import { loginSchema, registerSchema } from "@/lib/api";
 import { useAuth } from "@/lib/store";
 import { useToast } from "@/components/ui/slide-in-notifications";
 import { getFriendlyErrorMessage } from "@/lib/errors";
+import { LuxeBeauWordmark } from "@/components/site/logo";
+import { FieldError } from "@/components/site/states";
 
 type Mode = "login" | "register";
 
@@ -39,7 +41,7 @@ export const useAuthModal = create<AuthModalState>(set => ({
   close: () => set({ open: false, onDone: undefined }),
 }));
 
-const fieldBase = "pl-10";
+const fieldBase = "pl-11";
 
 export function AuthDialog() {
   const { open, mode, onDone, close, show } = useAuthModal();
@@ -104,16 +106,13 @@ export function AuthDialog() {
 
   return (
     <Dialog open={open} onOpenChange={o => (o ? null : close())}>
-      <DialogContent className="card-velvet max-w-md border-velvet-700 sm:rounded-3xl">
-        <DialogHeader>
-          <DialogTitle className="font-display text-2xl">
-            {mode === "login" ? (
-              <>Welcome <span className="text-gold-gradient italic">back</span></>
-            ) : (
-              <>Join <span className="text-gold-gradient italic">LuxeBeau</span></>
-            )}
+      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-md">
+        <DialogHeader className="text-left">
+          <LuxeBeauWordmark className="text-[22px]" />
+          <DialogTitle className="mt-2">
+            {mode === "login" ? "Welcome back" : "Create your account"}
           </DialogTitle>
-          <DialogDescription className="text-lavender-400">
+          <DialogDescription>
             {mode === "login"
               ? "Sign in to access your dashboard, track orders, and secure booking slots."
               : "Join LuxeBeau to discover vetted artisans and premium local beauty brands."}
@@ -157,19 +156,19 @@ export function AuthDialog() {
                 aria-invalid={Boolean(errors.password)} />
             </Field>
 
-            <Button type="submit" disabled={busy} className="h-12 w-full rounded-full text-sm font-semibold">
+            <Button type="submit" disabled={busy} size="lg" className="w-full">
               {busy && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
               {mode === "login" ? "Sign in" : "Create account"}
             </Button>
           </motion.form>
         </AnimatePresence>
 
-        <p className="text-center text-sm text-lavender-400">
+        <p className="text-center text-[14px] tracking-[-0.014em] text-muted">
           {mode === "login" ? "New to LuxeBeau? " : "Already have an account? "}
           <button
             type="button"
             onClick={() => { reset(); show(mode === "login" ? "register" : "login", onDone); }}
-            className="font-semibold text-gold-300 hover:underline"
+            className="text-ink underline underline-offset-4"
           >
             {mode === "login" ? "Create an account" : "Sign in"}
           </button>
@@ -187,12 +186,12 @@ function Field({
 }) {
   return (
     <div>
-      <Label htmlFor={id} className="text-lavender-200">{label}</Label>
+      <Label htmlFor={id}>{label}</Label>
       <div className="relative mt-1.5">
-        <Icon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-lavender-400" />
+        <Icon className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" aria-hidden />
         {children}
       </div>
-      {error && <p role="alert" className="mt-1.5 text-xs text-danger">{error}</p>}
+      <FieldError>{error}</FieldError>
     </div>
   );
 }

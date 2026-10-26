@@ -1,118 +1,89 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import {
-  ArrowLeft,
-  Brush,
-  CalendarDays,
-  ClipboardList,
-  LayoutDashboard,
-  Package,
-  Shield,
-  ShieldCheck,
-  ShoppingBag,
-  Sparkles,
-  Store,
-  Wallet,
-} from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { Brush, CircleUser, LogOut, Shield, ShieldCheck, Store, type LucideIcon } from "lucide-react";
+import SiteShell, { Container } from "@/components/site/shell";
 import { useAuth } from "@/lib/store";
+import { cn } from "@/lib/utils";
 
 interface NavItem {
   href: string;
   label: string;
-  icon: React.ComponentType<{ className?: string }>;
-  exact?: boolean;
-  section?: "seller" | "artisan";
+  icon: LucideIcon;
   show: (role?: string) => boolean;
 }
 
-const allNav: NavItem[] = [
-  /* ── Common ── */
-  { href: "/dashboard", label: "Account", icon: LayoutDashboard, exact: true, show: () => true },
+/* Role-aware workspace switcher. The API enforces roles; this only hides
+   destinations a user cannot open. */
+const NAV: NavItem[] = [
+  { href: "/dashboard", label: "Account", icon: CircleUser, show: () => true },
   { href: "/dashboard/escrow", label: "Escrow", icon: ShieldCheck, show: () => true },
-
-  /* ── Seller workspace ── */
-  { href: "/dashboard/seller", label: "Seller Studio", icon: Store, exact: true, section: "seller", show: (r) => r === "seller" || r === "admin" },
-  { href: "/dashboard/seller#products", label: "Products", icon: Package, section: "seller", show: (r) => r === "seller" || r === "admin" },
-  { href: "/dashboard/seller#sales", label: "Orders & Sales", icon: ShoppingBag, section: "seller", show: (r) => r === "seller" || r === "admin" },
-  { href: "/dashboard/seller#payouts", label: "Payouts", icon: Wallet, section: "seller", show: (r) => r === "seller" || r === "admin" },
-
-  /* ── Artisan workspace ── */
-  { href: "/dashboard/artisan", label: "Artisan Studio", icon: Brush, exact: true, section: "artisan", show: (r) => r === "artisan" || r === "admin" },
-  { href: "/dashboard/artisan#bookings", label: "Bookings", icon: CalendarDays, section: "artisan", show: (r) => r === "artisan" || r === "admin" },
-  { href: "/dashboard/artisan#schedule", label: "Schedule", icon: ClipboardList, section: "artisan", show: (r) => r === "artisan" || r === "admin" },
-  { href: "/dashboard/artisan#payouts", label: "Payouts", icon: Wallet, section: "artisan", show: (r) => r === "artisan" || r === "admin" },
-
-  /* ── Admin console ── */
-  { href: "/dashboard/admin", label: "Admin", icon: Shield, show: (r) => r === "admin" },
+  { href: "/dashboard/seller", label: "Seller studio", icon: Store, show: r => r === "seller" || r === "admin" },
+  { href: "/dashboard/artisan", label: "Artisan studio", icon: Brush, show: r => r === "artisan" },
+  { href: "/dashboard/admin", label: "Admin", icon: Shield, show: r => r === "admin" },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const userRole = useAuth((s) => s.user?.role);
-  const items = allNav.filter((r) => r.show(userRole));
+  const router = useRouter();
+  const user = useAuth(s => s.user);
+  const signOut = useAuth(s => s.signOut);
+  const [mounted, setMounted] = useState(false);
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => setMounted(true), []);
+
+  const items = NAV.filter(i => i.show(mounted ? user?.role : undefined));
 
   return (
-    <div className="flex min-h-dvh flex-col md:flex-row">
-      {/* Sidebar */}
-      <aside className="flex shrink-0 flex-col border-b border-velvet-700/60 bg-velvet-900 md:min-h-dvh md:w-60 md:border-b-0 md:border-r">
-        <Link href="/" className="flex items-center gap-2 px-6 py-5" aria-label="LuxeBeau home">
-          <Sparkles className="h-5 w-5 text-gold-400" aria-hidden />
-          <span className="font-display text-lg font-semibold">
-            Luxe<span className="text-gold-gradient italic">Beau</span>
-          </span>
-          <span className="ml-1 rounded-full border border-velvet-700 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-widest text-lavender-400">
-            Studio
-          </span>
-        </Link>
-
-        <nav className="flex gap-1 overflow-x-auto px-3 pb-3 md:flex-col md:pb-0" aria-label="Dashboard navigation">
-          {items.map((item, i) => {
-            const basePath = item.href.split("#")[0];
-            const active = item.exact
-              ? pathname === basePath
-              : pathname.startsWith(basePath);
-            const isSubItem = item.href.includes("#");
-            const prevSection = i > 0 ? items[i - 1].section : undefined;
-            const showDivider = item.section && item.section !== prevSection && !isSubItem;
-            const Icon = item.icon;
-
-            return (
-              <div key={`${item.href}-${item.label}`}>
-                {showDivider && (
-                  <div className="my-2 hidden border-t border-velvet-700/40 md:block" />
-                )}
+    <SiteShell footer={false}>
+      <Container className="pb-16 pt-6 md:pt-10">
+        <div className="flex items-center gap-2">
+          <nav
+            className="no-scrollbar -mx-4 flex flex-1 gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0"
+            aria-label="Dashboard"
+          >
+            {items.map(item => {
+              const active = item.href === "/dashboard" ? pathname === "/dashboard" : pathname.startsWith(item.href);
+              const Icon = item.icon;
+              return (
                 <Link
+                  key={item.href}
                   href={item.href}
-                  aria-current={active && !isSubItem ? "page" : undefined}
-                  className={`flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-medium transition-colors duration-200 ${
-                    isSubItem ? "md:pl-9 text-[13px]" : ""
-                  } ${
-                    active && !isSubItem
-                      ? "bg-royal-500/20 text-gold-300"
-                      : active && isSubItem
-                        ? "text-lavender-100"
-                        : "text-lavender-300 hover:bg-velvet-800 hover:text-lavender-100"
-                  }`}
+                  aria-current={active ? "page" : undefined}
+                  className={cn(
+                    "inline-flex h-10 shrink-0 items-center gap-2 rounded-full border px-4 text-[14px] tracking-[-0.014em] shadow-pill transition-colors duration-200",
+                    active ? "border-ink bg-ink text-surface" : "border-hairline bg-surface text-ink hover:bg-canvas",
+                  )}
                 >
-                  <Icon className={`h-4 w-4 shrink-0 ${isSubItem ? "opacity-60" : ""}`} aria-hidden />
+                  <Icon className="h-4 w-4" strokeWidth={1.75} aria-hidden />
                   {item.label}
                 </Link>
-              </div>
-            );
-          })}
-        </nav>
-
-        <Link
-          href="/"
-          className="mt-auto hidden items-center gap-2 px-6 py-5 text-sm text-lavender-400 transition-colors hover:text-gold-300 md:flex"
-        >
-          <ArrowLeft className="h-4 w-4" aria-hidden /> Back to marketplace
-        </Link>
-      </aside>
-
-      <div className="flex-1 px-4 py-8 sm:px-8">{children}</div>
-    </div>
+              );
+            })}
+          </nav>
+          {mounted && user && (
+            <button
+              onClick={() => { signOut(); router.push("/"); }}
+              aria-label="Sign out"
+              title="Sign out"
+              className="hidden h-10 shrink-0 items-center gap-2 rounded-full border border-hairline bg-surface px-4 text-[14px] tracking-[-0.014em] shadow-pill transition-colors duration-200 hover:bg-canvas sm:inline-flex"
+            >
+              <LogOut className="h-4 w-4" aria-hidden /> Sign out
+            </button>
+          )}
+        </div>
+        <div className="mt-8">{children}</div>
+        {mounted && user && (
+          <button
+            onClick={() => { signOut(); router.push("/"); }}
+            className="mt-10 inline-flex h-10 items-center gap-2 rounded-full border border-hairline bg-surface px-4 text-[14px] tracking-[-0.014em] shadow-pill sm:hidden"
+          >
+            <LogOut className="h-4 w-4" aria-hidden /> Sign out
+          </button>
+        )}
+      </Container>
+    </SiteShell>
   );
 }

@@ -147,21 +147,54 @@ export const deliverySchema = z.object({
 });
 export type DeliveryInput = z.infer<typeof deliverySchema>;
 
-/* Order + booking responses are best-effort: the marketplace stays usable in
-   demo mode even before the Go API is reachable (see useCreateOrder). */
-export const orderResultSchema = z.object({
-  id: z.union([z.string(), z.number()]).transform(String),
-  reference: z.string().optional(),
-  status: z.string().optional(),
-});
+/* POST /orders → { order: Order }, POST /bookings → { booking: Booking }
+   (api-go/internal/order/handler.go, booking/handler.go). Amounts are kobo. */
+export const orderResultSchema = z
+  .object({
+    order: z.object({
+      id: z.string(),
+      total: z.number(),
+      delivery_fee: z.number().nullish(),
+      payment_status: z.string().nullish(),
+      payment_method: z.string().nullish(),
+    }),
+  })
+  .transform(({ order }) => ({
+    id: order.id,
+    totalNGN: Math.round(order.total / 100),
+    deliveryFeeNGN: Math.round((order.delivery_fee ?? 0) / 100),
+    paymentStatus: order.payment_status ?? "pending",
+    paymentMethod: order.payment_method ?? "",
+  }));
 export type OrderResult = z.infer<typeof orderResultSchema>;
 
-export const bookingResultSchema = z.object({
-  id: z.union([z.string(), z.number()]).transform(String),
-  reference: z.string().optional(),
-  status: z.string().optional(),
-});
+export const bookingResultSchema = z
+  .object({
+    booking: z.object({
+      id: z.string(),
+      amount: z.number().nullish(),
+      status: z.string().nullish(),
+      booking_date: z.string().nullish(),
+      booking_time: z.string().nullish(),
+    }),
+  })
+  .transform(({ booking }) => ({
+    id: booking.id,
+    amountNGN: Math.round((booking.amount ?? 0) / 100),
+    status: booking.status ?? "pending",
+  }));
 export type BookingResult = z.infer<typeof bookingResultSchema>;
+
+/* Mirrors CreateCheckout in api-go/internal/order/service.go: ₦1,500 delivery
+   below a ₦10,000 subtotal, free above. The server total is authoritative. */
+export function deliveryFeeNGN(subtotalNGN: number): number {
+  return subtotalNGN > 0 && subtotalNGN < 10_000 ? 1_500 : 0;
+}
+
+/* GET /wallets/me → { wallet: Wallet } (balance in kobo). */
+export const walletResponseSchema = z
+  .object({ wallet: z.object({ balance: z.number() }) })
+  .transform(({ wallet }) => ({ balanceNGN: Math.round(wallet.balance / 100) }));
 
 /* ── Catalogue: API shapes (snake_case, kobo) → display models (NGN) ──
    The Go schema is the source of truth. These schemas validate the wire
@@ -329,6 +362,8 @@ export const apiOrderSchema = z.object({
   subtotal: z.number().nullish(),
   payment_status: z.string().nullish(),
   shipping_status: z.string().nullish(),
+  payment_method: z.string().nullish(),
+  city: z.string().nullish(),
   created_at: z.string().nullish(),
   items: z
     .array(
@@ -345,6 +380,10 @@ export interface MyOrder {
   id: string;
   totalNGN: number;
   status: string;
+  paymentStatus: string;
+  shippingStatus: string;
+  paymentMethod: string;
+  city: string;
   date: string;
   itemSummary: string;
 }
@@ -356,6 +395,10 @@ export function toMyOrder(o: z.infer<typeof apiOrderSchema>): MyOrder {
     id: o.id,
     totalNGN: koboToNaira(o.total ?? o.subtotal ?? 0),
     status: o.shipping_status || o.payment_status || "pending",
+    paymentStatus: o.payment_status || "pending",
+    shippingStatus: o.shipping_status || "pending",
+    paymentMethod: o.payment_method ?? "",
+    city: o.city ?? "",
     date: (o.created_at ?? "").slice(0, 10),
     itemSummary: names.join(", ") || `${items.length} item(s)`,
   };
@@ -382,6 +425,9 @@ export interface MyBooking {
   time: string;
   priceNGN: number;
   status: string;
+  client: string;
+  artisan: string;
+  serviceType: string;
 }
 
 export function toMyBooking(b: z.infer<typeof apiBookingSchema>): MyBooking {
@@ -393,6 +439,9 @@ export function toMyBooking(b: z.infer<typeof apiBookingSchema>): MyBooking {
     time: b.booking_time ?? "",
     priceNGN: koboToNaira(b.amount ?? 0),
     status: b.status ?? "pending",
+    client: b.buyer?.name ?? "",
+    artisan: b.artisan?.user?.name || b.artisan?.studio || "",
+    serviceType: b.service_type ?? "",
   };
 }
 

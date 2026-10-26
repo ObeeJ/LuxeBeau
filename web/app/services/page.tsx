@@ -1,168 +1,89 @@
 "use client";
 
-import Link from "next/link";
-import { useMemo, useState, Suspense } from "react";
+import { Suspense, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { BadgeCheck, MapPin, Star } from "lucide-react";
-import SiteNav from "@/components/site/nav";
-import SiteFooter from "@/components/site/footer";
-import { CardSkeletonGrid, EmptyState, LoadError } from "@/components/site/states";
+import SiteShell, { Container } from "@/components/site/shell";
+import { ArtisanCard, CategoryPill, SearchBar } from "@/components/site/catalog";
+import { EmptyState, LoadError } from "@/components/site/states";
+import { PageHeader } from "@/components/dashboard/widgets";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useArtisans } from "@/lib/queries";
-import { formatNaira } from "@/lib/format";
-
-const cities = ["All cities", "Lagos", "Abuja", "Port Harcourt", "Ibadan"] as const;
 
 function ServicesContent() {
   const searchParams = useSearchParams();
-  // Seed filters from the URL once during render (no setState-in-effect).
-  const urlCity = searchParams.get("city");
-  const [city, setCity] = useState<(typeof cities)[number]>(
-    urlCity && cities.includes(urlCity as (typeof cities)[number]) ? (urlCity as (typeof cities)[number]) : "All cities",
-  );
-  const [query, setQuery] = useState(searchParams.get("q") ?? "");
+  const q = (searchParams.get("q") ?? "").trim().toLowerCase();
+  // Seed the city filter from the URL once during render (no setState-in-effect).
+  const [city, setCity] = useState(searchParams.get("city") ?? "All cities");
 
   const { data: artisans = [], isLoading, isError, refetch } = useArtisans();
 
-  const visible = useMemo(() => {
-    return artisans.filter(a => {
-      const cityOk = city === "All cities" || a.city === city;
-      const q = query.trim().toLowerCase();
-      const queryOk =
-        !q ||
-        a.name.toLowerCase().includes(q) ||
-        a.craft.toLowerCase().includes(q) ||
-        a.studio.toLowerCase().includes(q) ||
-        a.services.some(s => s.name.toLowerCase().includes(q));
-      return cityOk && queryOk;
-    });
-  }, [artisans, city, query]);
+  const cities = useMemo(() => {
+    const seen = new Map<string, string>();
+    for (const a of artisans) if (a.city && !seen.has(a.city)) seen.set(a.city, a.tint[0]);
+    return [...seen].map(([name, color]) => ({ name, color }));
+  }, [artisans]);
+
+  const visible = useMemo(
+    () =>
+      artisans.filter(a => {
+        const cityOk = city === "All cities" || a.city === city;
+        const queryOk =
+          !q ||
+          a.name.toLowerCase().includes(q) ||
+          a.craft.toLowerCase().includes(q) ||
+          a.studio.toLowerCase().includes(q) ||
+          a.services.some(s => s.name.toLowerCase().includes(q));
+        return cityOk && queryOk;
+      }),
+    [artisans, city, q],
+  );
 
   return (
-    <div className="min-h-dvh">
-      <SiteNav />
+    <Container className="pt-8 md:pt-12">
+      <PageHeader
+        eyebrow="Artisans"
+        title="Book the hands Lagos talks about"
+        subtitle="Braiders, gele artists, makeup artists, barbers, nail techs and estheticians."
+      />
 
-      <header className="relative overflow-hidden border-b border-velvet-700/60">
-        <div className="aurora-field absolute inset-0" aria-hidden />
-        <div className="relative mx-auto max-w-7xl px-4 py-16 sm:px-6">
-          <p className="text-xs font-semibold uppercase tracking-[0.35em] text-gold-300">The service side</p>
-          <h1 className="mt-4 font-display text-4xl font-medium sm:text-5xl">
-            Book the hands <em className="text-gold-gradient italic">Lagos talks about</em>
-          </h1>
-          <p className="mt-4 max-w-lg text-lavender-200">
-            Braiders, gele artists, MUAs, barbers, nail techs and estheticians, every artisan is
-            ID-verified with a vetted portfolio. Hold your slot with a Paystack deposit.
-          </p>
+      <div className="mt-6 max-w-[480px]">
+        <SearchBar key={q} defaultValue={searchParams.get("q") ?? ""} action="/services" placeholder="Search braids, gele, glam…" />
+      </div>
 
-          <div className="mt-8 flex flex-wrap gap-3">
-            <label className="flex-1 min-w-56">
-              <span className="sr-only">Search artisans or services</span>
-              <input
-                type="search"
-                value={query}
-                onChange={e => setQuery(e.target.value)}
-                placeholder="Search braids, gele, glam…"
-                className="w-full rounded-full border border-velvet-700 bg-velvet-900/80 px-5 py-3 text-sm placeholder:text-lavender-400/60"
-              />
-            </label>
-            <div role="group" aria-label="Filter by city" className="flex flex-wrap gap-2">
-              {cities.map(c => (
-                <button
-                  key={c}
-                  onClick={() => setCity(c)}
-                  aria-pressed={city === c}
-                  className={`rounded-full px-4 py-2.5 text-sm font-medium transition-colors duration-200 ${
-                    city === c
-                      ? "bg-royal-500 text-lavender-100"
-                      : "border border-velvet-700 text-lavender-200 hover:border-royal-400/60"
-                  }`}
-                >
-                  {c}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      </header>
+      <div role="group" aria-label="Filter by city" className="no-scrollbar -mx-4 mt-4 flex gap-2 overflow-x-auto px-4 pb-2 sm:-mx-6 sm:px-6 lg:mx-0 lg:flex-wrap lg:px-0">
+        <CategoryPill label="All cities" active={city === "All cities"} onClick={() => setCity("All cities")} />
+        {cities.map(c => (
+          <CategoryPill key={c.name} label={c.name} color={c.color} active={city === c.name} onClick={() => setCity(c.name)} />
+        ))}
+      </div>
 
-      <main className="mx-auto max-w-7xl px-4 py-12 sm:px-6">
+      <div className="mt-6">
         {isLoading ? (
-          <CardSkeletonGrid />
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" role="status" aria-busy="true">
+            {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="aspect-[4/5] w-full rounded-[28px] bg-surface" />)}
+          </div>
         ) : isError ? (
           <LoadError onRetry={() => refetch()} message="We could not load our artisans. Please try again." />
-        ) : artisans.length === 0 ? (
-          <EmptyState>
-            <p>We are onboarding artisans in your area. Check back soon.</p>
-          </EmptyState>
         ) : visible.length === 0 ? (
-          <div className="py-16 text-center">
-            <p className="text-lavender-200">No artisans match that search yet.</p>
-            <button onClick={() => { setQuery(""); setCity("All cities"); }} className="mt-4 text-sm font-semibold text-gold-300 hover:underline">
-              Clear filters
-            </button>
-          </div>
+          <EmptyState>
+            {artisans.length === 0 ? "We are onboarding artisans in your area. Check back soon." : "No artisans match that search yet."}
+          </EmptyState>
         ) : (
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {visible.map(artisan => (
-              <Link
-                key={artisan.id}
-                href={`/services/${artisan.slug}`}
-                className="card-velvet group overflow-hidden rounded-3xl transition-colors duration-300 hover:border-gold-400/50"
-              >
-                <div
-                  className="flex h-44 items-center justify-center"
-                  style={{ background: `linear-gradient(140deg, ${artisan.tint[0]}, ${artisan.tint[1]})` }}
-                >
-                  <span className="font-display text-5xl font-semibold italic text-white/85">
-                    {artisan.name.split(" ").map(n => n[0]).join("")}
-                  </span>
-                </div>
-                <div className="p-6">
-                  <div className="flex items-center justify-between gap-2">
-                    <h2 className="font-display text-lg font-semibold">{artisan.name}</h2>
-                    {artisan.verified && (
-                      <span className="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-gold-300">
-                        <BadgeCheck className="h-4 w-4" aria-hidden /> Verified
-                      </span>
-                    )}
-                  </div>
-                  <p className="mt-0.5 text-sm font-medium text-royal-400">{artisan.studio}</p>
-                  <p className="mt-2 text-sm text-lavender-400">{artisan.craft}</p>
-                  <p className="mt-1 flex items-center gap-1 text-sm text-lavender-400">
-                    <MapPin className="h-3.5 w-3.5" aria-hidden /> {artisan.area}, {artisan.city}
-                  </p>
-                  <div className="mt-4 flex items-center justify-between border-t border-velvet-700/60 pt-4 text-sm">
-                    <span className="flex items-center gap-1 text-gold-300">
-                      <Star className="h-4 w-4 fill-current" aria-hidden /> {artisan.rating}
-                      <span className="text-lavender-400">({artisan.bookings})</span>
-                    </span>
-                    <span className="font-semibold">from {formatNaira(artisan.fromNGN)}</span>
-                  </div>
-                </div>
-              </Link>
-            ))}
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {visible.map(a => <ArtisanCard key={a.id} artisan={a} />)}
           </div>
         )}
-      </main>
-
-      <SiteFooter />
-    </div>
+      </div>
+    </Container>
   );
 }
 
 export default function ServicesPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-dvh bg-velvet-950 text-lavender-100 flex flex-col justify-between">
-        <div>
-          <SiteNav />
-          <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6">
-            <CardSkeletonGrid />
-          </div>
-        </div>
-        <SiteFooter />
-      </div>
-    }>
-      <ServicesContent />
-    </Suspense>
+    <SiteShell>
+      <Suspense fallback={null}>
+        <ServicesContent />
+      </Suspense>
+    </SiteShell>
   );
 }

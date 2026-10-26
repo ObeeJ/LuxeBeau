@@ -2,9 +2,10 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Banknote, Boxes, Lock, Package, Pencil, Plus, ShoppingBag, Trash2, X } from "lucide-react";
-import { StatCard, StatusPill } from "@/components/dashboard/widgets";
-import { LoadError } from "@/components/site/states";
+import { Boxes, Lock, Package, Pencil, Plus, ShoppingBag, Trash2, Wallet, X } from "lucide-react";
+import { PageHeader, Panel, RecordList, RecordRow, StatCard, StatusPill } from "@/components/dashboard/widgets";
+import { EmptyState, FieldError, LoadError } from "@/components/site/states";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/lib/store";
 import {
@@ -13,6 +14,7 @@ import {
   useMyProducts,
   useMySales,
   useUpdateProduct,
+  useWallet,
   type SellerProductInput,
 } from "@/lib/queries";
 import { type ApiProduct } from "@/lib/api";
@@ -33,6 +35,7 @@ export default function SellerDashboard() {
 
   const productsQuery = useMyProducts(enabled);
   const salesQuery = useMySales(enabled);
+  const wallet = useWallet(enabled);
   const createProduct = useCreateProduct();
   const updateProduct = useUpdateProduct();
   const deleteProduct = useDeleteProduct();
@@ -45,20 +48,17 @@ export default function SellerDashboard() {
   const stockUnits = products.reduce((s, p) => s + (p.stock ?? 0), 0);
 
   if (!user || !isSeller) {
-    if (typeof window !== "undefined" && user && !isSeller) {
-      window.location.replace("/partnership/seller");
-    }
     return (
-      <main className="mx-auto max-w-xl py-24 text-center">
-        <Lock className="mx-auto h-10 w-10 text-danger" aria-hidden />
-        <h1 className="mt-6 font-display text-3xl font-medium">Seller studio</h1>
-        <p className="mt-3 text-lavender-200">
-          {user ? "Redirecting to merchant registration…" : "Please sign in with a seller account."}
+      <div className="mx-auto max-w-md rounded-[28px] bg-surface p-6 text-center shadow-card sm:p-8">
+        <Lock className="mx-auto h-8 w-8" strokeWidth={1.5} aria-hidden />
+        <h1 className="t-display mt-3">Seller studio</h1>
+        <p className="mt-2 text-[16px] text-muted">
+          {user ? "Register your business to open a seller studio." : "Please sign in with a seller account."}
         </p>
-        <Link href={user ? "/partnership/seller" : "/dashboard"} className="mt-8 inline-block rounded-full bg-royal-500 px-7 py-3 text-sm font-semibold transition-colors hover:bg-royal-400">
-          {user ? "Apply as Merchant" : "Back to your account"}
-        </Link>
-      </main>
+        <Button asChild size="lg" className="mt-5">
+          <Link href={user ? "/partnership/seller" : "/dashboard"}>{user ? "Register as a seller" : "Back to your account"}</Link>
+        </Button>
+      </div>
     );
   }
 
@@ -86,178 +86,87 @@ export default function SellerDashboard() {
   };
 
   return (
-    <main className="mx-auto max-w-6xl">
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.35em] text-gold-300">Seller studio</p>
-          <h1 className="mt-2 font-display text-3xl font-medium">
-            Welcome, <em className="text-gold-gradient italic">{user.name.split(" ")[0]}</em>
-          </h1>
-          <p className="mt-1 text-sm text-lavender-400">
-            Manage your shelf and track sales {user.verified ? "· verified seller" : "· verification pending"}
-          </p>
-        </div>
-        <button
-          onClick={() => setEditing({ mode: "new" })}
-          className="inline-flex items-center gap-2 rounded-full bg-royal-500 px-6 py-3 text-sm font-semibold transition-colors hover:bg-royal-400"
-        >
-          <Plus className="h-4 w-4" aria-hidden /> Add product
-        </button>
-      </header>
+    <div className="space-y-6">
+      <PageHeader
+        eyebrow="Seller studio"
+        title={`Welcome, ${user.name.split(" ")[0]}`}
+        subtitle={user.verified ? "Verified seller" : "Verification pending, our team reviews your CAC registration"}
+        action={<Button onClick={() => setEditing({ mode: "new" })}><Plus aria-hidden /> Add product</Button>}
+      />
 
-      <section className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4" aria-label="Key metrics">
+      <section className="grid grid-cols-2 gap-3 lg:grid-cols-4" aria-label="Key metrics">
         <StatCard icon={Package} label="Products" value={String(products.length)} />
         <StatCard icon={Boxes} label="Units in stock" value={String(stockUnits)} />
         <StatCard icon={ShoppingBag} label="Orders" value={String(sales.length)} />
-        <StatCard icon={Banknote} label="Sales revenue" value={formatNaira(salesRevenue)} />
+        <StatCard icon={Wallet} label="Wallet balance" value={wallet.data ? formatNaira(wallet.data.balanceNGN) : "—"} />
       </section>
 
-      {/* Product management */}
-      <section id="products" className="card-velvet mt-8 scroll-mt-20 rounded-3xl p-6" aria-label="Your products">
-        <h2 className="flex items-center gap-2 font-display text-lg font-semibold">
-          <Package className="h-5 w-5 text-gold-400" aria-hidden /> Your shelf
-        </h2>
+      <Panel id="products" title="Your shelf" icon={Package}>
         {productsQuery.isLoading ? (
-          <div className="mt-5 space-y-3" aria-busy="true" role="status">
-            {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-14 w-full bg-velvet-800/60" />)}
+          <div className="space-y-2" aria-busy="true" role="status">
+            {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}
           </div>
         ) : productsQuery.isError ? (
           <LoadError onRetry={() => productsQuery.refetch()} message="We could not load your products." />
         ) : products.length === 0 ? (
-          <div className="mt-6 rounded-xl border border-velvet-700 p-8 text-center text-sm text-lavender-400">
-            <p>You have not listed any products yet.</p>
-            <button onClick={() => setEditing({ mode: "new" })} className="mt-4 font-semibold text-gold-300 hover:underline">List your first product</button>
-          </div>
+          <EmptyState>
+            You have not listed any products yet.{" "}
+            <button onClick={() => setEditing({ mode: "new" })} className="text-ink underline underline-offset-4">List your first product</button>
+          </EmptyState>
         ) : (
-          <div className="mt-5 overflow-x-auto">
-            <table className="w-full min-w-[40rem] text-left text-sm">
-              <thead>
-                <tr className="border-b border-velvet-700/60 text-xs uppercase tracking-wider text-lavender-400">
-                  <th scope="col" className="pb-3 pr-4">Product</th>
-                  <th scope="col" className="pb-3 pr-4">Category</th>
-                  <th scope="col" className="pb-3 pr-4 text-right">Price</th>
-                  <th scope="col" className="pb-3 pr-4 text-right">Stock</th>
-                  <th scope="col" className="pb-3 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {products.map(p => (
-                  <tr key={p.id} className="border-b border-velvet-700/30 last:border-0">
-                    <td className="py-4 pr-4">
-                      <div className="flex items-center gap-3">
-                        <span className="h-9 w-9 shrink-0 rounded-lg" style={{ background: `linear-gradient(140deg, ${p.bg_color || "#3b2456"}, ${p.fg_color || "#6d3fb8"})` }} aria-hidden />
-                        <div>
-                          <p className="font-semibold">{p.name}</p>
-                          <p className="text-xs text-lavender-400">{p.brand}{p.badge ? ` · ${p.badge}` : ""}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="py-4 pr-4 text-lavender-300">{p.category}</td>
-                    <td className="py-4 pr-4 text-right font-semibold tabular-nums text-gold-300">{formatNaira((p.price ?? 0) / 100)}</td>
-                    <td className={`py-4 pr-4 text-right tabular-nums ${(p.stock ?? 0) === 0 ? "text-danger" : ""}`}>{p.stock ?? 0}</td>
-                    <td className="py-4">
-                      <div className="flex items-center justify-end gap-1.5">
-                        <button onClick={() => setEditing({ mode: "edit", product: p })} title="Edit" aria-label={`Edit ${p.name}`} className="rounded-full p-2 text-lavender-300 transition-colors hover:bg-velvet-800 hover:text-gold-300">
-                          <Pencil className="h-4 w-4" aria-hidden />
-                        </button>
-                        <button onClick={() => remove(p)} title="Remove" aria-label={`Remove ${p.name}`} className="rounded-full p-2 text-lavender-300 transition-colors hover:bg-velvet-800 hover:text-danger">
-                          <Trash2 className="h-4 w-4" aria-hidden />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <RecordList>
+            {products.map(p => (
+              <RecordRow
+                key={p.id}
+                leading={<span className="h-12 w-12 shrink-0 rounded-[12px]" style={{ backgroundColor: p.bg_color || "#332f2d" }} aria-hidden />}
+                title={p.name}
+                subtitle={`${p.brand} · ${p.category}${p.badge ? ` · ${p.badge}` : ""}`}
+                meta={`${p.stock ?? 0} in stock`}
+                amount={formatNaira((p.price ?? 0) / 100)}
+                status={(p.stock ?? 0) === 0 ? <StatusPill status="Sold out" /> : undefined}
+                actions={
+                  <>
+                    <Button size="sm" variant="outline" onClick={() => setEditing({ mode: "edit", product: p })} aria-label={`Edit ${p.name}`}>
+                      <Pencil aria-hidden /> Edit
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => remove(p)} aria-label={`Remove ${p.name}`}>
+                      <Trash2 aria-hidden /> Remove
+                    </Button>
+                  </>
+                }
+              />
+            ))}
+          </RecordList>
         )}
-      </section>
+      </Panel>
 
-      {/* Sales */}
-      <section id="sales" className="card-velvet mt-6 scroll-mt-20 overflow-x-auto rounded-3xl p-6" aria-label="Your sales">
-        <h2 className="flex items-center gap-2 font-display text-lg font-semibold">
-          <ShoppingBag className="h-5 w-5 text-gold-400" aria-hidden /> Sales
-        </h2>
+      <Panel id="sales" title="Sales" icon={ShoppingBag}>
         {salesQuery.isLoading ? (
-          <div className="mt-5 space-y-3" aria-busy="true" role="status">
-            {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-12 w-full bg-velvet-800/60" />)}
+          <div className="space-y-2" aria-busy="true" role="status">
+            {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
           </div>
         ) : salesQuery.isError ? (
           <LoadError onRetry={() => salesQuery.refetch()} message="We could not load your sales." />
         ) : sales.length === 0 ? (
-          <p className="mt-6 rounded-xl border border-velvet-700 p-8 text-center text-sm text-lavender-400">No sales yet. When a customer buys one of your products, the order shows up here.</p>
+          <EmptyState>No sales yet. Orders that include your products show up here.</EmptyState>
         ) : (
-          <table className="mt-5 w-full min-w-[36rem] text-left text-sm">
-            <thead>
-              <tr className="border-b border-velvet-700/60 text-xs uppercase tracking-wider text-lavender-400">
-                <th scope="col" className="pb-3 pr-4">Order</th>
-                <th scope="col" className="pb-3 pr-4">Items</th>
-                <th scope="col" className="pb-3 pr-4">Date</th>
-                <th scope="col" className="pb-3 pr-4 text-right">Total</th>
-                <th scope="col" className="pb-3">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sales.map(o => (
-                <tr key={o.id} className="border-b border-velvet-700/30 last:border-0">
-                  <td className="py-4 pr-4 font-semibold text-gold-300">{o.id}</td>
-                  <td className="max-w-52 truncate py-4 pr-4 text-lavender-400">{o.itemSummary}</td>
-                  <td className="py-4 pr-4 text-lavender-400">{o.date}</td>
-                  <td className="py-4 pr-4 text-right font-semibold tabular-nums">{formatNaira(o.totalNGN)}</td>
-                  <td className="py-4"><StatusPill status={o.status} /></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <RecordList>
+            {sales.map(o => (
+              <RecordRow
+                key={o.id}
+                title={o.id}
+                subtitle={o.itemSummary}
+                meta={`${o.date}${o.city ? ` · ${o.city}` : ""} · payment ${o.paymentStatus}`}
+                amount={formatNaira(o.totalNGN)}
+                status={<StatusPill status={o.shippingStatus} />}
+              />
+            ))}
+          </RecordList>
         )}
-      </section>
-
-      {/* Payouts Section */}
-      <section id="payouts" className="card-velvet mt-6 scroll-mt-20 rounded-3xl p-6 space-y-6">
-        <div>
-          <h2 className="font-display text-lg font-semibold flex items-center gap-2">
-            <Banknote className="w-5 h-5 text-gold-400" /> Payouts &amp; Store Ledger
-          </h2>
-          <p className="text-xs text-lavender-400 mt-1">Manage your merchant earnings settlement and bank account details</p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Available for Payout */}
-          <div className="rounded-2xl bg-purple-950/20 border border-purple-900/40 p-5 space-y-3">
-            <span className="text-xs text-lavender-400 font-medium">Available Balance</span>
-            <p className="text-3xl font-display font-semibold text-white">{formatNaira(salesRevenue * 0.95)}</p>
-            <button
-              onClick={() => {
-                toast(`Payout request for ${formatNaira(salesRevenue * 0.95)} submitted. It will reflect in your GTBank account within twenty-four hours.`, "success");
-              }}
-              className="w-full h-10 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 hover:opacity-90 font-semibold text-xs transition-opacity flex items-center justify-center gap-1.5"
-            >
-              Request Store Payout
-            </button>
-          </div>
-
-          {/* Locked Escrow */}
-          <div className="rounded-2xl bg-purple-950/20 border border-purple-900/40 p-5 space-y-3">
-            <span className="text-xs text-lavender-400 font-medium">Held in Escrow (Orders in transit)</span>
-            <p className="text-3xl font-display font-semibold text-purple-300">{formatNaira(salesRevenue * 0.05)}</p>
-            <p className="text-[10px] text-lavender-400 leading-relaxed">
-              Deposits for orders currently in transit. Settles immediately upon shipping status confirmation by delivery riders.
-            </p>
-          </div>
-
-          {/* Settling Account */}
-          <div className="rounded-2xl bg-purple-950/20 border border-purple-900/40 p-5 space-y-3">
-            <span className="text-xs text-lavender-400 font-medium">Merchant Bank Account</span>
-            <div className="py-2.5">
-              <p className="text-sm font-semibold text-white">GTBank PLC</p>
-              <p className="text-xs text-lavender-400 mt-1">Account ending in •••• 9012</p>
-              <span className="inline-block mt-2 text-[10px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded font-semibold">
-                Verified Business Profile
-              </span>
-            </div>
-          </div>
-        </div>
-      </section>
+        {sales.length > 0 && (
+          <p className="t-meta mt-4 font-normal text-muted">Order totals include every item in the order. Sales revenue across these orders: {formatNaira(salesRevenue)}.</p>
+        )}
+      </Panel>
 
       {editing && (
         <ProductEditor
@@ -267,7 +176,7 @@ export default function SellerDashboard() {
           onSubmit={submit}
         />
       )}
-    </main>
+    </div>
   );
 }
 
@@ -290,17 +199,27 @@ function ProductEditor({
   const [badge, setBadge] = useState(initial?.badge ?? "");
   const [blurb, setBlurb] = useState(initial?.blurb ?? "");
   const [details, setDetails] = useState((initial?.details ?? []).join("\n"));
+  const [error, setError] = useState("");
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     const priceNum = Math.round(parseFloat(price) * 100);
-    if (!name.trim() || !brand.trim() || !priceNum || priceNum <= 0) return;
+    const stockNum = parseInt(stock || "0", 10);
+    if (!name.trim() || !brand.trim() || !priceNum || priceNum <= 0) {
+      setError("Enter a name, brand and a price above zero.");
+      return;
+    }
+    if (!Number.isInteger(stockNum) || stockNum < 0) {
+      setError("Stock must be zero or a whole number above zero.");
+      return;
+    }
+    setError("");
     onSubmit({
       name: name.trim(),
       brand: brand.trim(),
       category,
       price: priceNum,
-      stock: parseInt(stock || "0", 10),
+      stock: stockNum,
       badge: badge.trim() || undefined,
       blurb: blurb.trim() || undefined,
       details: details.split("\n").map(d => d.trim()).filter(Boolean),
@@ -309,7 +228,7 @@ function ProductEditor({
 
   return (
     <div
-      className="fixed inset-0 z-50 grid place-items-center bg-velvet-950/70 p-4 backdrop-blur-md"
+      className="fixed inset-0 z-50 grid place-items-end bg-black/40 sm:place-items-center sm:p-4"
       role="dialog"
       aria-modal="true"
       aria-label={initial ? "Edit product" : "Add product"}
@@ -317,11 +236,11 @@ function ProductEditor({
     >
       <form
         onSubmit={submit}
-        className="max-h-[90dvh] w-full max-w-lg overflow-y-auto rounded-3xl border border-velvet-700/70 bg-velvet-900/90 p-6 shadow-2xl"
+        className="max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-t-[28px] bg-surface p-5 shadow-float sm:rounded-[28px] sm:p-6"
       >
         <div className="flex items-center justify-between">
-          <h2 className="font-display text-xl font-semibold">{initial ? "Edit product" : "Add product"}</h2>
-          <button type="button" onClick={onClose} aria-label="Close" className="rounded-full p-2 text-lavender-300 hover:bg-velvet-800">
+          <h2 className="t-display">{initial ? "Edit product" : "Add product"}</h2>
+          <button type="button" onClick={onClose} aria-label="Close" className="flex h-9 w-9 items-center justify-center rounded-full transition-colors duration-200 hover:bg-canvas">
             <X className="h-5 w-5" aria-hidden />
           </button>
         </div>
@@ -359,13 +278,10 @@ function ProductEditor({
           </Field>
         </div>
 
+        <FieldError>{error}</FieldError>
         <div className="mt-6 flex justify-end gap-3">
-          <button type="button" onClick={onClose} className="rounded-full border border-velvet-700 px-5 py-2.5 text-sm font-semibold text-lavender-200 transition-colors hover:border-gold-400/60">
-            Cancel
-          </button>
-          <button type="submit" disabled={pending} className="rounded-full bg-royal-500 px-6 py-2.5 text-sm font-semibold transition-colors hover:bg-royal-400 disabled:opacity-60">
-            {pending ? "Saving…" : initial ? "Save changes" : "List product"}
-          </button>
+          <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
+          <Button type="submit" disabled={pending}>{pending ? "Saving…" : initial ? "Save changes" : "List product"}</Button>
         </div>
       </form>
     </div>
@@ -375,7 +291,7 @@ function ProductEditor({
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block text-sm">
-      <span className="mb-1.5 block text-xs uppercase tracking-wider text-lavender-400">{label}</span>
+      <span className="t-meta mb-1.5 block">{label}</span>
       {children}
     </label>
   );

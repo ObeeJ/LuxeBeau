@@ -5,7 +5,6 @@ import {
   adminUserResponseSchema,
   adminUsersResponseSchema,
   apiFetch,
-  ApiError,
   apiArtisanSchema,
   artisansResponseSchema,
   escrowResponseSchema,
@@ -22,6 +21,7 @@ import {
   toMyBooking,
   toMyOrder,
   toProduct,
+  walletResponseSchema,
   type ApiProduct,
   type Artisan,
   type DeliveryInput,
@@ -37,25 +37,27 @@ import {
 
 const CATALOGUE_STALE = 5 * 60 * 1000; // 5 minutes
 
-export function useProducts() {
+async function fetchProducts(search: string) {
+  const qs = new URLSearchParams({ limit: "100" });
+  if (search) qs.set("search", search);
+  const data = await apiFetch(`/products?${qs}`, productsResponseSchema);
+  return data.products.map(toProduct);
+}
+
+/* `search` is matched server-side (name/brand ILIKE, catalog/repository.go). */
+export function useProducts(search = "") {
   return useQuery({
-    queryKey: ["products"],
+    queryKey: ["products", search],
     staleTime: CATALOGUE_STALE,
-    queryFn: async () => {
-      const data = await apiFetch("/products?limit=100", productsResponseSchema);
-      return data.products.map(toProduct);
-    },
+    queryFn: () => fetchProducts(search),
   });
 }
 
 export function useProduct(slug: string) {
   return useQuery({
-    queryKey: ["products"],
+    queryKey: ["products", ""],
     staleTime: CATALOGUE_STALE,
-    queryFn: async () => {
-      const data = await apiFetch("/products?limit=100", productsResponseSchema);
-      return data.products.map(toProduct);
-    },
+    queryFn: () => fetchProducts(""),
     select: (list: Product[]) => list.find(p => p.slug === slug || p.id === slug) ?? null,
   });
 }
@@ -350,31 +352,28 @@ interface OrderPayload {
   pay_method: "card" | "transfer" | "ussd" | "wallet";
 }
 
-/* Checkout: POST /orders (protected). If the backend is not running yet we
-   fall back to a synthesized reference so the marketplace stays demoable.
-   Real payment failures (4xx) still throw and reach the user. */
+/* Checkout: POST /orders (protected). Failures, including network errors,
+   surface to the user; an order is never reported as placed unless the API
+   created it. */
 export function useCreateOrder() {
+  const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (payload: OrderPayload) => {
-      try {
-        return await apiFetch("/orders", orderResultSchema, {
-          method: "POST",
-          auth: true,
-          body: {
-            items: payload.items,
-            address: payload.delivery.address,
-            city: payload.delivery.city,
-            state: payload.delivery.state,
-            phone: payload.delivery.phone,
-            pay_method: payload.pay_method,
-          },
-        });
-      } catch (err) {
-        if (err instanceof ApiError && (err.code === "NETWORK" || err.status === 0)) {
-          return { id: `LB-${Math.floor(100000 + Math.random() * 900000)}`, status: "demo" };
-        }
-        throw err;
-      }
+    mutationFn: (payload: OrderPayload) =>
+      apiFetch("/orders", orderResultSchema, {
+        method: "POST",
+        auth: true,
+        body: {
+          items: payload.items,
+          address: payload.delivery.address,
+          city: payload.delivery.city,
+          state: payload.delivery.state,
+          phone: payload.delivery.phone,
+          pay_method: payload.pay_method,
+        },
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["me"] });
+      qc.invalidateQueries({ queryKey: ["products"] });
     },
   });
 }
@@ -388,21 +387,11 @@ interface BookingPayload {
 }
 
 export function useCreateBooking() {
+  const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (payload: BookingPayload) => {
-      try {
-        return await apiFetch("/bookings", bookingResultSchema, {
-          method: "POST",
-          auth: true,
-          body: payload,
-        });
-      } catch (err) {
-        if (err instanceof ApiError && (err.code === "NETWORK" || err.status === 0)) {
-          return { id: `BK-${Math.floor(1000 + Math.random() * 9000)}`, status: "demo" };
-        }
-        throw err;
-      }
-    },
+    mutationFn: (payload: BookingPayload) =>
+      apiFetch("/bookings", bookingResultSchema, { method: "POST", auth: true, body: payload }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["me", "bookings"] }),
   });
 }
 
@@ -460,6 +449,71 @@ export function useMyArtisanProfile(enabled: boolean) {
         { auth: true }
       );
       return toArtisan(data.artisan);
+    },
+  });
+}
+
+/* ── Wallet (GET /wallets/me) ── */
+export function useWallet(enabled: boolean) {
+  return useQuery({
+    queryKey: ["me", "wallet"],
+    enabled,
+    queryFn: () => apiFetch("/wallets/me", walletResponseSchema, { auth: true }),
+  });
+}
+
+/* ── Artisan: confirm an incoming booking (PATCH /bookings/:id/confirm) ── */
+export function useConfirmBooking() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiFetch(`/bookings/${id}/confirm`, z.object({ message: z.string() }), { method: "PATCH", auth: true }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["me", "bookings"] }),
+  });
+}
+
+/* ── Admin: marketplace records (GET /admin/orders|bookings|products) ── */
+export function useAdminOrders(enabled: boolean) {
+  return useQuery({
+    queryKey: ["admin", "orders"],
+    enabled,
+    queryFn: async () => {
+      const data = await apiFetch("/admin/orders", ordersResponseSchema, { auth: true });
+      return (data.orders ?? []).map(toMyOrder);
+    },
+  });
+}
+
+export function useAdminBookings(enabled: boolean) {
+  return useQuery({
+    queryKey: ["admin", "bookings"],
+    enabled,
+    queryFn: async () => {
+      const data = await apiFetch("/admin/bookings", bookingsResponseSchema, { auth: true });
+      return (data.bookings ?? []).map(toMyBooking);
+    },
+  });
+}
+
+export function useAdminProducts(enabled: boolean) {
+  return useQuery({
+    queryKey: ["admin", "products"],
+    enabled,
+    queryFn: async () => {
+      const data = await apiFetch("/admin/products", productsResponseSchema, { auth: true });
+      return data.products.map(toProduct);
+    },
+  });
+}
+
+export function useAdminDeleteProduct() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiFetch(`/admin/products/${id}`, z.object({ message: z.string() }), { method: "DELETE", auth: true }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin", "products"] });
+      qc.invalidateQueries({ queryKey: ["products"] });
     },
   });
 }

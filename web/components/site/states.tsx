@@ -2,26 +2,25 @@
 
 import { AlertCircle, RefreshCw } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 
-/* Shared loading / error states for the backend-driven catalogue pages.
-   Keeping them in one place means shop and services degrade identically. */
+/* Shared loading / error / empty states for backend-driven pages. */
 
-export function CardSkeletonGrid({ count = 6 }: { count?: number }) {
+export function CardSkeletonGrid({ count = 8, className }: { count?: number; className?: string }) {
   return (
     <div
-      className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3"
+      className={cn("grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4", className)}
       role="status"
       aria-busy="true"
-      aria-label="Loading catalogue"
+      aria-label="Loading"
     >
       {Array.from({ length: count }).map((_, i) => (
-        <div key={i} className="card-velvet overflow-hidden rounded-3xl">
-          <Skeleton className="h-52 w-full rounded-none bg-velvet-800/60" />
-          <div className="space-y-3 p-6">
-            <Skeleton className="h-4 w-1/3 bg-velvet-800/60" />
-            <Skeleton className="h-5 w-3/4 bg-velvet-800/60" />
-            <Skeleton className="h-4 w-full bg-velvet-800/60" />
-            <Skeleton className="h-8 w-1/2 bg-velvet-800/60" />
+        <div key={i} className="rounded-[28px] bg-surface p-2 shadow-card">
+          <Skeleton className="aspect-square w-full rounded-[20px]" />
+          <div className="space-y-2 px-2 pb-2 pt-3">
+            <Skeleton className="h-3.5 w-1/2" />
+            <Skeleton className="h-3.5 w-3/4" />
+            <Skeleton className="h-4 w-1/3" />
           </div>
         </div>
       ))}
@@ -38,12 +37,12 @@ export function LoadError({
   message?: string;
 }) {
   return (
-    <div role="alert" className="mx-auto mt-16 max-w-md text-center">
-      <AlertCircle className="mx-auto h-10 w-10 text-danger" aria-hidden />
-      <p className="mt-4 text-lavender-200">{message}</p>
+    <div role="alert" className="mx-auto my-12 max-w-md text-center">
+      <AlertCircle className="mx-auto h-8 w-8 text-ink" strokeWidth={1.75} aria-hidden />
+      <p className="mt-3 text-[16px] text-muted">{message}</p>
       <button
         onClick={onRetry}
-        className="mt-6 inline-flex items-center gap-2 rounded-full bg-royal-500 px-6 py-2.5 text-sm font-semibold transition-colors duration-200 hover:bg-royal-400"
+        className="mt-5 inline-flex h-10 items-center gap-2 rounded-full border border-hairline bg-surface px-5 text-[14px] tracking-[-0.014em] shadow-pill transition-shadow duration-200 hover:shadow-card"
       >
         <RefreshCw className="h-4 w-4" aria-hidden /> Try again
       </button>
@@ -51,10 +50,19 @@ export function LoadError({
   );
 }
 
-export function EmptyState({ children }: { children: React.ReactNode }) {
+export function EmptyState({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className="mt-16 text-center text-lavender-400" role="status">
+    <div className={cn("rounded-[20px] bg-canvas px-6 py-10 text-center text-[14px] tracking-[-0.014em] text-muted", className)} role="status">
       {children}
     </div>
+  );
+}
+
+export function FieldError({ children }: { children?: React.ReactNode }) {
+  if (!children) return null;
+  return (
+    <p role="alert" className="mt-1.5 flex items-center gap-1.5 text-[12px] tracking-[-0.017em] text-ink">
+      <AlertCircle className="h-3.5 w-3.5 shrink-0" aria-hidden /> {children}
+    </p>
   );
 }
