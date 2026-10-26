@@ -1,21 +1,35 @@
 package admin
 
 import (
+	"context"
 	"log/slog"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 
+	"luxebeau/internal/mail"
 	"luxebeau/internal/response"
 )
 
 type Handler struct {
 	service *Service
+	mailer  *mail.Mailer
 	logger  *slog.Logger
 }
 
-func NewHandler(service *Service, logger *slog.Logger) *Handler {
-	return &Handler{service: service, logger: logger}
+func NewHandler(service *Service, mailer *mail.Mailer, logger *slog.Logger) *Handler {
+	return &Handler{service: service, mailer: mailer, logger: logger}
+}
+
+// ListApplications: GET /admin/applications, partners awaiting approval.
+func (h *Handler) ListApplications(c *gin.Context) {
+	apps, err := h.service.ListApplications(c.Request.Context())
+	if err != nil {
+		h.logger.Error("list applications failed", slog.Any("error", err))
+		response.InternalError(c, "Failed to fetch applications")
+		return
+	}
+	response.OK(c, gin.H{"applications": apps})
 }
 
 func (h *Handler) ListUsers(c *gin.Context) {
@@ -85,10 +99,17 @@ type verifyRequest struct {
 func (h *Handler) VerifyUser(c *gin.Context) {
 	var req verifyRequest
 	_ = c.ShouldBindJSON(&req)
+	before, _ := h.service.GetUser(c.Request.Context(), c.Param("id"))
 	updated, err := h.service.VerifyUser(c.Request.Context(), c.Param("id"), req.CACNumber)
 	if err != nil {
 		response.Conflict(c, err.Error())
 		return
+	}
+	// Tell a partner the first time they're approved.
+	newlyApproved := before != nil && !before.Verified
+	if h.mailer != nil && newlyApproved && (updated.Role == "seller" || updated.Role == "artisan") {
+		to, name, role := updated.Email, updated.Name, updated.Role
+		h.mailer.Go("partner_approved", func(ctx context.Context) error { return h.mailer.PartnerApproved(ctx, to, name, role) })
 	}
 	response.OK(c, gin.H{"user": updated})
 }

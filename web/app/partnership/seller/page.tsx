@@ -37,7 +37,8 @@ export default function SellerOnboarding() {
       { cac_number: cac },
       {
         onSuccess: () => {
-          updateUser({ role: "seller", cac_number: cac });
+          // A new partner role goes to admin review (api-go booking.becomePartner).
+          updateUser({ role: "seller", cac_number: cac, ...(user?.role !== "seller" && { verified: false }) });
           router.push("/dashboard/seller");
         },
         onError: err => setError(getFriendlyErrorMessage(err, "We couldn't submit your registration. Please try again.")),
@@ -54,7 +55,7 @@ export default function SellerOnboarding() {
           "List products with photos, prices and stock from your seller studio.",
           "See every order that includes your products.",
           "Sell to buyers outside LuxeBeau with escrow links.",
-          "We verify your CAC registration before your verified badge goes live.",
+          "We review your CAC registration before your products go live in the shop.",
         ]}
       >
         {status === "loading" ? (

@@ -70,19 +70,19 @@ func (h *OrderHandler) sendConfirmation(c *gin.Context, orderID string) {
 type CheckoutRequest struct {
 	Items []struct {
 		ProductID uint `json:"product_id" binding:"required"`
-		Qty       int  `json:"qty" binding:"required,min=1"`
-	} `json:"items" binding:"required,min=1"`
-	Address   string `json:"address" binding:"required"`
-	City      string `json:"city" binding:"required"`
-	State     string `json:"state" binding:"required"`
-	Phone     string `json:"phone" binding:"required"`
+		Qty       int  `json:"qty" binding:"required,min=1,max=100"`
+	} `json:"items" binding:"required,min=1,max=50,dive"`
+	Address   string `json:"address" binding:"required,max=500"`
+	City      string `json:"city" binding:"required,max=100"`
+	State     string `json:"state" binding:"required,max=100"`
+	Phone     string `json:"phone" binding:"required,max=20"`
 	PayMethod string `json:"pay_method" binding:"required,oneof=card transfer ussd wallet monnify flutterwave crypto"`
 }
 
 func (h *OrderHandler) CreateOrder(c *gin.Context) {
 	var req CheckoutRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BadRequest(c, "Check your bag and delivery details: each item needs a quantity from 1 to 100, and every address field is required.")
 		return
 	}
 

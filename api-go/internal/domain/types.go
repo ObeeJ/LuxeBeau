@@ -69,3 +69,37 @@ func (s *ServiceList) Scan(src any) error {
 		return errors.New("unsupported type for ServiceList")
 	}
 }
+
+// DayHours is one weekday's opening window. Weekday follows time.Weekday
+// (0 = Sunday); Start and End are "HH:MM" in Africa/Lagos time.
+type DayHours struct {
+	Weekday int    `json:"weekday"`
+	Start   string `json:"start"`
+	End     string `json:"end"`
+}
+
+// WeeklyHours persists an artisan's opening hours as a JSON array.
+type WeeklyHours []DayHours
+
+func (w WeeklyHours) Value() (driver.Value, error) {
+	if w == nil {
+		return "[]", nil
+	}
+	b, err := json.Marshal(w)
+	return string(b), err
+}
+
+func (w *WeeklyHours) Scan(src any) error {
+	if src == nil {
+		*w = WeeklyHours{}
+		return nil
+	}
+	switch v := src.(type) {
+	case []byte:
+		return json.Unmarshal(v, w)
+	case string:
+		return json.Unmarshal([]byte(v), w)
+	default:
+		return errors.New("unsupported type for WeeklyHours")
+	}
+}

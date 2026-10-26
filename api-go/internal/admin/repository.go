@@ -43,6 +43,15 @@ type Repository interface {
 	DeleteProduct(ctx context.Context, id uint) error
 	ListOrders(ctx context.Context) ([]domain.Order, error)
 	ListBookings(ctx context.Context) ([]domain.Booking, error)
+	ListApplications(ctx context.Context) ([]Application, error)
+}
+
+// Application is a seller or artisan waiting for approval, with what they
+// submitted so an admin can review it in one place.
+type Application struct {
+	User     domain.User     `json:"user"`
+	Artisan  *domain.Artisan `json:"artisan,omitempty"`
+	Products int64           `json:"products"`
 }
 
 type gormRepository struct {
@@ -165,4 +174,47 @@ func (r *gormRepository) ListBookings(ctx context.Context) ([]domain.Booking, er
 		return nil, err
 	}
 	return bookings, nil
+}
+
+// ListApplications returns unapproved, active sellers and artisans, oldest first.
+func (r *gormRepository) ListApplications(ctx context.Context) ([]Application, error) {
+	var users []domain.User
+	if err := r.db.WithContext(ctx).
+		Where("role IN ? AND verified = ? AND status <> ?", []string{"seller", "artisan"}, false, "suspended").
+		Order("created_at ASC").Limit(200).Find(&users).Error; err != nil {
+		return nil, err
+	}
+	if len(users) == 0 {
+		return []Application{}, nil
+	}
+	ids := make([]string, len(users))
+	for i, u := range users {
+		ids[i] = u.ID
+	}
+	var artisans []domain.Artisan
+	if err := r.db.WithContext(ctx).Where("user_id IN ?", ids).Find(&artisans).Error; err != nil {
+		return nil, err
+	}
+	byUser := make(map[string]*domain.Artisan, len(artisans))
+	for i := range artisans {
+		byUser[artisans[i].UserID] = &artisans[i]
+	}
+	type count struct {
+		SellerID string
+		N        int64
+	}
+	var counts []count
+	if err := r.db.WithContext(ctx).Model(&domain.Product{}).Select("seller_id, COUNT(*) AS n").
+		Where("seller_id IN ?", ids).Group("seller_id").Scan(&counts).Error; err != nil {
+		return nil, err
+	}
+	bySeller := make(map[string]int64, len(counts))
+	for _, c := range counts {
+		bySeller[c.SellerID] = c.N
+	}
+	out := make([]Application, len(users))
+	for i, u := range users {
+		out[i] = Application{User: u, Artisan: byUser[u.ID], Products: bySeller[u.ID]}
+	}
+	return out, nil
 }

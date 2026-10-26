@@ -41,9 +41,18 @@ func (s *orderService) CreateCheckout(ctx context.Context, buyerID string, items
 	var subtotal int64
 
 	for _, item := range items {
+		// Defence in depth: a non-positive quantity would add stock and make
+		// the total negative (crediting a wallet payment).
+		if item.Qty < 1 || item.Qty > 100 {
+			tx.Rollback()
+			return nil, fmt.Errorf("invalid quantity for product %d", item.ProductID)
+		}
 		var prod domain.Product
-		// Lock the row for update to prevent race conditions (native GORM v2 clause)
-		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&prod, item.ProductID).Error; err != nil {
+		// Lock the row for update to prevent race conditions (native GORM v2 clause).
+		// Only products from admin-approved sellers can be bought.
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			Where("seller_id IN (?)", tx.Model(&domain.User{}).Select("id").Where("verified = ?", true)).
+			First(&prod, item.ProductID).Error; err != nil {
 			tx.Rollback()
 			return nil, fmt.Errorf("product %d not found", item.ProductID)
 		}

@@ -13,29 +13,27 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { formatNaira } from "@/lib/format";
 import { useAuth } from "@/lib/store";
-import { useArtisan, useCreateBooking } from "@/lib/queries";
-import { type ArtisanService, type BookingResult } from "@/lib/api";
+import { useArtisan, useAvailability, useCreateBooking } from "@/lib/queries";
+import { ApiError, type ArtisanService, type BookingResult } from "@/lib/api";
 import { getFriendlyErrorMessage } from "@/lib/errors";
 import { useAuthModal } from "@/components/auth/auth-dialog";
 import { cn } from "@/lib/utils";
 
-/* Slot times match the availability the API seeds per artisan
-   (api-go/internal/seed/seed.go). The value sent is 24h; the label is 12h. */
-const SLOT_TIMES = ["09:00", "11:00", "13:00", "15:00", "17:00"];
-
+/* Times come from GET /artisans/:id/availability for the chosen service:
+   only start times where the whole service fits are offered. The value
+   sent is 24h; the label is 12h. */
 function to12h(t: string): string {
   const [h, m] = t.split(":").map(Number);
   return `${h % 12 === 0 ? 12 : h % 12}:${String(m).padStart(2, "0")} ${h >= 12 ? "PM" : "AM"}`;
 }
 
-function nextDays(n: number) {
-  const weekday = new Intl.DateTimeFormat("en-NG", { weekday: "short" });
-  const day = new Intl.DateTimeFormat("en-NG", { day: "numeric", month: "short" });
-  return Array.from({ length: n }, (_, i) => {
-    const d = new Date();
-    d.setDate(d.getDate() + i + 1);
-    return { iso: d.toISOString().slice(0, 10), weekday: weekday.format(d), date: day.format(d) };
-  });
+/* Dates arrive as YYYY-MM-DD in Lagos time; format them as calendar dates
+   (UTC) so the viewer's own timezone can't shift the day. */
+const weekdayFmt = new Intl.DateTimeFormat("en-NG", { weekday: "short", timeZone: "UTC" });
+const dayFmt = new Intl.DateTimeFormat("en-NG", { day: "numeric", month: "short", timeZone: "UTC" });
+function dayLabel(iso: string) {
+  const d = new Date(`${iso}T00:00:00Z`);
+  return { iso, weekday: weekdayFmt.format(d), date: dayFmt.format(d) };
 }
 
 function duration(mins: number) {
@@ -69,8 +67,9 @@ export default function ArtisanPage({ params }: { params: Promise<{ slug: string
   const showAuth = useAuthModal(s => s.show);
   const createBooking = useCreateBooking();
 
-  const days = useMemo(() => nextDays(10), []);
   const [service, setService] = useState<ArtisanService | null>(null);
+  const availability = useAvailability(artisan?.id, service?.name ?? "", 14);
+  const days = useMemo(() => (availability.data ?? []).map(d => ({ ...dayLabel(d.date), times: d.times })), [availability.data]);
   const [visit, setVisit] = useState<"studio" | "home" | null>(null);
   const [address, setAddress] = useState("");
   const [day, setDay] = useState("");
@@ -111,6 +110,14 @@ export default function ArtisanPage({ params }: { params: Promise<{ slug: string
   const chosenVisit = visit ?? (offersStudio && !offersHome ? "studio" : !offersStudio && offersHome ? "home" : null);
   const studioAddress = [artisan.studio, artisan.area, artisan.city].filter(Boolean).join(", ");
   const dayInfo = days.find(d => d.iso === day);
+  const pickService = (s: ArtisanService) => {
+    setService(s);
+    // Open times depend on the service's length, so start the time over.
+    if (s.name !== service?.name) {
+      setDay("");
+      setSlot("");
+    }
+  };
   const ready = Boolean(service && chosenVisit && day && slot && (chosenVisit === "studio" || address.trim().length >= 8));
 
   const submit = () => {
@@ -129,7 +136,16 @@ export default function ArtisanPage({ params }: { params: Promise<{ slug: string
         service_type: chosenVisit,
         address: chosenVisit === "home" ? address.trim() : undefined,
       },
-      { onSuccess: setBooked, onError: err => setError(getFriendlyErrorMessage(err, "We couldn't reserve that slot. Please pick another time.")) },
+      {
+        onSuccess: setBooked,
+        onError: err => {
+          if (err instanceof ApiError && err.status === 409) {
+            setSlot("");
+            availability.refetch();
+          }
+          setError(getFriendlyErrorMessage(err, "We couldn't reserve that slot. Please pick another time."));
+        },
+      },
     );
   };
 
@@ -154,7 +170,7 @@ export default function ArtisanPage({ params }: { params: Promise<{ slug: string
             <dl className="mt-5 divide-y divide-hairline text-[14px] tracking-[-0.014em]">
               {[
                 ["Service", service?.name],
-                ["When", `${dayInfo?.weekday} ${dayInfo?.date}, ${to12h(slot)}`],
+                ["When", `${dayLabel(day).weekday} ${dayLabel(day).date}, ${to12h(slot)}`],
                 ["Where", chosenVisit === "home" ? address : studioAddress],
                 ["Reference", booked.id],
               ].map(([k, v]) => (
@@ -240,7 +256,7 @@ export default function ArtisanPage({ params }: { params: Promise<{ slug: string
                         type="button"
                         role="radio"
                         aria-checked={selected}
-                        onClick={() => setService(s)}
+                        onClick={() => pickService(s)}
                         className={cn("flex w-full items-start gap-3 px-4 py-3.5 text-left transition-colors duration-150 hover:bg-canvas", i > 0 && "border-t border-hairline")}
                       >
                         <span className={cn("mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border", selected ? "border-ink" : "border-stone")} aria-hidden>
@@ -297,19 +313,40 @@ export default function ArtisanPage({ params }: { params: Promise<{ slug: string
             {/* When */}
             <section className="mt-8" aria-label="When">
               <h2 className="t-sub">When</h2>
-              <div className="no-scrollbar -mx-4 mt-3 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0" role="radiogroup" aria-label="Day">
-                {days.map(d => (
-                  <Chip key={d.iso} selected={day === d.iso} onClick={() => setDay(d.iso)} className="flex h-14 w-16 flex-col items-center justify-center px-0">
-                    <span className="text-[12px] opacity-70">{d.weekday}</span>
-                    <span>{d.date}</span>
-                  </Chip>
-                ))}
-              </div>
-              <div className="mt-3 flex flex-wrap gap-2" role="radiogroup" aria-label="Time">
-                {SLOT_TIMES.map(s => (
-                  <Chip key={s} selected={slot === s} onClick={() => setSlot(s)} className="h-10">{to12h(s)}</Chip>
-                ))}
-              </div>
+              {!service ? (
+                <p className="mt-2 text-[14px] tracking-[-0.014em] text-muted">Choose a service to see open times.</p>
+              ) : availability.isLoading ? (
+                <div className="mt-3 flex gap-2" role="status" aria-busy="true">
+                  {Array.from({ length: 5 }, (_, i) => <Skeleton key={i} className="h-14 w-16 rounded-full bg-surface" />)}
+                  <span className="sr-only">Loading open times</span>
+                </div>
+              ) : availability.isError ? (
+                <div className="mt-3"><LoadError onRetry={() => availability.refetch()} message="We couldn't load open times." /></div>
+              ) : days.length === 0 ? (
+                <p className="mt-2 text-[14px] tracking-[-0.014em] text-muted">
+                  No open times for this service in the next two weeks. Try a shorter service or check back soon.
+                </p>
+              ) : (
+                <>
+                  <div className="no-scrollbar -mx-4 mt-3 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0" role="radiogroup" aria-label="Day">
+                    {days.map(d => (
+                      <Chip key={d.iso} selected={day === d.iso} onClick={() => { setDay(d.iso); setSlot(""); }} className="flex h-14 w-16 flex-col items-center justify-center px-0">
+                        <span className="text-[12px] opacity-70">{d.weekday}</span>
+                        <span>{d.date}</span>
+                      </Chip>
+                    ))}
+                  </div>
+                  {dayInfo ? (
+                    <div className="mt-3 flex flex-wrap gap-2" role="radiogroup" aria-label="Time">
+                      {dayInfo.times.map(t => (
+                        <Chip key={t} selected={slot === t} onClick={() => setSlot(t)} className="h-10">{to12h(t)}</Chip>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="mt-3 text-[14px] tracking-[-0.014em] text-muted">Pick a day to see times.</p>
+                  )}
+                </>
+              )}
             </section>
 
             {error && <div className="mt-6"><FieldError>{error}</FieldError></div>}

@@ -57,6 +57,10 @@ func (s *Service) UpdateUser(ctx context.Context, actorID, id string, u UserUpda
 	return updated, nil
 }
 
+func (s *Service) ListApplications(ctx context.Context) ([]Application, error) {
+	return s.repo.ListApplications(ctx)
+}
+
 // VerifyUser approves a seller/artisan: records the CAC number, sets the
 // verified badge and marks KYC verified.
 func (s *Service) VerifyUser(ctx context.Context, id, cacNumber string) (*domain.User, error) {

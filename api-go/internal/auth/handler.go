@@ -71,6 +71,38 @@ func (h *AuthHandler) signedIn(c *gin.Context, status int, user *domain.User) {
 	response.Success(c, status, gin.H{"user": user})
 }
 
+// secondFactor tells the client to collect the emailed admin sign-in code.
+// The email is returned so the Google path knows which account to verify.
+func (h *AuthHandler) secondFactor(c *gin.Context, user *domain.User) {
+	c.JSON(http.StatusForbidden, response.APIResponse{
+		Success: false,
+		Error: &response.APIError{
+			Code:    "SECOND_FACTOR_REQUIRED",
+			Message: "We've emailed you a sign-in code. Enter it to continue.",
+			Details: gin.H{"email": user.Email},
+		},
+	})
+}
+
+// VerifyLogin: POST /auth/verify-login {email, code}, the admin second step.
+func (h *AuthHandler) VerifyLogin(c *gin.Context) {
+	var req verifyRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Enter the 6-digit code from your email.")
+		return
+	}
+	user, err := h.service.VerifyLogin(c.Request.Context(), req.Email, req.Code)
+	switch {
+	case errors.Is(err, ErrAccountSuspended):
+		response.Fail(c, http.StatusForbidden, "ACCOUNT_SUSPENDED", "This account has been suspended.")
+		return
+	case err != nil:
+		response.Fail(c, http.StatusBadRequest, "INVALID_CODE", "That code is incorrect or has expired. Sign in again for a new one.")
+		return
+	}
+	h.signedIn(c, http.StatusOK, user)
+}
+
 type registerRequest struct {
 	Name     string `json:"name" binding:"required,max=100"`
 	Email    string `json:"email" binding:"required,email,max=255"`
@@ -157,6 +189,9 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	}
 	user, err := h.service.Login(c.Request.Context(), req.Email, req.Password)
 	switch {
+	case errors.Is(err, ErrSecondFactorRequired):
+		h.secondFactor(c, user)
+		return
 	case errors.Is(err, ErrEmailNotVerified):
 		response.Fail(c, http.StatusForbidden, "EMAIL_NOT_VERIFIED", "Verify your email to continue. We've sent you a code.")
 		return
@@ -189,6 +224,9 @@ func (h *AuthHandler) Google(c *gin.Context) {
 	}
 	user, err := h.service.GoogleSignIn(c.Request.Context(), req.Credential)
 	switch {
+	case errors.Is(err, ErrSecondFactorRequired):
+		h.secondFactor(c, user)
+		return
 	case errors.Is(err, ErrGoogleNotConfigured):
 		response.Fail(c, http.StatusServiceUnavailable, "GOOGLE_NOT_CONFIGURED", "Google sign-in is not available right now.")
 		return

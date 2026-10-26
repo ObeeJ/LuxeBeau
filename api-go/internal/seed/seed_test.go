@@ -55,8 +55,13 @@ func TestRun_SeedsAndIsIdempotent(t *testing.T) {
 	if wallets != 9 {
 		t.Errorf("wallets = %d, want one per seeded account (9)", wallets)
 	}
-	if slots != 6*14*5 {
-		t.Errorf("slots = %d, want %d", slots, 6*14*5)
+	if slots != 0 {
+		t.Errorf("slots = %d, want 0 (generated on demand from weekly hours)", slots)
+	}
+	var approved int64
+	db.Model(&domain.User{}).Where("role IN ? AND verified = ?", []string{"seller", "artisan"}, true).Count(&approved)
+	if approved != 7 {
+		t.Errorf("approved partners = %d, want 7 (demo seller + 6 artisans)", approved)
 	}
 
 	// JSON columns must round-trip through the driver.

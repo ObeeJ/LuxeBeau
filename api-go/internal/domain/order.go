@@ -12,6 +12,24 @@ type OrderItem struct {
 	Product   Product `gorm:"foreignKey:ProductID" json:"product"`
 	Qty       int     `gorm:"type:integer;not null" json:"qty"`
 	Price     int64   `gorm:"type:bigint;not null" json:"price"` // Price at checkout, in Kobo
+	// Fulfilment is tracked per item because one order can span sellers.
+	FulfillmentStatus string     `gorm:"type:varchar(20);not null;default:'pending'" json:"fulfillment_status"` // pending, processing, shipped, delivered
+	TrackingNote      string     `gorm:"type:varchar(200)" json:"tracking_note"`
+	ShippedAt         *time.Time `json:"shipped_at"`
+	DeliveredAt       *time.Time `json:"delivered_at"`
+}
+
+// Fulfilment stages, in order. Sellers can only move items forward.
+var FulfillmentStages = []string{"pending", "processing", "shipped", "delivered"}
+
+// FulfillmentRank returns a stage's position, or -1 for an unknown value.
+func FulfillmentRank(stage string) int {
+	for i, s := range FulfillmentStages {
+		if s == stage {
+			return i
+		}
+	}
+	return -1
 }
 
 type Order struct {
@@ -23,7 +41,7 @@ type Order struct {
 	DeliveryFee    int64       `gorm:"type:bigint;not null" json:"delivery_fee"`
 	Total          int64       `gorm:"type:bigint;not null" json:"total"`
 	PaymentMethod  string      `gorm:"type:varchar(50);not null" json:"payment_method"`
-	PaymentStatus  string      `gorm:"type:varchar(20);default:'pending'" json:"payment_status"` // pending, paid, failed, refunded
+	PaymentStatus  string      `gorm:"type:varchar(20);default:'pending'" json:"payment_status"`  // pending, paid, failed, refunded
 	ShippingStatus string      `gorm:"type:varchar(20);default:'pending'" json:"shipping_status"` // pending, processing, shipped, delivered, cancelled
 	Address        string      `gorm:"type:text;not null" json:"address"`
 	City           string      `gorm:"type:varchar(100);not null" json:"city"`

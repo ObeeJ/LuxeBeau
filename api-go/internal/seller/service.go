@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"regexp"
 	"strings"
+	"time"
 
 	"luxebeau/internal/domain"
 )
@@ -91,4 +92,9 @@ func (s *Service) DeleteProduct(ctx context.Context, sellerID string, id uint) e
 
 func (s *Service) ListSales(ctx context.Context, sellerID string) ([]domain.Order, error) {
 	return s.repo.ListSales(ctx, sellerID)
+}
+
+// Fulfil records the seller's progress on their items in an order.
+func (s *Service) Fulfil(ctx context.Context, sellerID, orderID, stage, note string) (*Fulfilment, error) {
+	return s.repo.Fulfil(ctx, sellerID, orderID, stage, strings.TrimSpace(note), time.Now().UTC())
 }

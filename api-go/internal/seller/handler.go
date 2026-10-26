@@ -1,12 +1,15 @@
 package seller
 
 import (
+	"context"
+	"errors"
 	"log/slog"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 
 	"luxebeau/internal/domain"
+	"luxebeau/internal/mail"
 	"luxebeau/internal/media"
 	"luxebeau/internal/response"
 )
@@ -14,11 +17,12 @@ import (
 type Handler struct {
 	service *Service
 	images  *media.Images
+	mailer  *mail.Mailer
 	logger  *slog.Logger
 }
 
-func NewHandler(service *Service, images *media.Images, logger *slog.Logger) *Handler {
-	return &Handler{service: service, images: images, logger: logger}
+func NewHandler(service *Service, images *media.Images, mailer *mail.Mailer, logger *slog.Logger) *Handler {
+	return &Handler{service: service, images: images, mailer: mailer, logger: logger}
 }
 
 // productRequest is the seller-editable shape. Prices arrive in Kobo, matching
@@ -131,4 +135,61 @@ func (h *Handler) ListSales(c *gin.Context) {
 		return
 	}
 	response.OK(c, gin.H{"orders": orders})
+}
+
+type fulfilRequest struct {
+	Status       string `json:"status" binding:"required,oneof=processing shipped delivered"`
+	TrackingNote string `json:"tracking_note" binding:"max=200"`
+}
+
+// Fulfil: PATCH /me/sales/:orderId. The seller moves their own items in an
+// order forward; the buyer is emailed when items ship or arrive.
+func (h *Handler) Fulfil(c *gin.Context) {
+	var req fulfilRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Choose processing, shipped or delivered. Tracking notes are up to 200 characters.")
+		return
+	}
+	orderID := c.Param("orderId")
+	if len(orderID) > 50 {
+		response.NotFound(c, "Order not found")
+		return
+	}
+	f, err := h.service.Fulfil(c.Request.Context(), sellerID(c), orderID, req.Status, req.TrackingNote)
+	switch {
+	case errors.Is(err, ErrSaleNotFound):
+		response.NotFound(c, "Order not found")
+		return
+	case errors.Is(err, ErrNotPaid):
+		response.Conflict(c, "This order hasn't been paid yet. Wait for payment before sending it.")
+		return
+	case errors.Is(err, ErrBackwards):
+		response.Conflict(c, "These items are already further along. Status can only move forward.")
+		return
+	case errors.Is(err, ErrOrderClosed):
+		response.Conflict(c, "This order was cancelled.")
+		return
+	case errors.Is(err, ErrInvalidStage):
+		response.BadRequest(c, "Choose processing, shipped or delivered.")
+		return
+	case err != nil:
+		h.logger.Error("fulfil order failed", slog.Any("error", err))
+		response.InternalError(c, "We couldn't update this order. Please try again.")
+		return
+	}
+	if h.mailer != nil && f.Notify && f.BuyerMail != "" {
+		info := mail.FulfilmentEmail{OrderID: f.Order.ID, Stage: f.Stage, Seller: sellerName(c), Items: f.Items, Note: req.TrackingNote}
+		to, name := f.BuyerMail, f.BuyerName
+		h.mailer.Go("order_progress", func(ctx context.Context) error { return h.mailer.OrderProgress(ctx, to, name, info) })
+	}
+	response.OK(c, gin.H{"status": f.Stage, "order_status": f.Order.ShippingStatus})
+}
+
+func sellerName(c *gin.Context) string {
+	if u, ok := c.Get("user"); ok {
+		if user, ok := u.(*domain.User); ok && user.Name != "" {
+			return user.Name
+		}
+	}
+	return "Your seller"
 }

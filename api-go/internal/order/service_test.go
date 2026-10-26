@@ -103,12 +103,17 @@ func TestConcurrentCheckouts(t *testing.T) {
 		t.Fatalf("failed to seed test wallet: %v", err)
 	}
 
-	// Seed product with exactly 1 stock
+	// Seed an approved seller and a product with exactly 1 stock
+	seller := &domain.User{ID: "seller-approved", Name: "Seller", Email: "seller@test.ng", Role: "seller", Verified: true}
+	if err := db.Create(seller).Error; err != nil {
+		t.Fatalf("failed to seed seller: %v", err)
+	}
 	prod := &domain.Product{
-		Name:  "Luxe Facial Serum",
-		Brand: "LuxeBeau",
-		Price: 1500000, // ₦15,000
-		Stock: 1,
+		SellerID: seller.ID,
+		Name:     "Luxe Facial Serum",
+		Brand:    "LuxeBeau",
+		Price:    1500000, // ₦15,000
+		Stock:    1,
 	}
 	if err := db.Create(prod).Error; err != nil {
 		t.Fatalf("failed to seed test product: %v", err)
@@ -161,5 +166,54 @@ func TestConcurrentCheckouts(t *testing.T) {
 	}
 	if finalProd.Stock != 0 {
 		t.Errorf("expected final product stock to be 0, got %d", finalProd.Stock)
+	}
+}
+
+func TestCheckout_RejectsUnapprovedSellersAndBadQuantities(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open("file:checkout_rules?mode=memory&cache=shared"), &gorm.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := db.AutoMigrate(&domain.User{}, &domain.Wallet{}, &domain.Product{}, &domain.Order{}, &domain.OrderItem{}); err != nil {
+		t.Fatal(err)
+	}
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
+	service := NewOrderService(&mockOrderRepo{db: db}, &mockProductRepo{db: db}, db, logger)
+	ctx := context.Background()
+
+	db.Create(&domain.User{ID: "pending-seller", Name: "P", Email: "p@test.ng", Role: "seller"})
+	db.Create(&domain.User{ID: "ok-seller", Name: "O", Email: "o@test.ng", Role: "seller", Verified: true})
+	hidden := &domain.Product{SellerID: "pending-seller", Name: "Hidden", Brand: "B", Price: 100000, Stock: 10}
+	live := &domain.Product{SellerID: "ok-seller", Name: "Live", Brand: "B", Price: 100000, Stock: 10}
+	db.Create(hidden)
+	db.Create(live)
+	db.Create(&domain.Wallet{UserID: "buyer", Balance: 500000})
+
+	type line = struct {
+		ProductID uint `json:"product_id"`
+		Qty       int  `json:"qty"`
+	}
+	checkout := func(items ...line) error {
+		_, err := service.CreateCheckout(ctx, "buyer", items, "1 Road", "Lagos", "Lagos", "0800", "wallet")
+		return err
+	}
+
+	if err := checkout(line{hidden.ID, 1}); err == nil {
+		t.Error("bought a product from an unapproved seller")
+	}
+	for _, qty := range []int{0, -5, 101} {
+		if err := checkout(line{live.ID, qty}); err == nil {
+			t.Errorf("checkout accepted qty %d", qty)
+		}
+	}
+	var w domain.Wallet
+	db.First(&w, "user_id = ?", "buyer")
+	var p domain.Product
+	db.First(&p, live.ID)
+	if w.Balance != 500000 || p.Stock != 10 {
+		t.Errorf("rejected checkouts changed wallet (%d) or stock (%d)", w.Balance, p.Stock)
+	}
+	if err := checkout(line{live.ID, 2}); err != nil {
+		t.Errorf("valid checkout: %v", err)
 	}
 }

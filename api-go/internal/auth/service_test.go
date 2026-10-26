@@ -12,6 +12,7 @@ import (
 	"math/big"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -38,6 +39,10 @@ func (c *captureSender) SendVerificationCode(_ context.Context, to, _ string, co
 	}
 	c.codes[to] = code
 	return nil
+}
+
+func (c *captureSender) SendLoginCode(ctx context.Context, to, name, code string) error {
+	return c.SendVerificationCode(ctx, to, name, "login:"+code)
 }
 
 func (c *captureSender) last(to string) string {
@@ -349,5 +354,83 @@ func TestGoogleSignInLinksExistingEmail(t *testing.T) {
 	db.Model(&domain.Wallet{}).Where("user_id = ?", fresh.ID).Count(&count)
 	if count != 1 {
 		t.Fatalf("google user wallet count = %d", count)
+	}
+}
+
+func TestAdminSignInNeedsEmailedCode(t *testing.T) {
+	svc, sender, db := newTestService(t)
+	ctx := context.Background()
+
+	admin, _ := svc.Register(ctx, "Ops Admin", "ops@example.com", "correct-horse", "")
+	verifyCode := sender.last("ops@example.com")
+	if _, err := svc.VerifyEmail(ctx, "ops@example.com", verifyCode); err != nil {
+		t.Fatal(err)
+	}
+	db.Model(&domain.User{}).Where("id = ?", admin.ID).Update("role", "admin")
+
+	user, err := svc.Login(ctx, "ops@example.com", "correct-horse")
+	if !errors.Is(err, ErrSecondFactorRequired) || user == nil || user.Email != "ops@example.com" {
+		t.Fatalf("admin password login: user=%v err=%v; want second factor required", user, err)
+	}
+	sent := sender.last("ops@example.com")
+	if !strings.HasPrefix(sent, "login:") {
+		t.Fatalf("expected a login code email, got %q", sent)
+	}
+	code := strings.TrimPrefix(sent, "login:")
+
+	// The email-verification purpose can't stand in for a login code.
+	if _, err := svc.VerifyLogin(ctx, "ops@example.com", verifyCode); !errors.Is(err, ErrInvalidCode) {
+		t.Errorf("verify-email code accepted as login code: %v", err)
+	}
+	if _, err := svc.VerifyLogin(ctx, "ops@example.com", wrongCode(code)); !errors.Is(err, ErrInvalidCode) {
+		t.Errorf("wrong login code: %v", err)
+	}
+	got, err := svc.VerifyLogin(ctx, "OPS@example.com", code)
+	if err != nil || got.ID != admin.ID {
+		t.Fatalf("correct login code: %v", err)
+	}
+	if _, err := svc.VerifyLogin(ctx, "ops@example.com", code); !errors.Is(err, ErrInvalidCode) {
+		t.Errorf("login code reused: %v", err)
+	}
+
+	// Signing in again within a minute keeps the earlier code instead of
+	// sending another (resend gap), and still asks for the code.
+	if _, err := svc.Login(ctx, "ops@example.com", "correct-horse"); !errors.Is(err, ErrSecondFactorRequired) {
+		t.Fatalf("second admin login: %v", err)
+	}
+	if _, err := svc.Login(ctx, "ops@example.com", "correct-horse"); !errors.Is(err, ErrSecondFactorRequired) {
+		t.Fatalf("admin login inside resend gap: %v", err)
+	}
+
+	// Non-admins never get or use login codes.
+	buyer, _ := svc.Register(ctx, "Buyer", "buyer@example.com", "correct-horse", "")
+	svc.VerifyEmail(ctx, "buyer@example.com", sender.last("buyer@example.com"))
+	if _, err := svc.Login(ctx, "buyer@example.com", "correct-horse"); err != nil {
+		t.Errorf("buyer login should not need a code: %v", err)
+	}
+	if _, err := svc.VerifyLogin(ctx, buyer.Email, "123456"); !errors.Is(err, ErrInvalidCode) {
+		t.Errorf("buyer verify-login: %v", err)
+	}
+}
+
+func TestAdminGoogleSignInNeedsEmailedCode(t *testing.T) {
+	svc, sender, db := newTestService(t)
+	g := newFakeGoogle(t)
+	svc.google = NewGoogleVerifier("client-123")
+	svc.google.certsURL = g.srv.URL
+	ctx := context.Background()
+
+	existing, _ := svc.Register(ctx, "Hadiza", "hadiza@example.com", "password-123", "")
+	db.Model(&domain.User{}).Where("id = ?", existing.ID).Update("role", "admin")
+
+	for i := 0; i < 2; i++ { // first links the account, second finds it by Google subject
+		user, err := svc.GoogleSignIn(ctx, g.token(t, googleClaims(nil)))
+		if !errors.Is(err, ErrSecondFactorRequired) || user == nil || user.Email != "hadiza@example.com" {
+			t.Fatalf("admin google sign-in %d: user=%v err=%v", i, user, err)
+		}
+	}
+	code := strings.TrimPrefix(sender.last("hadiza@example.com"), "login:")
+	if _, err := svc.VerifyLogin(ctx, "hadiza@example.com", code); err != nil {
+		t.Fatalf("verify google admin login: %v", err)
 	}
 }
