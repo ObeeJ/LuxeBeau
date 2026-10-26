@@ -5,6 +5,7 @@ package seed
 
 import (
 	"log/slog"
+	"os"
 
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
@@ -28,10 +29,12 @@ func Run(db *gorm.DB, logger *slog.Logger) error {
 
 	logger.Info("Seeding catalogue…")
 
-	hash, _ := bcrypt.GenerateFromPassword([]byte("password123"), bcrypt.DefaultCost)
-	pw := string(hash)
+	pw, err := demoPasswordHash(logger)
+	if err != nil {
+		return err
+	}
 
-	// ── Demo accounts (login with password123) ──────────────────
+	// ── Demo accounts (password from SEED_DEMO_PASSWORD) ─────────
 	// Marked email-verified so local sign-in works without an email server.
 	demoUsers := []domain.User{
 		{ID: "00000000-0000-0000-0000-000000000001", Name: "Ada Demo", Email: "buyer@luxebeau.ng", PasswordHash: pw, EmailVerified: true, Phone: "08030000001", Role: "buyer"},
@@ -148,4 +151,68 @@ func Run(db *gorm.DB, logger *slog.Logger) error {
 		logger.Info("Seed complete", slog.Int("products", len(products)), slog.Int("artisans", len(artisanSeeds)))
 		return nil
 	})
+}
+
+// MinDemoPasswordLen is the shortest SEED_DEMO_PASSWORD accepted.
+const MinDemoPasswordLen = 12
+
+// legacyPassword is the shared password older builds gave every demo account.
+const legacyPassword = "password123"
+
+// demoUserIDs are the fixed IDs of every account this package or the old
+// cmd/api seeder ever created.
+var demoUserIDs = []string{
+	"00000000-0000-0000-0000-000000000001", "00000000-0000-0000-0000-000000000002", "00000000-0000-0000-0000-000000000003",
+	"10000000-0000-0000-0000-000000000001", "10000000-0000-0000-0000-000000000002", "10000000-0000-0000-0000-000000000003",
+	"10000000-0000-0000-0000-000000000004", "10000000-0000-0000-0000-000000000005", "10000000-0000-0000-0000-000000000006",
+	"b7c84439-d3e9-4e78-9e58-f542c332ea71", "b7c84439-d3e9-4e78-9e58-f542c332ea72", "b7c84439-d3e9-4e78-9e58-f542c332ea73",
+	"b7c84439-d3e9-4e78-9e58-f542c332ea74", "b7c84439-d3e9-4e78-9e58-f542c332ea75", "b7c84439-d3e9-4e78-9e58-f542c332ea76",
+}
+
+// demoPasswordHash hashes SEED_DEMO_PASSWORD for the demo accounts. When it is
+// unset the accounts get no password, so nobody can sign in to them with one
+// (auth.Login rejects an empty hash). The password itself is never logged.
+func demoPasswordHash(logger *slog.Logger) (string, error) {
+	pw := os.Getenv("SEED_DEMO_PASSWORD")
+	if pw == "" {
+		logger.Info("Demo accounts have no password; set SEED_DEMO_PASSWORD to sign in to them")
+		return "", nil
+	}
+	if len(pw) < MinDemoPasswordLen || pw == legacyPassword {
+		logger.Warn("SEED_DEMO_PASSWORD ignored: use at least 12 characters; demo accounts have no password")
+		return "", nil
+	}
+	hash, err := bcrypt.GenerateFromPassword([]byte(pw), 12)
+	if err != nil {
+		return "", err
+	}
+	return string(hash), nil
+}
+
+// RetireDefaultPassword replaces the old shared demo password on any demo
+// account that still has it, with SEED_DEMO_PASSWORD's hash or no password.
+// Accounts whose password was changed are left alone. Safe on every startup.
+func RetireDefaultPassword(db *gorm.DB, logger *slog.Logger) error {
+	var users []domain.User
+	if err := db.Select("id", "password_hash").Where("id IN ? AND password_hash <> ?", demoUserIDs, "").Find(&users).Error; err != nil {
+		return err
+	}
+	var stale []string
+	for _, u := range users {
+		if bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(legacyPassword)) == nil {
+			stale = append(stale, u.ID)
+		}
+	}
+	if len(stale) == 0 {
+		return nil
+	}
+	hash, err := demoPasswordHash(logger)
+	if err != nil {
+		return err
+	}
+	if err := db.Model(&domain.User{}).Where("id IN ?", stale).Update("password_hash", hash).Error; err != nil {
+		return err
+	}
+	logger.Warn("Replaced the old shared demo password", slog.Int("accounts", len(stale)))
+	return nil
 }

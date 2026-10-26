@@ -403,10 +403,6 @@ func (s *Service) GetWallet(ctx context.Context, userID string) (*domain.Wallet,
 	return s.walletRepo.GetByUserID(ctx, userID)
 }
 
-func (s *Service) CreditWallet(ctx context.Context, userID string, amount int64) error {
-	return s.walletRepo.UpdateBalance(ctx, userID, amount)
-}
-
 // constantTimeEqual compares two hex digests without leaking timing.
 func constantTimeEqual(a, b string) bool {
 	return subtle.ConstantTimeCompare([]byte(a), []byte(b)) == 1

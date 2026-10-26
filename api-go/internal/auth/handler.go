@@ -330,23 +330,3 @@ func (h *AuthHandler) GetWallet(c *gin.Context) {
 	}
 	response.OK(c, gin.H{"wallet": wallet})
 }
-
-type CreditWalletRequest struct {
-	Amount int64 `json:"amount" binding:"required,gt=0"`
-}
-
-func (h *AuthHandler) CreditWallet(c *gin.Context) {
-	userID := c.GetString("userID")
-	var req CreditWalletRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
-		return
-	}
-	if err := h.service.CreditWallet(c.Request.Context(), userID, req.Amount); err != nil {
-		h.logger.Error("Failed to credit wallet", slog.Any("error", err))
-		response.InternalError(c, "Failed to credit wallet")
-		return
-	}
-	wallet, _ := h.service.GetWallet(c.Request.Context(), userID)
-	response.OK(c, gin.H{"message": "Wallet credited successfully", "wallet": wallet})
-}
