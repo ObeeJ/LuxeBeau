@@ -1,210 +1,314 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { create } from "zustand";
-import { AnimatePresence, motion } from "framer-motion";
-import { Loader2, Lock, Mail, Phone, User as UserIcon } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
+import { Loader2 } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useLogin, useRegister } from "@/lib/queries";
-import { loginSchema, registerSchema } from "@/lib/api";
+import { useGoogleSignIn, useLogin, useRegister, useResendCode, useVerifyEmail } from "@/lib/queries";
+import { ApiError, loginSchema, registerSchema, type User } from "@/lib/api";
 import { useAuth } from "@/lib/store";
-import { useToast } from "@/components/ui/slide-in-notifications";
 import { getFriendlyErrorMessage } from "@/lib/errors";
-import { LuxeBeauWordmark } from "@/components/site/logo";
 import { FieldError } from "@/components/site/states";
 
-type Mode = "login" | "register";
+type Mode = "signin" | "register" | "verify";
 
 interface AuthModalState {
   open: boolean;
   mode: Mode;
+  reason?: string;
   onDone?: () => void;
-  show: (mode?: Mode, onDone?: () => void) => void;
+  show: (mode?: "signin" | "register", onDone?: () => void, reason?: string) => void;
   close: () => void;
 }
 
-/* Global trigger: any component can call useAuthModal().show("login", cb). */
+/* Global trigger: any component can call useAuthModal().show("signin", cb). */
 export const useAuthModal = create<AuthModalState>(set => ({
   open: false,
-  mode: "login",
-  onDone: undefined,
-  show: (mode = "login", onDone) => set({ open: true, mode, onDone }),
-  close: () => set({ open: false, onDone: undefined }),
+  mode: "signin",
+  show: (mode = "signin", onDone, reason) => set({ open: true, mode, onDone, reason }),
+  close: () => set({ open: false, onDone: undefined, reason: undefined }),
 }));
 
-const fieldBase = "pl-11";
+const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? "";
+const RESEND_SECONDS = 60;
+
+/* ── Google Identity Services button ── */
+
+interface GoogleId {
+  initialize: (cfg: { client_id: string; callback: (r: { credential: string }) => void; ux_mode?: string }) => void;
+  renderButton: (el: HTMLElement, opts: Record<string, unknown>) => void;
+}
+declare global {
+  interface Window {
+    google?: { accounts: { id: GoogleId } };
+  }
+}
+
+let gisLoading: Promise<void> | null = null;
+function loadGoogle(): Promise<void> {
+  if (window.google?.accounts?.id) return Promise.resolve();
+  gisLoading ??= new Promise((resolve, reject) => {
+    const s = document.createElement("script");
+    s.src = "https://accounts.google.com/gsi/client";
+    s.async = true;
+    s.onload = () => resolve();
+    s.onerror = () => {
+      gisLoading = null;
+      reject(new Error("google script failed"));
+    };
+    document.head.appendChild(s);
+  });
+  return gisLoading;
+}
+
+function GoogleButton({ onCredential, label }: { onCredential: (credential: string) => void; label: "signin_with" | "signup_with" }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const cb = useRef(onCredential);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    cb.current = onCredential;
+  }, [onCredential]);
+
+  useEffect(() => {
+    let cancelled = false;
+    loadGoogle()
+      .then(() => {
+        if (cancelled || !ref.current || !window.google) return;
+        window.google.accounts.id.initialize({
+          client_id: GOOGLE_CLIENT_ID,
+          callback: r => cb.current(r.credential),
+          ux_mode: "popup",
+        });
+        window.google.accounts.id.renderButton(ref.current, {
+          theme: "outline",
+          size: "large",
+          shape: "pill",
+          text: label,
+          width: Math.min(ref.current.offsetWidth || 360, 400),
+        });
+      })
+      .catch(() => !cancelled && setFailed(true));
+    return () => {
+      cancelled = true;
+    };
+  }, [label]);
+
+  if (failed) return <p className="t-meta text-center font-normal text-muted">Google sign-in couldn&apos;t load. Use your email instead.</p>;
+  return <div ref={ref} className="flex h-11 w-full justify-center" />;
+}
+
+/* ── Dialog ── */
 
 export function AuthDialog() {
-  const { open, mode, onDone, close, show } = useAuthModal();
+  const { open, mode: initialMode, reason, onDone, close } = useAuthModal();
   const signIn = useAuth(s => s.signIn);
-  const { toast } = useToast();
-  const login = useLogin();
-  const register = useRegister();
 
+  const [mode, setMode] = useState<Mode>(initialMode);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [phone, setPhone] = useState("");
+  const [code, setCode] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [formError, setFormError] = useState("");
+  const [resendIn, setResendIn] = useState(0);
 
-  const busy = login.isPending || register.isPending;
+  const login = useLogin();
+  const register = useRegister();
+  const verify = useVerifyEmail();
+  const resend = useResendCode();
+  const google = useGoogleSignIn();
+  const busy = login.isPending || register.isPending || verify.isPending || google.isPending;
 
-  const reset = () => {
-    setErrors({});
-    setName("");
-    setPassword("");
-    setPhone("");
+  // Each open starts at the requested step with a clean form.
+  const [openedFor, setOpenedFor] = useState<string | null>(null);
+  const openKey = open ? initialMode : null;
+  if (openKey !== openedFor) {
+    setOpenedFor(openKey);
+    if (open) {
+      setMode(initialMode);
+      setErrors({});
+      setFormError("");
+      setPassword("");
+      setCode("");
+    }
+  }
+
+  useEffect(() => {
+    if (resendIn <= 0) return;
+    const t = setTimeout(() => setResendIn(s => s - 1), 1000);
+    return () => clearTimeout(t);
+  }, [resendIn]);
+
+  const finish = (user: User) => {
+    signIn(user);
+    close();
+    onDone?.();
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const toVerify = () => {
+    setMode("verify");
+    setCode("");
+    setFormError("");
+    setResendIn(RESEND_SECONDS);
+  };
+
+  const fail = (err: unknown) => setFormError(getFriendlyErrorMessage(err));
+
+  const fieldErrors = (issues: ReadonlyArray<{ path: PropertyKey[]; message: string }>) => {
+    const out: Record<string, string> = {};
+    for (const i of issues) out[String(i.path[0])] ??= i.message;
+    setErrors(out);
+  };
+
+  const submit = (e: React.FormEvent) => {
     e.preventDefault();
     setErrors({});
+    setFormError("");
 
-    if (mode === "login") {
+    if (mode === "signin") {
       const parsed = loginSchema.safeParse({ email, password });
-      if (!parsed.success) {
-        setErrors(fieldErrors(parsed.error));
-        return;
-      }
+      if (!parsed.success) return fieldErrors(parsed.error.issues);
       login.mutate(parsed.data, {
-        onSuccess: ({ token, user }) => {
-          signIn(token, user);
-          toast(`Welcome back, ${user.name.split(" ")[0]}! We've loaded your profile.`, "success");
-          onDone?.();
-          close();
-          reset();
+        onSuccess: ({ user }) => finish(user),
+        onError: err => (err instanceof ApiError && err.code === "EMAIL_NOT_VERIFIED" ? toVerify() : fail(err)),
+      });
+    } else if (mode === "register") {
+      const parsed = registerSchema.safeParse({ name, email, password });
+      if (!parsed.success) return fieldErrors(parsed.error.issues);
+      register.mutate(parsed.data, {
+        onSuccess: ({ email: confirmed }) => {
+          setEmail(confirmed);
+          toVerify();
         },
-        onError: err => toast(messageFor(err), "error"),
+        onError: err =>
+          err instanceof ApiError && err.status === 409
+            ? setErrors({ email: "An account already uses this email. Sign in instead." })
+            : fail(err),
       });
     } else {
-      const parsed = registerSchema.safeParse({ name, email, password, phone, role: "buyer" });
-      if (!parsed.success) {
-        setErrors(fieldErrors(parsed.error));
-        return;
-      }
-      register.mutate(parsed.data, {
-        onSuccess: ({ token, user }) => {
-          signIn(token, user);
-          toast(`Welcome to LuxeBeau, ${user.name.split(" ")[0]}! Let's find your perfect style.`, "success");
-          onDone?.();
-          close();
-          reset();
-        },
-        onError: err => toast(messageFor(err), "error"),
-      });
+      if (!/^\d{6}$/.test(code)) return setErrors({ code: "Enter the 6-digit code." });
+      verify.mutate(
+        { email, code },
+        { onSuccess: ({ user }) => finish(user), onError: () => setErrors({ code: "That code is incorrect or has expired." }) },
+      );
     }
   };
 
+  const onGoogle = (credential: string) =>
+    google.mutate(credential, { onSuccess: ({ user }) => finish(user), onError: fail });
+
+  const title = mode === "verify" ? "Check your email" : mode === "register" ? "Create your account" : "Sign in";
+  const description =
+    mode === "verify"
+      ? `Enter the 6-digit code we sent to ${email}.`
+      : reason ?? (mode === "register" ? "Shop, book artisans and track your orders." : "Welcome back to LuxeBeau.");
+
   return (
     <Dialog open={open} onOpenChange={o => (o ? null : close())}>
-      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-md">
+      <DialogContent className="max-h-[92dvh] overflow-y-auto sm:max-w-[400px]">
         <DialogHeader className="text-left">
-          <LuxeBeauWordmark className="text-[22px]" />
-          <DialogTitle className="mt-2">
-            {mode === "login" ? "Welcome back" : "Create your account"}
-          </DialogTitle>
-          <DialogDescription>
-            {mode === "login"
-              ? "Sign in to access your dashboard, track orders, and secure booking slots."
-              : "Join LuxeBeau to discover vetted artisans and premium local beauty brands."}
-          </DialogDescription>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
 
-        <AnimatePresence mode="wait" initial={false}>
-          <motion.form
-            key={mode}
-            onSubmit={handleSubmit}
-            noValidate
-            initial={{ opacity: 0, x: mode === "login" ? -16 : 16 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: mode === "login" ? 16 : -16 }}
-            transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-            className="space-y-4"
-          >
-            {mode === "register" && (
-              <Field id="name" label="Full name" error={errors.name} icon={UserIcon}>
-                <Input id="name" value={name} onChange={e => setName(e.target.value)}
-                  autoComplete="name" placeholder="Adaeze Okafor" className={fieldBase}
-                  aria-invalid={Boolean(errors.name)} />
-              </Field>
-            )}
-            <Field id="email" label="Email" error={errors.email} icon={Mail}>
-              <Input id="email" type="email" value={email} onChange={e => setEmail(e.target.value)}
-                autoComplete="email" inputMode="email" placeholder="you@email.com" className={fieldBase}
-                aria-invalid={Boolean(errors.email)} />
-            </Field>
-            {mode === "register" && (
-              <Field id="phone" label="Phone (WhatsApp preferred)" error={errors.phone} icon={Phone}>
-                <Input id="phone" type="tel" value={phone} onChange={e => setPhone(e.target.value)}
-                  autoComplete="tel" inputMode="tel" placeholder="0803 123 4567" className={fieldBase}
-                  aria-invalid={Boolean(errors.phone)} />
-              </Field>
-            )}
-            <Field id="password" label="Password" error={errors.password} icon={Lock}>
-              <Input id="password" type="password" value={password} onChange={e => setPassword(e.target.value)}
-                autoComplete={mode === "login" ? "current-password" : "new-password"}
-                placeholder={mode === "login" ? "Your password" : "At least 8 characters"} className={fieldBase}
-                aria-invalid={Boolean(errors.password)} />
-            </Field>
+        {mode !== "verify" && GOOGLE_CLIENT_ID && (
+          <>
+            <GoogleButton onCredential={onGoogle} label={mode === "register" ? "signup_with" : "signin_with"} />
+            <div className="flex items-center gap-3 text-[12px] text-muted" aria-hidden>
+              <span className="h-px flex-1 bg-hairline" /> or <span className="h-px flex-1 bg-hairline" />
+            </div>
+          </>
+        )}
 
-            <Button type="submit" disabled={busy} size="lg" className="w-full">
-              {busy && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
-              {mode === "login" ? "Sign in" : "Create account"}
-            </Button>
-          </motion.form>
-        </AnimatePresence>
+        <form onSubmit={submit} noValidate className="space-y-3">
+          {mode === "register" && (
+            <div>
+              <Label htmlFor="auth-name">Name</Label>
+              <Input id="auth-name" value={name} onChange={e => setName(e.target.value)} autoComplete="name" className="mt-1.5" aria-invalid={Boolean(errors.name)} />
+              <FieldError>{errors.name}</FieldError>
+            </div>
+          )}
 
-        <p className="text-center text-[14px] tracking-[-0.014em] text-muted">
-          {mode === "login" ? "New to LuxeBeau? " : "Already have an account? "}
-          <button
-            type="button"
-            onClick={() => { reset(); show(mode === "login" ? "register" : "login", onDone); }}
-            className="text-ink underline underline-offset-4"
-          >
-            {mode === "login" ? "Create an account" : "Sign in"}
-          </button>
-        </p>
+          {mode !== "verify" ? (
+            <>
+              <div>
+                <Label htmlFor="auth-email">Email</Label>
+                <Input id="auth-email" type="email" inputMode="email" value={email} onChange={e => setEmail(e.target.value)} autoComplete="email" className="mt-1.5" aria-invalid={Boolean(errors.email)} />
+                <FieldError>{errors.email}</FieldError>
+              </div>
+              <div>
+                <Label htmlFor="auth-password">Password</Label>
+                <Input
+                  id="auth-password"
+                  type="password"
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  autoComplete={mode === "signin" ? "current-password" : "new-password"}
+                  className="mt-1.5"
+                  aria-invalid={Boolean(errors.password)}
+                />
+                <FieldError>{errors.password}</FieldError>
+              </div>
+            </>
+          ) : (
+            <div>
+              <Label htmlFor="auth-code" className="sr-only">Verification code</Label>
+              <input
+                id="auth-code"
+                value={code}
+                onChange={e => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                autoFocus
+                placeholder="000000"
+                aria-invalid={Boolean(errors.code)}
+                className="h-14 w-full rounded-[20px] border border-hairline bg-canvas text-center font-mono text-[28px] tracking-[0.4em] outline-none placeholder:text-stone focus-visible:border-ink"
+              />
+              <FieldError>{errors.code}</FieldError>
+            </div>
+          )}
+
+          {formError && <FieldError>{formError}</FieldError>}
+
+          <Button type="submit" size="lg" disabled={busy} className="w-full">
+            {busy && <Loader2 className="animate-spin" aria-hidden />}
+            {mode === "signin" ? "Sign in" : mode === "register" ? "Continue" : "Verify email"}
+          </Button>
+        </form>
+
+        <div className="text-center text-[14px] tracking-[-0.014em] text-muted">
+          {mode === "signin" && (
+            <>New to LuxeBeau? <button type="button" onClick={() => { setMode("register"); setErrors({}); setFormError(""); }} className="text-ink underline underline-offset-4">Create an account</button></>
+          )}
+          {mode === "register" && (
+            <>Have an account? <button type="button" onClick={() => { setMode("signin"); setErrors({}); setFormError(""); }} className="text-ink underline underline-offset-4">Sign in</button></>
+          )}
+          {mode === "verify" && (
+            <div className="flex flex-col items-center gap-2">
+              <button
+                type="button"
+                disabled={resendIn > 0 || resend.isPending}
+                onClick={() =>
+                  resend.mutate(email, {
+                    onSuccess: () => setResendIn(RESEND_SECONDS),
+                    onError: fail,
+                  })
+                }
+                className="text-ink underline underline-offset-4 disabled:text-muted disabled:no-underline"
+              >
+                {resendIn > 0 ? `Resend code in ${resendIn}s` : "Resend code"}
+              </button>
+              <button type="button" onClick={() => setMode("signin")} className="text-muted underline underline-offset-4">
+                Use a different email
+              </button>
+            </div>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );
-}
-
-function Field({
-  id, label, error, icon: Icon, children,
-}: {
-  id: string; label: string; error?: string;
-  icon: React.ComponentType<{ className?: string }>; children: React.ReactNode;
-}) {
-  return (
-    <div>
-      <Label htmlFor={id}>{label}</Label>
-      <div className="relative mt-1.5">
-        <Icon className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" aria-hidden />
-        {children}
-      </div>
-      <FieldError>{error}</FieldError>
-    </div>
-  );
-}
-
-function fieldErrors(error: { issues: ReadonlyArray<{ path: PropertyKey[]; message: string }> }) {
-  const out: Record<string, string> = {};
-  for (const issue of error.issues) {
-    const key = String(issue.path[0]);
-    if (!out[key]) out[key] = issue.message;
-  }
-  return out;
-}
-
-function messageFor(err: unknown) {
-  return getFriendlyErrorMessage(err);
 }

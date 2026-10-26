@@ -23,8 +23,35 @@ func NewBookingService(repo domain.BookingRepository, db *gorm.DB, logger *slog.
 	return &bookingService{repo: repo, db: db, logger: logger}
 }
 
-func (s *bookingService) BookService(ctx context.Context, buyerID string, artisanID uint, serviceName string, date time.Time, slotTime string, svcType string) (*domain.Booking, error) {
-	// Wrap the entire slot reservation and booking insertion inside a transaction
+// Errors the handler maps to client-facing messages.
+var (
+	ErrSlotTaken        = errors.New("slot is no longer available")
+	ErrArtisanNotFound  = errors.New("artisan not found")
+	ErrVisitUnavailable = errors.New("this artisan does not offer that type of visit")
+	ErrAddressRequired  = errors.New("an address is required for home visits")
+	ErrBookingNotFound  = errors.New("booking not found")
+	ErrNotYourBooking   = errors.New("not your booking")
+)
+
+func (s *bookingService) BookService(ctx context.Context, buyerID string, artisanID uint, serviceName string, date time.Time, slotTime string, svcType string, address string) (*domain.Booking, error) {
+	address = strings.TrimSpace(address)
+
+	// Validate the visit type against the artisan before touching the slot.
+	var artisan domain.Artisan
+	if err := s.db.WithContext(ctx).First(&artisan, artisanID).Error; err != nil {
+		return nil, ErrArtisanNotFound
+	}
+	if !artisan.Offers(svcType) {
+		return nil, ErrVisitUnavailable
+	}
+	if svcType == domain.ServiceHome && len(address) < 8 {
+		return nil, ErrAddressRequired
+	}
+	if svcType != domain.ServiceHome {
+		address = ""
+	}
+
+	// Wrap the slot reservation and booking insertion in one transaction
 	tx := s.db.Begin()
 	if tx.Error != nil {
 		return nil, tx.Error
@@ -45,13 +72,7 @@ func (s *bookingService) BookService(ctx context.Context, buyerID string, artisa
 	}
 	if result.RowsAffected == 0 {
 		tx.Rollback()
-		return nil, fmt.Errorf("slot is no longer available")
-	}
-
-	var artisan domain.Artisan
-	if err := tx.WithContext(ctx).First(&artisan, artisanID).Error; err != nil {
-		tx.Rollback()
-		return nil, fmt.Errorf("artisan not found")
+		return nil, ErrSlotTaken
 	}
 
 	booking := &domain.Booking{
@@ -62,6 +83,7 @@ func (s *bookingService) BookService(ctx context.Context, buyerID string, artisa
 		BookingDate: date,
 		BookingTime: slotTime,
 		ServiceType: svcType,
+		Address:     address,
 		Amount:      artisan.PriceFrom,
 		Status:      "pending",
 	}
@@ -102,8 +124,21 @@ func (s *bookingService) ListArtisans(ctx context.Context, specialty, location s
 	return s.repo.ListArtisans(ctx, specialty, location)
 }
 
-func (s *bookingService) ConfirmBooking(ctx context.Context, bookingID string) error {
-	return s.repo.UpdateBookingStatus(ctx, bookingID, "confirmed")
+// ConfirmBooking lets the booked artisan (or an admin) confirm a pending
+// booking and returns it with buyer and artisan loaded for notifications.
+func (s *bookingService) ConfirmBooking(ctx context.Context, bookingID, actorID string, admin bool) (*domain.Booking, error) {
+	var b domain.Booking
+	if err := s.db.WithContext(ctx).Preload("Buyer").Preload("Artisan.User").First(&b, "id = ?", bookingID).Error; err != nil {
+		return nil, ErrBookingNotFound
+	}
+	if !admin && b.Artisan.UserID != actorID {
+		return nil, ErrNotYourBooking
+	}
+	if err := s.repo.UpdateBookingStatus(ctx, bookingID, "confirmed"); err != nil {
+		return nil, err
+	}
+	b.Status = "confirmed"
+	return &b, nil
 }
 
 func (s *bookingService) ListMyBookings(ctx context.Context, userID string) ([]domain.Booking, error) {
@@ -143,6 +178,10 @@ func (s *bookingService) OnboardArtisan(ctx context.Context, userID string, arti
 		existing.City = artisan.City
 		existing.Area = artisan.Area
 		existing.Bio = artisan.Bio
+		existing.ServiceMode = artisan.ServiceMode
+		if artisan.ImageURL != "" {
+			existing.ImageURL = artisan.ImageURL
+		}
 		existing.Available = true
 
 		if err := tx.Save(existing).Error; err != nil {
@@ -157,7 +196,7 @@ func (s *bookingService) OnboardArtisan(ctx context.Context, userID string, arti
 		artisan.Verified = false
 		artisan.Available = true
 		artisan.Slug = strings.ToLower(strings.ReplaceAll(artisan.Studio, " ", "-"))
-		
+
 		tints := [][]string{
 			{"#ec4899", "#8b5cf6"},
 			{"#3b82f6", "#10b981"},

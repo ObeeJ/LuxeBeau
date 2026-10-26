@@ -93,7 +93,7 @@ function SideRail() {
           </Link>
         ) : (
           <button
-            onClick={() => showAuth("login")}
+            onClick={() => showAuth("signin")}
             aria-label="Sign in"
             title="Sign in"
             className="flex h-8 w-8 items-center justify-center rounded-full bg-surface text-ink ring-1 ring-hairline transition-colors duration-200 hover:bg-canvas"
@@ -124,7 +124,7 @@ function MobileTopBar() {
         </Link>
       ) : (
         <button
-          onClick={() => showAuth("login")}
+          onClick={() => showAuth("signin")}
           className="h-9 rounded-full border border-hairline bg-surface px-4 text-[14px] tracking-[-0.014em] shadow-pill"
         >
           Sign in

@@ -2,9 +2,10 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { BadgeCheck, Ban, CalendarDays, Lock, Package, Scale, Search, ShoppingBag, Store, Trash2, UserCheck, Users } from "lucide-react";
-import { PageHeader, Panel, RecordList, RecordRow, StatCard, StatusPill } from "@/components/dashboard/widgets";
-import { EmptyState, LoadError } from "@/components/site/states";
+import { BadgeCheck, Search } from "lucide-react";
+import { Figures, PageHeader, Panel, StatusPill, Table, Tabs } from "@/components/dashboard/widgets";
+import { Photo } from "@/components/site/catalog";
+import { EmptyState, FieldError, LoadError } from "@/components/site/states";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/store";
@@ -22,30 +23,17 @@ import {
 } from "@/lib/queries";
 import { type User } from "@/lib/api";
 import { formatNaira } from "@/lib/format";
-import { useToast } from "@/components/ui/slide-in-notifications";
 import { getFriendlyErrorMessage } from "@/lib/errors";
-import { cn } from "@/lib/utils";
 
 type Tab = "users" | "orders" | "bookings" | "products" | "escrows";
-const TABS: { id: Tab; label: string }[] = [
-  { id: "users", label: "Users" },
-  { id: "orders", label: "Orders" },
-  { id: "bookings", label: "Bookings" },
-  { id: "products", label: "Products" },
-  { id: "escrows", label: "Escrows" },
-];
 
 function Loading() {
-  return (
-    <div className="space-y-2" aria-busy="true" role="status">
-      {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
-    </div>
-  );
+  return <Skeleton className="h-48 w-full" />;
 }
 
-function FilterSelect({ label, value, onChange, options }: { label: string; value: string; onChange: (v: string) => void; options: [string, string][] }) {
+function Filter({ label, value, onChange, options }: { label: string; value: string; onChange: (v: string) => void; options: [string, string][] }) {
   return (
-    <select value={value} onChange={e => onChange(e.target.value)} aria-label={label} className="lb-input h-10 min-w-0 flex-1 py-0 sm:w-auto sm:min-w-36 sm:flex-none">
+    <select value={value} onChange={e => onChange(e.target.value)} aria-label={label} className="lb-input h-9 w-auto py-0 text-[14px]">
       {options.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
     </select>
   );
@@ -53,21 +41,22 @@ function FilterSelect({ label, value, onChange, options }: { label: string; valu
 
 export default function AdminDashboard() {
   const user = useAuth(s => s.user);
-  const { toast } = useToast();
+  const status = useAuth(s => s.status);
   const isAdmin = user?.role === "admin";
 
   const [tab, setTab] = useState<Tab>("users");
   const [role, setRole] = useState("all");
-  const [status, setStatus] = useState("all");
+  const [userStatus, setUserStatus] = useState("all");
   const [search, setSearch] = useState("");
   const [escrowState, setEscrowState] = useState("all");
+  const [error, setError] = useState("");
 
-  const usersQuery = useAdminUsers({ role, status, search });
+  const usersQuery = useAdminUsers({ role, status: userStatus, search });
   const allUsers = useAdminUsers({});
   const orders = useAdminOrders(isAdmin);
   const bookings = useAdminBookings(isAdmin);
   const products = useAdminProducts(isAdmin);
-  const escrowsQuery = useAdminEscrows(isAdmin ? escrowState : "all");
+  const escrows = useAdminEscrows(isAdmin ? escrowState : "all");
 
   const updateUser = useUpdateUser();
   const verifyUser = useVerifyUser();
@@ -77,281 +66,230 @@ export default function AdminDashboard() {
 
   const users = useMemo(() => usersQuery.data ?? [], [usersQuery.data]);
   const everyone = useMemo(() => allUsers.data ?? [], [allUsers.data]);
-  const pendingVerification = everyone.filter(u => (u.role === "seller" || u.role === "artisan") && !u.verified);
+  const awaiting = everyone.filter(u => (u.role === "seller" || u.role === "artisan") && !u.verified);
 
-  // Admin is internal-only. Enforced on the client too (the API gates it).
+  if (status === "loading") return <Loading />;
   if (!user || !isAdmin) {
     return (
-      <div className="mx-auto max-w-md rounded-[28px] bg-surface p-6 text-center shadow-card sm:p-8">
-        <Lock className="mx-auto h-8 w-8" strokeWidth={1.5} aria-hidden />
-        <h1 className="t-display mt-3">Restricted area</h1>
-        <p className="mt-2 text-[16px] text-muted">
-          The admin console is internal-only. {user ? "Your account does not have access." : "Please sign in with an administrator account."}
-        </p>
-        <Button asChild size="lg" className="mt-5"><Link href="/dashboard">Back to your account</Link></Button>
+      <div className="mx-auto max-w-sm rounded-[28px] bg-surface p-6 text-center shadow-card sm:p-8">
+        <h1 className="t-display">Restricted</h1>
+        <p className="mt-2 text-[16px] text-muted">The admin console is for LuxeBeau staff.</p>
+        <Button asChild className="mt-5"><Link href="/dashboard">Back to your account</Link></Button>
       </div>
     );
   }
 
-  const onErr = (msg: string) => (e: unknown) => toast(getFriendlyErrorMessage(e, msg), "error");
-
-  const toggleSuspend = (u: User) => {
-    const next = u.status === "suspended" ? "active" : "suspended";
-    updateUser.mutate({ id: u.id, patch: { status: next } }, {
-      onSuccess: () => toast(`${u.name} ${next === "suspended" ? "suspended" : "reactivated"}.`, "success"),
-      onError: onErr("Failed to update user status."),
-    });
+  const onErr = (fallback: string) => (e: unknown) => setError(getFriendlyErrorMessage(e, fallback));
+  const run = (fn: () => void) => {
+    setError("");
+    fn();
   };
 
   const verify = (u: User) => {
-    const cac = u.role === "seller" || u.role === "artisan" ? window.prompt(`CAC / business registration number for ${u.name} (optional):`) ?? "" : "";
-    verifyUser.mutate({ id: u.id, cac_number: cac || undefined }, {
-      onSuccess: () => toast(`${u.name} verified.`, "success"),
-      onError: onErr("Verification failed."),
-    });
+    const cac = window.prompt(`CAC number for ${u.name} (optional)`, u.cac_number ?? "") ?? "";
+    run(() => verifyUser.mutate({ id: u.id, cac_number: cac || undefined }, { onError: onErr("Verification failed.") }));
   };
-
-  const remove = (u: User) => {
-    if (!window.confirm(`Permanently remove ${u.name}? This cannot be undone.`)) return;
-    deleteUser.mutate(u.id, { onSuccess: () => toast(`${u.name} removed.`, "success"), onError: onErr("Failed to remove user.") });
-  };
-
-  const changeRole = (u: User, newRole: string) => {
-    if (newRole === u.role) return;
-    updateUser.mutate({ id: u.id, patch: { role: newRole } }, {
-      onSuccess: () => toast(`${u.name} is now a ${newRole}.`, "success"),
-      onError: onErr("Failed to change role."),
-    });
-  };
-
-  const removeProduct = (id: string, name: string) => {
-    if (!window.confirm(`Remove "${name}" from the marketplace?`)) return;
-    deleteProduct.mutate(id, { onSuccess: () => toast(`${name} removed.`, "success"), onError: onErr("Failed to remove product.") });
-  };
+  const toggleSuspend = (u: User) =>
+    run(() => updateUser.mutate({ id: u.id, patch: { status: u.status === "suspended" ? "active" : "suspended" } }, { onError: onErr("Couldn't update the account.") }));
+  const changeRole = (u: User, next: string) =>
+    next !== u.role && run(() => updateUser.mutate({ id: u.id, patch: { role: next } }, { onError: onErr("Couldn't change the role.") }));
+  const removeUser = (u: User) =>
+    window.confirm(`Permanently remove ${u.name}?`) && run(() => deleteUser.mutate(u.id, { onError: onErr("Couldn't remove the user.") }));
+  const removeProduct = (id: string, name: string) =>
+    window.confirm(`Remove "${name}" from the marketplace?`) && run(() => deleteProduct.mutate(id, { onError: onErr("Couldn't remove the product.") }));
 
   return (
-    <div className="space-y-6">
-      <PageHeader eyebrow="Admin console" title="Marketplace governance" subtitle={`Signed in as ${user.name} · internal access only`} />
+    <div className="space-y-5">
+      <PageHeader title="Admin" subtitle={`Signed in as ${user.name}`} />
 
-      <section className="grid grid-cols-2 gap-3 lg:grid-cols-4" aria-label="Marketplace metrics">
-        <StatCard icon={Users} label="Users" value={allUsers.isLoading ? "—" : String(everyone.length)} />
-        <StatCard icon={ShoppingBag} label="Orders (latest 200)" value={orders.isLoading ? "—" : String(orders.data?.length ?? 0)} />
-        <StatCard icon={CalendarDays} label="Bookings (latest 200)" value={bookings.isLoading ? "—" : String(bookings.data?.length ?? 0)} />
-        <StatCard icon={UserCheck} label="Awaiting verification" value={allUsers.isLoading ? "—" : String(pendingVerification.length)} />
-      </section>
+      <Figures
+        items={[
+          { label: "Users", value: allUsers.isLoading ? "—" : String(everyone.length) },
+          { label: "Awaiting verification", value: allUsers.isLoading ? "—" : String(awaiting.length) },
+          { label: "Orders (latest 200)", value: orders.isLoading ? "—" : String(orders.data?.length ?? 0) },
+          { label: "Bookings (latest 200)", value: bookings.isLoading ? "—" : String(bookings.data?.length ?? 0) },
+        ]}
+      />
 
-      {pendingVerification.length > 0 && (
-        <Panel title="Verification queue" icon={UserCheck}>
-          <RecordList>
-            {pendingVerification.map(u => (
-              <RecordRow
-                key={u.id}
-                title={u.name}
-                subtitle={u.email}
-                meta={`${u.role} · KYC ${u.kyc_status ?? "unverified"}${u.cac_number ? ` · CAC ${u.cac_number}` : ""}`}
-                actions={<Button size="sm" onClick={() => verify(u)} disabled={verifyUser.isPending}><BadgeCheck aria-hidden /> Approve and verify</Button>}
-              />
-            ))}
-          </RecordList>
-        </Panel>
-      )}
+      <Tabs<Tab>
+        value={tab}
+        onChange={setTab}
+        tabs={[
+          { id: "users", label: "Users" },
+          { id: "orders", label: "Orders" },
+          { id: "bookings", label: "Bookings" },
+          { id: "products", label: "Products" },
+          { id: "escrows", label: "Escrow" },
+        ]}
+      />
 
-      <div role="tablist" aria-label="Records" className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
-        {TABS.map(t => (
-          <button
-            key={t.id}
-            role="tab"
-            aria-selected={tab === t.id}
-            onClick={() => setTab(t.id)}
-            className={cn(
-              "h-10 shrink-0 rounded-full border px-4 text-[14px] tracking-[-0.014em] shadow-pill transition-colors duration-200",
-              tab === t.id ? "border-ink bg-ink text-surface" : "border-hairline bg-surface hover:bg-canvas",
-            )}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <FieldError>{error}</FieldError>
 
       {tab === "users" && (
         <Panel
-          title="Users"
-          icon={Users}
+          aria-label="Users"
           action={
             <div className="flex w-full flex-wrap gap-2 sm:w-auto">
               <label className="relative w-full sm:w-56">
                 <span className="sr-only">Search users</span>
                 <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" aria-hidden />
-                <input type="search" value={search} onChange={e => setSearch(e.target.value)} placeholder="Name or email" className="lb-input h-10 py-0 pl-10" />
+                <input type="search" value={search} onChange={e => setSearch(e.target.value)} placeholder="Name or email" className="lb-input h-9 py-0 pl-10 text-[14px]" />
               </label>
-              <FilterSelect label="Filter by role" value={role} onChange={setRole} options={[["all", "All roles"], ["buyer", "Buyers"], ["seller", "Sellers"], ["artisan", "Artisans"], ["admin", "Admins"]]} />
-              <FilterSelect label="Filter by status" value={status} onChange={setStatus} options={[["all", "All statuses"], ["active", "Active"], ["suspended", "Suspended"]]} />
+              <Filter label="Role" value={role} onChange={setRole} options={[["all", "All roles"], ["buyer", "Buyers"], ["seller", "Sellers"], ["artisan", "Artisans"], ["admin", "Admins"]]} />
+              <Filter label="Status" value={userStatus} onChange={setUserStatus} options={[["all", "Any status"], ["active", "Active"], ["suspended", "Suspended"]]} />
             </div>
           }
         >
           {usersQuery.isLoading ? <Loading /> : usersQuery.isError ? (
-            <LoadError onRetry={() => usersQuery.refetch()} message="We could not load users." />
+            <LoadError onRetry={() => usersQuery.refetch()} message="We couldn't load users." />
           ) : users.length === 0 ? (
             <EmptyState>No users match these filters.</EmptyState>
           ) : (
-            <RecordList>
+            <Table head={["Name", "Role", "Email verified", "Partner check", "Status", ""]} minWidth={860}>
               {users.map(u => (
-                <RecordRow
-                  key={u.id}
-                  title={<>{u.name}{u.verified && <BadgeCheck className="ml-1 inline h-4 w-4 align-[-2px]" aria-label="Verified" />}</>}
-                  subtitle={u.email}
-                  meta={`KYC ${u.kyc_status ?? "unverified"}${u.created_at ? ` · joined ${u.created_at.slice(0, 10)}` : ""}`}
-                  status={<StatusPill status={u.status ?? "active"} />}
-                  actions={
-                    u.role === "admin" ? (
-                      <span className="t-meta inline-flex h-9 items-center rounded-full bg-canvas px-3">admin</span>
-                    ) : (
-                      <>
-                        <select value={u.role} onChange={e => changeRole(u, e.target.value)} aria-label={`Role for ${u.name}`} className="lb-input h-9 w-auto py-0 text-[14px]">
-                          <option value="buyer">buyer</option>
-                          <option value="seller">seller</option>
-                          <option value="artisan">artisan</option>
-                        </select>
-                        {!u.verified && (
-                          <Button size="sm" variant="outline" onClick={() => verify(u)} aria-label={`Verify ${u.name}`}><BadgeCheck aria-hidden /> Verify</Button>
-                        )}
-                        <Button size="sm" variant="outline" onClick={() => toggleSuspend(u)} aria-label={`${u.status === "suspended" ? "Reactivate" : "Suspend"} ${u.name}`}>
-                          <Ban aria-hidden /> {u.status === "suspended" ? "Reactivate" : "Suspend"}
-                        </Button>
-                        <Button size="icon-sm" variant="ghost" onClick={() => remove(u)} aria-label={`Remove ${u.name}`} title="Remove">
-                          <Trash2 aria-hidden />
-                        </Button>
-                      </>
-                    )
-                  }
-                />
+                <tr key={u.id}>
+                  <td className="py-3 pr-4">
+                    <p>{u.name}</p>
+                    <p className="text-[12px] text-muted">{u.email}</p>
+                  </td>
+                  <td className="py-3 pr-4">
+                    {u.role === "admin" ? "Admin" : (
+                      <Filter label={`Role for ${u.name}`} value={u.role} onChange={v => changeRole(u, v)} options={[["buyer", "Buyer"], ["seller", "Seller"], ["artisan", "Artisan"]]} />
+                    )}
+                  </td>
+                  <td className="py-3 pr-4 text-muted">{u.email_verified ? "Yes" : "No"}</td>
+                  <td className="py-3 pr-4">
+                    {u.role === "seller" || u.role === "artisan" ? (
+                      u.verified ? (
+                        <span className="inline-flex items-center gap-1"><BadgeCheck className="h-4 w-4" aria-hidden /> Verified</span>
+                      ) : (
+                        <Button size="sm" variant="outline" onClick={() => verify(u)}>Verify</Button>
+                      )
+                    ) : <span className="text-muted">Not needed</span>}
+                  </td>
+                  <td className="py-3 pr-4"><StatusPill status={u.status ?? "active"} /></td>
+                  <td className="py-3 text-right">
+                    {u.role !== "admin" && (
+                      <div className="inline-flex gap-1">
+                        <Button size="sm" variant="outline" onClick={() => toggleSuspend(u)}>{u.status === "suspended" ? "Reactivate" : "Suspend"}</Button>
+                        <Button size="sm" variant="ghost" onClick={() => removeUser(u)}>Remove</Button>
+                      </div>
+                    )}
+                  </td>
+                </tr>
               ))}
-            </RecordList>
+            </Table>
           )}
         </Panel>
       )}
 
       {tab === "orders" && (
-        <Panel title="Orders" icon={ShoppingBag}>
+        <Panel aria-label="Orders">
           {orders.isLoading ? <Loading /> : orders.isError ? (
-            <LoadError onRetry={() => orders.refetch()} message="We could not load orders." />
-          ) : (orders.data ?? []).length === 0 ? (
-            <EmptyState>No orders yet.</EmptyState>
-          ) : (
-            <RecordList>
+            <LoadError onRetry={() => orders.refetch()} message="We couldn't load orders." />
+          ) : (orders.data ?? []).length === 0 ? <EmptyState>No orders yet.</EmptyState> : (
+            <Table head={["Order", "Items", "Placed", "Payment", "Shipping", "Total"]} minWidth={760}>
               {(orders.data ?? []).map(o => (
-                <RecordRow
-                  key={o.id}
-                  title={o.id}
-                  subtitle={o.itemSummary}
-                  meta={`${o.date}${o.city ? ` · ${o.city}` : ""} · ${o.paymentMethod} · payment ${o.paymentStatus}`}
-                  amount={formatNaira(o.totalNGN)}
-                  status={<StatusPill status={o.shippingStatus} />}
-                />
+                <tr key={o.id}>
+                  <td className="py-3 pr-4 tabular-nums">{o.id}</td>
+                  <td className="max-w-64 truncate py-3 pr-4 text-muted">{o.itemSummary}</td>
+                  <td className="py-3 pr-4 text-muted">{o.date}</td>
+                  <td className="py-3 pr-4"><StatusPill status={o.paymentStatus} /> <span className="text-[12px] text-muted">{o.paymentMethod}</span></td>
+                  <td className="py-3 pr-4"><StatusPill status={o.shippingStatus} /></td>
+                  <td className="py-3 text-right tabular-nums">{formatNaira(o.totalNGN)}</td>
+                </tr>
               ))}
-            </RecordList>
+            </Table>
           )}
         </Panel>
       )}
 
       {tab === "bookings" && (
-        <Panel title="Bookings" icon={CalendarDays}>
+        <Panel aria-label="Bookings">
           {bookings.isLoading ? <Loading /> : bookings.isError ? (
-            <LoadError onRetry={() => bookings.refetch()} message="We could not load bookings." />
-          ) : (bookings.data ?? []).length === 0 ? (
-            <EmptyState>No bookings yet.</EmptyState>
-          ) : (
-            <RecordList>
+            <LoadError onRetry={() => bookings.refetch()} message="We couldn't load bookings." />
+          ) : (bookings.data ?? []).length === 0 ? <EmptyState>No bookings yet.</EmptyState> : (
+            <Table head={["Booking", "Service", "Client", "Artisan", "When", "Where", "Status"]} minWidth={860}>
               {(bookings.data ?? []).map(b => (
-                <RecordRow
-                  key={b.id}
-                  title={b.service}
-                  subtitle={`${b.client || "Client"} with ${b.artisan || "artisan"}`}
-                  meta={`${b.id} · ${b.date}${b.time ? ` · ${b.time}` : ""}${b.serviceType ? ` · ${b.serviceType}` : ""}`}
-                  amount={formatNaira(b.priceNGN)}
-                  status={<StatusPill status={b.status} />}
-                />
+                <tr key={b.id}>
+                  <td className="py-3 pr-4 tabular-nums">{b.id}</td>
+                  <td className="py-3 pr-4">{b.service}</td>
+                  <td className="py-3 pr-4 text-muted">{b.client}</td>
+                  <td className="py-3 pr-4 text-muted">{b.artisan}</td>
+                  <td className="py-3 pr-4 text-muted">{b.date} {b.time}</td>
+                  <td className="py-3 pr-4 text-muted">{b.serviceType === "home" ? "Home" : "Studio"}</td>
+                  <td className="py-3 text-right"><StatusPill status={b.status} /></td>
+                </tr>
               ))}
-            </RecordList>
+            </Table>
           )}
         </Panel>
       )}
 
       {tab === "products" && (
-        <Panel title="Products" icon={Package}>
+        <Panel aria-label="Products">
           {products.isLoading ? <Loading /> : products.isError ? (
-            <LoadError onRetry={() => products.refetch()} message="We could not load products." />
-          ) : (products.data ?? []).length === 0 ? (
-            <EmptyState>No products listed.</EmptyState>
-          ) : (
-            <RecordList>
+            <LoadError onRetry={() => products.refetch()} message="We couldn't load products." />
+          ) : (products.data ?? []).length === 0 ? <EmptyState>No products listed.</EmptyState> : (
+            <Table head={["Product", "Category", "Price", "Stock", ""]} minWidth={640}>
               {(products.data ?? []).map(p => (
-                <RecordRow
-                  key={p.id}
-                  leading={<span className="h-12 w-12 shrink-0 rounded-[12px]" style={{ backgroundColor: p.tint[0] }} aria-hidden />}
-                  title={p.name}
-                  subtitle={`${p.brand} · ${p.category}`}
-                  amount={formatNaira(p.priceNGN)}
-                  actions={
-                    <Button size="sm" variant="ghost" onClick={() => removeProduct(p.id, p.name)} disabled={deleteProduct.isPending} aria-label={`Remove ${p.name}`}>
-                      <Trash2 aria-hidden /> Remove
-                    </Button>
-                  }
-                />
+                <tr key={p.id}>
+                  <td className="py-3 pr-4">
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 shrink-0"><Photo src={p.imageUrl} alt={p.name} fallback="" sizes="sm" className="rounded-[10px]" /></div>
+                      <div className="min-w-0">
+                        <p className="truncate">{p.name}</p>
+                        <p className="text-[12px] text-muted">{p.brand}</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="py-3 pr-4 text-muted">{p.category}</td>
+                  <td className="py-3 pr-4 tabular-nums">{formatNaira(p.priceNGN)}</td>
+                  <td className="py-3 pr-4 tabular-nums">{p.stock}</td>
+                  <td className="py-3 text-right">
+                    <Button size="sm" variant="ghost" onClick={() => removeProduct(p.id, p.name)}>Remove</Button>
+                  </td>
+                </tr>
               ))}
-            </RecordList>
+            </Table>
           )}
         </Panel>
       )}
 
       {tab === "escrows" && (
         <Panel
-          title="Escrow oversight"
-          icon={Scale}
+          aria-label="Escrow"
           action={
-            <FilterSelect
-              label="Filter escrows by state"
-              value={escrowState}
-              onChange={setEscrowState}
-              options={[["all", "All states"], ["pending", "Pending"], ["funded", "Funded"], ["disputed", "Disputed"], ["released", "Released"], ["refunded", "Refunded"]]}
-            />
+            <Filter label="Escrow state" value={escrowState} onChange={setEscrowState} options={[["all", "All states"], ["pending", "Pending"], ["funded", "Funded"], ["disputed", "Disputed"], ["released", "Released"], ["refunded", "Refunded"]]} />
           }
         >
-          {escrowsQuery.isLoading ? <Loading /> : escrowsQuery.isError ? (
-            <LoadError onRetry={() => escrowsQuery.refetch()} message="We could not load escrows." />
-          ) : (escrowsQuery.data ?? []).length === 0 ? (
-            <EmptyState>No escrows in this state.</EmptyState>
-          ) : (
-            <RecordList>
-              {(escrowsQuery.data ?? []).map(e => (
-                <RecordRow
-                  key={e.id}
-                  title={e.title}
-                  meta={`${e.id} · ${e.kind}${e.disputeReason ? ` · dispute: ${e.disputeReason}` : ""}`}
-                  amount={formatNaira(e.amountNGN)}
-                  status={<StatusPill status={e.state} />}
-                  actions={
-                    (e.state === "disputed" || e.state === "funded") && (
-                      <>
-                        <Button size="sm" disabled={resolveEscrow.isPending} onClick={() => resolveEscrow.mutate({ id: e.id, decision: "release" }, { onSuccess: () => toast("Released to payee.", "success"), onError: onErr("Failed to release funds.") })}>
-                          Release
-                        </Button>
-                        <Button size="sm" variant="outline" disabled={resolveEscrow.isPending} onClick={() => resolveEscrow.mutate({ id: e.id, decision: "refund" }, { onSuccess: () => toast("Refunded to buyer.", "success"), onError: onErr("Failed to refund.") })}>
-                          Refund
-                        </Button>
-                      </>
-                    )
-                  }
-                />
+          {escrows.isLoading ? <Loading /> : escrows.isError ? (
+            <LoadError onRetry={() => escrows.refetch()} message="We couldn't load escrows." />
+          ) : (escrows.data ?? []).length === 0 ? <EmptyState>No escrows in this state.</EmptyState> : (
+            <Table head={["Escrow", "Title", "State", "Amount", ""]} minWidth={720}>
+              {(escrows.data ?? []).map(e => (
+                <tr key={e.id}>
+                  <td className="py-3 pr-4 tabular-nums">{e.id}</td>
+                  <td className="py-3 pr-4">
+                    <p>{e.title}</p>
+                    {e.disputeReason && <p className="text-[12px] text-muted">Dispute: {e.disputeReason}</p>}
+                  </td>
+                  <td className="py-3 pr-4"><StatusPill status={e.state} /></td>
+                  <td className="py-3 pr-4 tabular-nums">{formatNaira(e.amountNGN)}</td>
+                  <td className="py-3 text-right">
+                    {(e.state === "disputed" || e.state === "funded") && (
+                      <div className="inline-flex gap-1">
+                        <Button size="sm" disabled={resolveEscrow.isPending} onClick={() => run(() => resolveEscrow.mutate({ id: e.id, decision: "release" }, { onError: onErr("Couldn't release funds.") }))}>Release</Button>
+                        <Button size="sm" variant="outline" disabled={resolveEscrow.isPending} onClick={() => run(() => resolveEscrow.mutate({ id: e.id, decision: "refund" }, { onError: onErr("Couldn't refund.") }))}>Refund</Button>
+                      </div>
+                    )}
+                  </td>
+                </tr>
               ))}
-            </RecordList>
+            </Table>
           )}
         </Panel>
       )}
-
-      <p className="t-meta flex items-center gap-2 font-normal text-muted">
-        <Store className="h-3.5 w-3.5" aria-hidden /> Revenue analytics are not yet available from the API.
-      </p>
     </div>
   );
 }

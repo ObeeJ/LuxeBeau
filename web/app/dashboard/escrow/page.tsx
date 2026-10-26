@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Lock, Plus, ShieldCheck, X } from "lucide-react";
+import { Plus, X } from "lucide-react";
 import { PageHeader, Panel, RecordList, RecordRow, StatusPill } from "@/components/dashboard/widgets";
 import { EmptyState, FieldError, LoadError } from "@/components/site/states";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -47,11 +47,10 @@ export default function EscrowCenter() {
 
   if (!user) {
     return (
-      <div className="mx-auto max-w-md rounded-[28px] bg-surface p-6 text-center shadow-card sm:p-8">
-        <Lock className="mx-auto h-8 w-8" strokeWidth={1.5} aria-hidden />
-        <h1 className="t-display mt-3">Escrow payments</h1>
+      <div className="mx-auto max-w-sm rounded-[28px] bg-surface p-6 text-center shadow-card sm:p-8">
+        <h1 className="t-display">Escrow</h1>
         <p className="mt-2 text-[16px] text-muted">Sign in to see payments held in escrow.</p>
-        <Button onClick={() => showAuth("login")} size="lg" className="mt-5">Sign in</Button>
+        <Button onClick={() => showAuth("signin")} size="lg" className="mt-5">Sign in</Button>
       </div>
     );
   }
@@ -71,8 +70,7 @@ export default function EscrowCenter() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Escrow"
-        title="Protected payments"
+        title="Escrow"
         subtitle="Funds are held and only released when the buyer confirms delivery."
         action={canSell && <Button onClick={() => setShowForm(true)}><Plus aria-hidden /> New escrow link</Button>}
       />
@@ -85,7 +83,7 @@ export default function EscrowCenter() {
         <LoadError onRetry={() => escrows.refetch()} message="We could not load your escrows." />
       ) : (
         <div className="grid gap-6 lg:grid-cols-2">
-          <Panel title="Paying" icon={ShieldCheck}>
+          <Panel title="Paying">
             {buying.length === 0 ? (
               <EmptyState>No escrow payments yet.</EmptyState>
             ) : (
@@ -124,7 +122,7 @@ export default function EscrowCenter() {
           </Panel>
 
           {canSell && (
-            <Panel title="Receiving" icon={ShieldCheck}>
+            <Panel title="Receiving">
               {selling.length === 0 ? (
                 <EmptyState>No incoming escrows yet. Create an escrow link to sell safely to anyone.</EmptyState>
               ) : (

@@ -9,7 +9,6 @@ import { PageHeader } from "@/components/dashboard/widgets";
 import { useProducts } from "@/lib/queries";
 import { type Product } from "@/lib/api";
 import { useCart } from "@/lib/cart";
-import { useToast } from "@/components/ui/slide-in-notifications";
 
 type Sort = "featured" | "price-asc" | "price-desc" | "rating";
 
@@ -20,15 +19,14 @@ function ShopContent() {
   const [category, setCategory] = useState<string>(searchParams.get("category") ?? "All");
   const [sort, setSort] = useState<Sort>("featured");
   const { add } = useCart();
-  const { toast } = useToast();
 
   const all = useProducts();
   const results = useProducts(q);
 
   const categories = useMemo(() => {
-    const seen = new Map<string, string>();
-    for (const p of all.data ?? []) if (!seen.has(p.category)) seen.set(p.category, p.tint[0]);
-    return [...seen].map(([name, color]) => ({ name, color }));
+    const seen = new Map<string, string | undefined>();
+    for (const p of all.data ?? []) if (!seen.has(p.category) || (!seen.get(p.category) && p.imageUrl)) seen.set(p.category, p.imageUrl);
+    return [...seen].map(([name, image]) => ({ name, image }));
   }, [all.data]);
 
   const visible = useMemo(() => {
@@ -40,18 +38,9 @@ function ShopContent() {
     return list;
   }, [results.data, category, sort]);
 
-  const handleAdd = (product: Product) => {
-    add(product);
-    toast(`${product.name} added to your bag.`, "success");
-  };
-
   return (
     <Container className="pt-8 md:pt-12">
-      <PageHeader
-        eyebrow="Shop"
-        title={q ? `Results for “${q}”` : "The shelf"}
-        subtitle="Skincare, haircare, makeup and fragrance formulated with melanin-rich skin in mind."
-      />
+      <PageHeader title={q ? `Results for “${q}”` : "Shop"} />
 
       <div className="mt-6 flex flex-col gap-3 md:flex-row md:items-center">
         <SearchBar key={q} defaultValue={q} placeholder="Search products or brands" className="md:max-w-[480px]" />
@@ -69,7 +58,7 @@ function ShopContent() {
       <div role="group" aria-label="Filter by category" className="no-scrollbar -mx-4 mt-4 flex gap-2 overflow-x-auto px-4 pb-2 sm:-mx-6 sm:px-6 lg:mx-0 lg:flex-wrap lg:px-0">
         <CategoryPill label="All" active={category === "All"} onClick={() => setCategory("All")} />
         {categories.map(c => (
-          <CategoryPill key={c.name} label={c.name} color={c.color} active={category === c.name} onClick={() => setCategory(c.name)} />
+          <CategoryPill key={c.name} label={c.name} image={c.image} active={category === c.name} onClick={() => setCategory(c.name)} />
         ))}
       </div>
 
@@ -84,11 +73,11 @@ function ShopContent() {
           </EmptyState>
         ) : (
           <>
-            <p className="t-meta mb-3 font-normal text-muted" aria-live="polite">
+            <p className="mb-3 text-[12px] tracking-[-0.017em] text-muted" aria-live="polite">
               {visible.length} product{visible.length === 1 ? "" : "s"}
             </p>
             <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
-              {visible.map(p => <ProductCard key={p.id} product={p} onAdd={handleAdd} />)}
+              {visible.map(p => <ProductCard key={p.id} product={p} onAdd={add} />)}
             </div>
           </>
         )}

@@ -2,95 +2,135 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { ArrowRight, ChevronRight, Plus, Search, Star } from "lucide-react";
+import { useEffect, useState } from "react";
+import { ArrowRight, Check, ChevronRight, Plus, Search, Star } from "lucide-react";
 import { type Artisan, type Product } from "@/lib/api";
 import { formatNaira } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-/* ── Product imagery ──────────────────────────────────────────
-   The API has no image URL, so the product's own bg_color stands in for
-   photography: a solid tile with the brand overlaid in white display type,
-   the "dark product card" treatment. No gradients. */
-export function ProductImage({
-  product,
+/* ── Photography ───────────────────────────────────────────────
+   Product and artisan photos come from Cloudflare Images. Until a seller
+   uploads one, a quiet neutral tile stands in: no colour, no fake art. */
+export function Photo({
+  src,
+  alt,
+  fallback,
   className,
-  label,
-  size = "md",
-  showBrand = true,
+  sizes = "md",
 }: {
-  product: Pick<Product, "brand" | "tint" | "category">;
+  src?: string;
+  alt: string;
+  fallback: string;
   className?: string;
-  label?: string;
-  size?: "sm" | "md" | "lg";
-  showBrand?: boolean;
+  sizes?: "sm" | "md" | "lg";
 }) {
+  const [broken, setBroken] = useState(false);
+  if (src && !broken) {
+    return (
+      // Cloudflare Images already resizes per variant; next/image would add
+      // a second optimisation layer we do not need.
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={src}
+        alt={alt}
+        loading="lazy"
+        decoding="async"
+        onError={() => setBroken(true)}
+        className={cn("block h-full w-full rounded-[20px] bg-canvas object-cover", className)}
+      />
+    );
+  }
   return (
     <div
-      className={cn("relative overflow-hidden rounded-[20px]", className)}
-      style={{ backgroundColor: product.tint[0] }}
+      role="img"
+      aria-label={alt}
+      className={cn("flex h-full w-full items-center justify-center rounded-[20px] bg-canvas p-3 text-center", className)}
     >
-      {size !== "sm" && showBrand && (
-        <span
-          className={cn(
-            "absolute left-4 top-4 right-4 font-medium text-surface",
-            size === "lg" ? "text-[32px] leading-[1.05] tracking-[-0.05em] sm:text-[40px]" : "text-[20px] leading-[1.1] tracking-[-0.05em]",
-          )}
-        >
-          {product.brand}
-        </span>
-      )}
-      {label && size !== "sm" && (
-        <span className="absolute bottom-3 left-3 rounded-[12px] bg-surface/85 px-3 py-1.5 text-[14px] font-medium tracking-[-0.014em] text-ink">
-          {label}
+      {sizes !== "sm" && (
+        <span className={cn("text-muted", sizes === "lg" ? "text-[20px] tracking-[-0.05em]" : "text-[14px] tracking-[-0.014em]")}>
+          {fallback}
         </span>
       )}
     </div>
   );
 }
 
-export function Stars({ rating, count, tone = "ink", className }: { rating: number; count?: number; tone?: "ink" | "white"; className?: string }) {
-  const full = Math.round(rating);
+/* Round profile picture: the photo, or initials on white when there is none. */
+export function Avatar({ src, name, className }: { src?: string; name: string; className?: string }) {
+  const [broken, setBroken] = useState(false);
+  const initials = name.split(/\s+/).map(w => w[0]).join("").slice(0, 2).toUpperCase();
+  return (
+    <span className={cn("flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-surface ring-1 ring-hairline", className)}>
+      {src && !broken ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={src} alt={name} className="h-full w-full object-cover" onError={() => setBroken(true)} />
+      ) : (
+        <span className="text-[0.38em] tracking-[-0.02em] text-ink" aria-label={name}>{initials}</span>
+      )}
+    </span>
+  );
+}
+
+export function Rating({ rating, count, className }: { rating: number; count?: number; className?: string }) {
+  if (!rating) return null;
   return (
     <span
-      className={cn("inline-flex items-center gap-1", tone === "white" ? "text-surface" : "text-ink", className)}
-      aria-label={`Rated ${rating.toFixed(1)} out of 5${count !== undefined ? ` from ${count} reviews` : ""}`}
+      className={cn("inline-flex items-center gap-1 text-[12px] tracking-[-0.017em] text-muted", className)}
+      aria-label={`Rated ${rating.toFixed(1)} out of 5${count ? ` from ${count} reviews` : ""}`}
     >
-      <span className="flex" aria-hidden>
-        {Array.from({ length: 5 }).map((_, i) => (
-          <Star key={i} className={cn("h-2.5 w-2.5", i < full ? "fill-current" : "opacity-30")} strokeWidth={1.5} />
-        ))}
-      </span>
-      <span className="t-micro" aria-hidden>
-        {rating.toFixed(1)}{count !== undefined ? ` (${count})` : ""}
+      <Star className="h-3 w-3 fill-ink text-ink" strokeWidth={0} aria-hidden />
+      <span aria-hidden>
+        <span className="text-ink">{rating.toFixed(1)}</span>
+        {count ? ` (${count.toLocaleString("en-NG")})` : ""}
       </span>
     </span>
   );
 }
 
-/* ── Brand spotlight / product card ───────────────────────────
-   28px card around a 20px image: the 8px white frame is intentional. */
+/* ── Product card ──────────────────────────────────────────────
+   28px card, 20px image inset by 8px. Quick add confirms in place. */
 export function ProductCard({ product, onAdd }: { product: Product; onAdd?: (p: Product) => void }) {
+  const [added, setAdded] = useState(false);
+  useEffect(() => {
+    if (!added) return;
+    const t = setTimeout(() => setAdded(false), 1600);
+    return () => clearTimeout(t);
+  }, [added]);
+
+  const soldOut = product.stock <= 0;
+
   return (
-    <article className="group flex flex-col rounded-[28px] bg-surface p-2 shadow-card transition-shadow duration-200 hover:shadow-float">
-      <Link href={`/shop/${product.slug}`} className="block" aria-label={product.name}>
-        <ProductImage product={product} label={product.badge} className="aspect-square w-full" />
+    <article className="group relative flex flex-col rounded-[28px] bg-surface p-2 shadow-card transition-shadow duration-200 hover:shadow-float">
+      <Link href={`/shop/${product.slug}`} className="relative block aspect-square" tabIndex={-1} aria-hidden>
+        <Photo src={product.imageUrl} alt={product.name} fallback={product.brand} />
+        {product.badge && (
+          <span className="absolute left-2 top-2 rounded-full bg-surface/90 px-2.5 py-1 text-[12px] tracking-[-0.017em]">{product.badge}</span>
+        )}
       </Link>
-      <div className="flex flex-1 flex-col px-2 pb-2 pt-3">
-        <p className="t-sub">{product.brand}</p>
-        <h3 className="mt-0.5 line-clamp-1 text-[14px] tracking-[-0.014em] text-muted">
-          <Link href={`/shop/${product.slug}`} className="hover:text-ink">{product.name}</Link>
+      <div className="flex flex-1 flex-col px-2 pb-1.5 pt-3">
+        <p className="t-meta truncate font-normal text-muted">{product.brand}</p>
+        <h3 className="mt-0.5 line-clamp-2 text-[14px] leading-[1.3] tracking-[-0.014em]">
+          <Link href={`/shop/${product.slug}`} className="after:absolute after:inset-0 group-hover:underline group-hover:underline-offset-2">
+            {product.name}
+          </Link>
         </h3>
-        <Stars rating={product.rating} count={product.reviews} className="mt-1.5" />
-        <div className="mt-auto flex items-center justify-between gap-2 pt-3">
-          <span className="t-body">{formatNaira(product.priceNGN)}</span>
+        <div className="mt-auto flex items-end justify-between gap-2 pt-3">
+          <div>
+            <p className="text-[16px] tracking-[-0.031em]">{formatNaira(product.priceNGN)}</p>
+            <Rating rating={product.rating} count={product.reviews} />
+          </div>
           {onAdd && (
             <button
-              onClick={() => onAdd(product)}
-              aria-label={`Add ${product.name} to bag`}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-hairline bg-surface shadow-pill transition-shadow duration-200 hover:shadow-card"
+              disabled={soldOut}
+              onClick={e => {
+                e.stopPropagation();
+                onAdd(product);
+                setAdded(true);
+              }}
+              aria-label={soldOut ? `${product.name} is sold out` : `Add ${product.name} to bag`}
+              className="relative z-10 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-hairline bg-surface shadow-pill transition-colors duration-200 hover:bg-canvas disabled:opacity-40"
             >
-              <Plus className="h-4 w-4" aria-hidden />
+              {added ? <Check className="h-4 w-4" aria-hidden /> : <Plus className="h-4 w-4" aria-hidden />}
             </button>
           )}
         </div>
@@ -99,29 +139,33 @@ export function ProductCard({ product, onAdd }: { product: Product; onAdd?: (p: 
   );
 }
 
-/* ── Artisan tile: the image IS the card ── */
+export function visitLabel(mode: Artisan["serviceMode"]) {
+  return mode === "both" ? "Studio or home" : mode === "home" ? "Comes to you" : "In studio";
+}
+
+/* ── Artisan card ── */
 export function ArtisanCard({ artisan, className }: { artisan: Artisan; className?: string }) {
   return (
     <Link
       href={`/services/${artisan.slug}`}
       className={cn(
-        "group relative flex aspect-[4/5] flex-col justify-between overflow-hidden rounded-[28px] p-4 text-surface shadow-card transition-shadow duration-200 hover:shadow-float",
+        "group flex flex-col rounded-[28px] bg-surface p-2 shadow-card transition-shadow duration-200 hover:shadow-float",
         className,
       )}
-      style={{ backgroundColor: artisan.tint[0] }}
     >
-      <div>
-        <h3 className="text-[24px] font-medium leading-[1.05] tracking-[-0.05em]">{artisan.name}</h3>
-        <p className="mt-1 text-[14px] tracking-[-0.014em] opacity-85">{artisan.studio}</p>
-        <Stars rating={artisan.rating} count={artisan.bookings} tone="white" className="mt-2" />
+      <div className="aspect-[4/3]">
+        <Photo src={artisan.imageUrl} alt={artisan.name} fallback={artisan.craft || artisan.name} />
       </div>
-      <div className="flex flex-wrap items-end justify-between gap-2">
-        <span className="rounded-[12px] bg-surface/85 px-3 py-1.5 text-[14px] font-medium tracking-[-0.014em] text-ink">
-          {artisan.craft}
-        </span>
-        <span className="text-[14px] tracking-[-0.014em]">
-          {artisan.city ? `${artisan.city} · ` : ""}from {formatNaira(artisan.fromNGN)}
-        </span>
+      <div className="flex flex-1 flex-col px-2 pb-1.5 pt-3">
+        <div className="flex items-start justify-between gap-2">
+          <h3 className="t-sub group-hover:underline group-hover:underline-offset-2">{artisan.name}</h3>
+          <Rating rating={artisan.rating} count={artisan.bookings} className="shrink-0" />
+        </div>
+        <p className="text-[14px] tracking-[-0.014em] text-muted">{artisan.craft}</p>
+        <p className="mt-2 truncate text-[12px] tracking-[-0.017em] text-muted">
+          {[artisan.area, artisan.city].filter(Boolean).join(", ")} · {visitLabel(artisan.serviceMode)}
+        </p>
+        <p className="mt-auto pt-2 text-[14px] tracking-[-0.014em]">From {formatNaira(artisan.fromNGN)}</p>
       </div>
     </Link>
   );
@@ -145,7 +189,7 @@ export function Rail({ children, label }: { children: React.ReactNode; label: st
         type="button"
         aria-label={`Scroll ${label}`}
         onClick={() => el?.scrollBy({ left: el.clientWidth * 0.8, behavior: "smooth" })}
-        className="absolute right-0 top-1/2 hidden h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-surface shadow-float transition-transform duration-200 hover:scale-105 md:flex"
+        className="absolute -right-3 top-[38%] hidden h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-surface shadow-float transition-transform duration-200 hover:scale-105 lg:flex"
       >
         <ChevronRight className="h-4 w-4" aria-hidden />
       </button>
@@ -153,7 +197,7 @@ export function Rail({ children, label }: { children: React.ReactNode; label: st
   );
 }
 
-/* ── Category section header with chevron affordance ── */
+/* ── Section header with chevron affordance ── */
 export function SectionHeader({ title, href, action }: { title: string; href?: string; action?: React.ReactNode }) {
   const heading = (
     <span className="inline-flex items-center gap-1">
@@ -162,44 +206,40 @@ export function SectionHeader({ title, href, action }: { title: string; href?: s
     </span>
   );
   return (
-    <div className="mb-6 flex items-center justify-between gap-4">
+    <div className="mb-5 flex items-center justify-between gap-4">
       <h2>{href ? <Link href={href} className="hover:opacity-70">{heading}</Link> : heading}</h2>
       {action}
     </div>
   );
 }
 
-/* ── Category pill: 16px colour dot + label ── */
+/* ── Category pill: a small round product photo when one exists ── */
 export function CategoryPill({
   label,
-  color,
+  image,
   active,
   onClick,
   href,
 }: {
   label: string;
-  color?: string;
+  image?: string;
   active?: boolean;
   onClick?: () => void;
   href?: string;
 }) {
   const cls = cn(
-    "inline-flex h-9 shrink-0 items-center gap-2 rounded-full border py-1.5 pl-1.5 pr-4 text-[16px] tracking-[-0.031em] shadow-pill transition-colors duration-200",
+    "inline-flex h-9 shrink-0 items-center gap-2 rounded-full border text-[14px] tracking-[-0.014em] shadow-pill transition-colors duration-200",
+    image ? "pl-1.5 pr-4" : "px-4",
     active ? "border-ink bg-ink text-surface" : "border-hairline bg-surface text-ink hover:bg-canvas",
   );
-  const dot = (
-    <span
-      className={cn("h-6 w-6 rounded-full", !color && "bg-canvas ring-1 ring-hairline")}
-      style={color ? { backgroundColor: color } : undefined}
-      aria-hidden
-    />
-  );
-  if (href) {
-    return <Link href={href} className={cls}>{dot}{label}</Link>;
-  }
+  const icon = image ? (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={image} alt="" className="h-6 w-6 rounded-full object-cover" loading="lazy" />
+  ) : null;
+  if (href) return <Link href={href} className={cls}>{icon}{label}</Link>;
   return (
     <button type="button" onClick={onClick} aria-pressed={active} className={cls}>
-      {dot}
+      {icon}
       {label}
     </button>
   );
@@ -207,7 +247,7 @@ export function CategoryPill({
 
 /* ── Search input with the violet submit ── */
 export function SearchBar({
-  placeholder = "What are you shopping for today?",
+  placeholder = "Search products and brands",
   defaultValue = "",
   action = "/shop",
   param = "q",
@@ -221,6 +261,7 @@ export function SearchBar({
 }) {
   const router = useRouter();
   const [value, setValue] = useState(defaultValue);
+  const id = `search${action.replace(/\W/g, "-")}`;
 
   return (
     <form
@@ -230,15 +271,12 @@ export function SearchBar({
         const q = value.trim();
         router.push(q ? `${action}?${param}=${encodeURIComponent(q)}` : action);
       }}
-      className={cn(
-        "flex w-full items-center gap-2 rounded-full border border-black/10 bg-surface py-1 pl-5 pr-1 shadow-pill",
-        className,
-      )}
+      className={cn("flex w-full items-center gap-2 rounded-full border border-black/10 bg-surface py-1 pl-5 pr-1 shadow-pill", className)}
     >
       <Search className="h-4 w-4 shrink-0 text-muted" aria-hidden />
-      <label className="sr-only" htmlFor={`search-${action}`}>{placeholder}</label>
+      <label className="sr-only" htmlFor={id}>{placeholder}</label>
       <input
-        id={`search-${action}`}
+        id={id}
         type="search"
         value={value}
         onChange={e => setValue(e.target.value)}

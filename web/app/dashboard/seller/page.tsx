@@ -2,8 +2,11 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Boxes, Lock, Package, Pencil, Plus, ShoppingBag, Trash2, Wallet, X } from "lucide-react";
-import { PageHeader, Panel, RecordList, RecordRow, StatCard, StatusPill } from "@/components/dashboard/widgets";
+import { Plus, X } from "lucide-react";
+import { Figures, PageHeader, Panel, RecordList, RecordRow, StatusPill, Table, Tabs } from "@/components/dashboard/widgets";
+import { IdentityPanel } from "@/components/dashboard/identity";
+import { ImageField } from "@/components/dashboard/image-field";
+import { Photo } from "@/components/site/catalog";
 import { EmptyState, FieldError, LoadError } from "@/components/site/states";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -19,17 +22,16 @@ import {
 } from "@/lib/queries";
 import { type ApiProduct } from "@/lib/api";
 import { formatNaira } from "@/lib/format";
-import { useToast } from "@/components/ui/slide-in-notifications";
 import { getFriendlyErrorMessage } from "@/lib/errors";
 
 const CATEGORIES = ["Skincare", "Haircare", "Makeup", "Fragrance", "Body"] as const;
 
 type Editing = { mode: "new" } | { mode: "edit"; product: ApiProduct } | null;
+type Tab = "products" | "orders" | "verification";
 
 export default function SellerDashboard() {
   const user = useAuth(s => s.user);
-  const { toast } = useToast();
-
+  const status = useAuth(s => s.status);
   const isSeller = user?.role === "seller" || user?.role === "admin";
   const enabled = Boolean(user) && isSeller;
 
@@ -40,133 +42,145 @@ export default function SellerDashboard() {
   const updateProduct = useUpdateProduct();
   const deleteProduct = useDeleteProduct();
 
+  const [tab, setTab] = useState<Tab>("products");
   const [editing, setEditing] = useState<Editing>(null);
+  const [rowError, setRowError] = useState("");
 
   const products = useMemo(() => productsQuery.data ?? [], [productsQuery.data]);
   const sales = useMemo(() => salesQuery.data ?? [], [salesQuery.data]);
-  const salesRevenue = sales.reduce((s, o) => s + o.totalNGN, 0);
-  const stockUnits = products.reduce((s, p) => s + (p.stock ?? 0), 0);
+
+  if (status === "loading") return <Skeleton className="h-64 w-full rounded-[28px] bg-surface" />;
 
   if (!user || !isSeller) {
     return (
-      <div className="mx-auto max-w-md rounded-[28px] bg-surface p-6 text-center shadow-card sm:p-8">
-        <Lock className="mx-auto h-8 w-8" strokeWidth={1.5} aria-hidden />
-        <h1 className="t-display mt-3">Seller studio</h1>
+      <div className="mx-auto max-w-sm rounded-[28px] bg-surface p-6 text-center shadow-card sm:p-8">
+        <h1 className="t-display">Seller studio</h1>
         <p className="mt-2 text-[16px] text-muted">
-          {user ? "Register your business to open a seller studio." : "Please sign in with a seller account."}
+          {user ? "Register your business to start selling." : "Sign in with your seller account."}
         </p>
         <Button asChild size="lg" className="mt-5">
-          <Link href={user ? "/partnership/seller" : "/dashboard"}>{user ? "Register as a seller" : "Back to your account"}</Link>
+          <Link href={user ? "/partnership/seller" : "/dashboard"}>{user ? "Register as a seller" : "Go to sign in"}</Link>
         </Button>
       </div>
     );
   }
 
   const remove = (p: ApiProduct) => {
-    if (!window.confirm(`Are you sure you want to remove "${p.name}" from your shelf? This action cannot be undone.`)) return;
+    if (!window.confirm(`Remove "${p.name}" from your shop?`)) return;
+    setRowError("");
     deleteProduct.mutate(p.id, {
-      onSuccess: () => toast(`${p.name} has been successfully removed from your catalog.`, "success"),
-      onError: e => toast(getFriendlyErrorMessage(e, "We couldn't remove this product. Please try again."), "error"),
+      onError: e => setRowError(getFriendlyErrorMessage(e, "We couldn't remove this product.")),
     });
   };
 
-  const submit = (input: SellerProductInput) => {
-    const onError = (e: unknown) => toast(getFriendlyErrorMessage(e, "We couldn't save your product. Please check your fields and try again."), "error");
+  const submit = (input: SellerProductInput, setError: (m: string) => void) => {
+    const onError = (e: unknown) => setError(getFriendlyErrorMessage(e, "We couldn't save this product. Check the fields and try again."));
     if (editing?.mode === "edit") {
-      updateProduct.mutate(
-        { id: editing.product.id, input },
-        { onSuccess: () => { toast(`${input.name} has been successfully updated.`, "success"); setEditing(null); }, onError },
-      );
+      updateProduct.mutate({ id: editing.product.id, input }, { onSuccess: () => setEditing(null), onError });
     } else {
-      createProduct.mutate(input, {
-        onSuccess: () => { toast(`${input.name} has been successfully listed on LuxeBeau.`, "success"); setEditing(null); },
-        onError,
-      });
+      createProduct.mutate(input, { onSuccess: () => setEditing(null), onError });
     }
   };
 
+  const unitsInStock = products.reduce((s, p) => s + (p.stock ?? 0), 0);
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <PageHeader
-        eyebrow="Seller studio"
-        title={`Welcome, ${user.name.split(" ")[0]}`}
-        subtitle={user.verified ? "Verified seller" : "Verification pending, our team reviews your CAC registration"}
+        title="Seller studio"
+        subtitle={user.verified ? `${user.name} · Verified seller` : `${user.name} · Verification pending`}
         action={<Button onClick={() => setEditing({ mode: "new" })}><Plus aria-hidden /> Add product</Button>}
       />
 
-      <section className="grid grid-cols-2 gap-3 lg:grid-cols-4" aria-label="Key metrics">
-        <StatCard icon={Package} label="Products" value={String(products.length)} />
-        <StatCard icon={Boxes} label="Units in stock" value={String(stockUnits)} />
-        <StatCard icon={ShoppingBag} label="Orders" value={String(sales.length)} />
-        <StatCard icon={Wallet} label="Wallet balance" value={wallet.data ? formatNaira(wallet.data.balanceNGN) : "—"} />
-      </section>
+      <Figures
+        items={[
+          { label: "Products", value: String(products.length) },
+          { label: "Units in stock", value: unitsInStock.toLocaleString("en-NG") },
+          { label: "Orders", value: String(sales.length) },
+          { label: "Wallet", value: wallet.data ? formatNaira(wallet.data.balanceNGN) : "—" },
+        ]}
+      />
 
-      <Panel id="products" title="Your shelf" icon={Package}>
-        {productsQuery.isLoading ? (
-          <div className="space-y-2" aria-busy="true" role="status">
-            {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}
-          </div>
-        ) : productsQuery.isError ? (
-          <LoadError onRetry={() => productsQuery.refetch()} message="We could not load your products." />
-        ) : products.length === 0 ? (
-          <EmptyState>
-            You have not listed any products yet.{" "}
-            <button onClick={() => setEditing({ mode: "new" })} className="text-ink underline underline-offset-4">List your first product</button>
-          </EmptyState>
-        ) : (
-          <RecordList>
-            {products.map(p => (
-              <RecordRow
-                key={p.id}
-                leading={<span className="h-12 w-12 shrink-0 rounded-[12px]" style={{ backgroundColor: p.bg_color || "#332f2d" }} aria-hidden />}
-                title={p.name}
-                subtitle={`${p.brand} · ${p.category}${p.badge ? ` · ${p.badge}` : ""}`}
-                meta={`${p.stock ?? 0} in stock`}
-                amount={formatNaira((p.price ?? 0) / 100)}
-                status={(p.stock ?? 0) === 0 ? <StatusPill status="Sold out" /> : undefined}
-                actions={
-                  <>
-                    <Button size="sm" variant="outline" onClick={() => setEditing({ mode: "edit", product: p })} aria-label={`Edit ${p.name}`}>
-                      <Pencil aria-hidden /> Edit
-                    </Button>
-                    <Button size="sm" variant="ghost" onClick={() => remove(p)} aria-label={`Remove ${p.name}`}>
-                      <Trash2 aria-hidden /> Remove
-                    </Button>
-                  </>
-                }
-              />
-            ))}
-          </RecordList>
-        )}
-      </Panel>
+      <Tabs<Tab>
+        value={tab}
+        onChange={setTab}
+        tabs={[
+          { id: "products", label: "Products", count: products.length },
+          { id: "orders", label: "Orders", count: sales.length },
+          { id: "verification", label: "Verification" },
+        ]}
+      />
 
-      <Panel id="sales" title="Sales" icon={ShoppingBag}>
-        {salesQuery.isLoading ? (
-          <div className="space-y-2" aria-busy="true" role="status">
-            {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
-          </div>
-        ) : salesQuery.isError ? (
-          <LoadError onRetry={() => salesQuery.refetch()} message="We could not load your sales." />
-        ) : sales.length === 0 ? (
-          <EmptyState>No sales yet. Orders that include your products show up here.</EmptyState>
-        ) : (
-          <RecordList>
-            {sales.map(o => (
-              <RecordRow
-                key={o.id}
-                title={o.id}
-                subtitle={o.itemSummary}
-                meta={`${o.date}${o.city ? ` · ${o.city}` : ""} · payment ${o.paymentStatus}`}
-                amount={formatNaira(o.totalNGN)}
-                status={<StatusPill status={o.shippingStatus} />}
-              />
-            ))}
-          </RecordList>
-        )}
-        {sales.length > 0 && (
-          <p className="t-meta mt-4 font-normal text-muted">Order totals include every item in the order. Sales revenue across these orders: {formatNaira(salesRevenue)}.</p>
-        )}
-      </Panel>
+      {tab === "products" && (
+        <Panel aria-label="Products">
+          {productsQuery.isLoading ? (
+            <Skeleton className="h-40 w-full" />
+          ) : productsQuery.isError ? (
+            <LoadError onRetry={() => productsQuery.refetch()} message="We couldn't load your products." />
+          ) : products.length === 0 ? (
+            <EmptyState>
+              No products yet.{" "}
+              <button onClick={() => setEditing({ mode: "new" })} className="text-ink underline underline-offset-4">Add your first product</button>
+            </EmptyState>
+          ) : (
+            <>
+              <Table head={["Product", "Category", "Price", "Stock", ""]} minWidth={620}>
+                {products.map(p => (
+                  <tr key={p.id}>
+                    <td className="py-3 pr-4">
+                      <div className="flex items-center gap-3">
+                        <div className="h-12 w-12 shrink-0">
+                          <Photo src={p.image_url ?? undefined} alt={p.name} fallback="" sizes="sm" className="rounded-[12px]" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="truncate">{p.name}</p>
+                          <p className="text-[12px] text-muted">{p.brand}{p.image_url ? "" : " · No photo"}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="py-3 pr-4 text-muted">{p.category}</td>
+                    <td className="py-3 pr-4 tabular-nums">{formatNaira((p.price ?? 0) / 100)}</td>
+                    <td className="py-3 pr-4 tabular-nums">{(p.stock ?? 0) === 0 ? <StatusPill status="Sold out" /> : p.stock}</td>
+                    <td className="py-3 text-right">
+                      <div className="inline-flex gap-1">
+                        <Button size="sm" variant="outline" onClick={() => setEditing({ mode: "edit", product: p })}>Edit</Button>
+                        <Button size="sm" variant="ghost" onClick={() => remove(p)} aria-label={`Remove ${p.name}`}>Remove</Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </Table>
+              <FieldError>{rowError}</FieldError>
+            </>
+          )}
+        </Panel>
+      )}
+
+      {tab === "orders" && (
+        <Panel aria-label="Orders">
+          {salesQuery.isLoading ? (
+            <Skeleton className="h-40 w-full" />
+          ) : salesQuery.isError ? (
+            <LoadError onRetry={() => salesQuery.refetch()} message="We couldn't load your orders." />
+          ) : sales.length === 0 ? (
+            <EmptyState>No orders yet. Orders that include your products appear here.</EmptyState>
+          ) : (
+            <RecordList>
+              {sales.map(o => (
+                <RecordRow
+                  key={o.id}
+                  title={o.itemSummary}
+                  meta={`${o.id} · ${o.date}${o.city ? ` · ${o.city}` : ""} · ${o.paymentStatus === "paid" ? "Paid" : "Awaiting payment"}`}
+                  amount={formatNaira(o.totalNGN)}
+                  status={<StatusPill status={o.shippingStatus === "pending" ? "to ship" : o.shippingStatus} />}
+                />
+              ))}
+            </RecordList>
+          )}
+        </Panel>
+      )}
+
+      {tab === "verification" && <IdentityPanel />}
 
       {editing && (
         <ProductEditor
@@ -189,7 +203,7 @@ function ProductEditor({
   initial?: ApiProduct;
   pending: boolean;
   onClose: () => void;
-  onSubmit: (input: SellerProductInput) => void;
+  onSubmit: (input: SellerProductInput, setError: (m: string) => void) => void;
 }) {
   const [name, setName] = useState(initial?.name ?? "");
   const [brand, setBrand] = useState(initial?.brand ?? "");
@@ -199,32 +213,39 @@ function ProductEditor({
   const [badge, setBadge] = useState(initial?.badge ?? "");
   const [blurb, setBlurb] = useState(initial?.blurb ?? "");
   const [details, setDetails] = useState((initial?.details ?? []).join("\n"));
+  const [imageUrl, setImageUrl] = useState(initial?.image_url ?? "");
   const [error, setError] = useState("");
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    const priceNum = Math.round(parseFloat(price) * 100);
-    const stockNum = parseInt(stock || "0", 10);
-    if (!name.trim() || !brand.trim() || !priceNum || priceNum <= 0) {
-      setError("Enter a name, brand and a price above zero.");
-      return;
-    }
-    if (!Number.isInteger(stockNum) || stockNum < 0) {
-      setError("Stock must be zero or a whole number above zero.");
-      return;
-    }
+    const priceKobo = Math.round(parseFloat(price) * 100);
+    const stockNum = Number(stock || "0");
+    if (!name.trim() || !brand.trim()) return setError("Enter a product name and brand.");
+    if (!priceKobo || priceKobo <= 0) return setError("Enter a price above zero.");
+    if (!Number.isInteger(stockNum) || stockNum < 0) return setError("Stock must be a whole number, zero or more.");
     setError("");
-    onSubmit({
-      name: name.trim(),
-      brand: brand.trim(),
-      category,
-      price: priceNum,
-      stock: stockNum,
-      badge: badge.trim() || undefined,
-      blurb: blurb.trim() || undefined,
-      details: details.split("\n").map(d => d.trim()).filter(Boolean),
-    });
+    onSubmit(
+      {
+        name: name.trim(),
+        brand: brand.trim(),
+        category,
+        price: priceKobo,
+        stock: stockNum,
+        badge: badge.trim() || undefined,
+        blurb: blurb.trim() || undefined,
+        details: details.split("\n").map(d => d.trim()).filter(Boolean),
+        image_url: imageUrl || undefined,
+      },
+      setError,
+    );
   };
+
+  const field = (label: string, control: React.ReactNode) => (
+    <label className="block">
+      <span className="t-meta mb-1.5 block font-normal">{label}</span>
+      {control}
+    </label>
+  );
 
   return (
     <div
@@ -234,65 +255,42 @@ function ProductEditor({
       aria-label={initial ? "Edit product" : "Add product"}
       onKeyDown={e => e.key === "Escape" && onClose()}
     >
-      <form
-        onSubmit={submit}
-        className="max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-t-[28px] bg-surface p-5 shadow-float sm:rounded-[28px] sm:p-6"
-      >
+      <form onSubmit={submit} noValidate className="max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-t-[28px] bg-surface p-5 shadow-float sm:rounded-[28px] sm:p-6">
         <div className="flex items-center justify-between">
           <h2 className="t-display">{initial ? "Edit product" : "Add product"}</h2>
-          <button type="button" onClick={onClose} aria-label="Close" className="flex h-9 w-9 items-center justify-center rounded-full transition-colors duration-200 hover:bg-canvas">
+          <button type="button" onClick={onClose} aria-label="Close" className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-canvas">
             <X className="h-5 w-5" aria-hidden />
           </button>
         </div>
 
         <div className="mt-5 grid gap-4">
-          <Field label="Product name">
-            <input value={name} onChange={e => setName(e.target.value)} required className="lb-input" placeholder="Hibiscus Glow Toning Essence" />
-          </Field>
+          <ImageField label="Photo" value={imageUrl} onChange={setImageUrl} />
+          {field("Product name", <input value={name} onChange={e => setName(e.target.value)} className="lb-input h-11" placeholder="Hibiscus Glow Toning Essence" />)}
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Brand">
-              <input value={brand} onChange={e => setBrand(e.target.value)} required className="lb-input" placeholder="Adunni Organics" />
-            </Field>
-            <Field label="Category">
-              <select value={category} onChange={e => setCategory(e.target.value)} className="lb-input">
+            {field("Brand", <input value={brand} onChange={e => setBrand(e.target.value)} className="lb-input h-11" placeholder="Adunni Organics" />)}
+            {field("Category", (
+              <select value={category} onChange={e => setCategory(e.target.value)} className="lb-input h-11">
                 {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
-            </Field>
+            ))}
           </div>
-          <div className="grid gap-4 sm:grid-cols-3">
-            <Field label="Price (₦)">
-              <input value={price} onChange={e => setPrice(e.target.value)} required inputMode="decimal" className="lb-input" placeholder="11500" />
-            </Field>
-            <Field label="Stock">
-              <input value={stock} onChange={e => setStock(e.target.value)} inputMode="numeric" className="lb-input" placeholder="0" />
-            </Field>
-            <Field label="Badge (optional)">
-              <input value={badge} onChange={e => setBadge(e.target.value)} className="lb-input" placeholder="Bestseller" />
-            </Field>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+            {field("Price (₦)", <input value={price} onChange={e => setPrice(e.target.value)} inputMode="decimal" className="lb-input h-11" placeholder="11500" />)}
+            {field("Stock", <input value={stock} onChange={e => setStock(e.target.value)} inputMode="numeric" className="lb-input h-11" />)}
+            <div className="col-span-2 sm:col-span-1">
+              {field("Label (optional)", <input value={badge} onChange={e => setBadge(e.target.value)} className="lb-input h-11" placeholder="Bestseller" />)}
+            </div>
           </div>
-          <Field label="Short description">
-            <textarea value={blurb} onChange={e => setBlurb(e.target.value)} rows={2} className="lb-input resize-none" placeholder="A one-line hook customers see in the shop." />
-          </Field>
-          <Field label="Details (one per line)">
-            <textarea value={details} onChange={e => setDetails(e.target.value)} rows={3} className="lb-input resize-none" placeholder={"NAFDAC registered\nMade in Ibadan\nVegan and cruelty-free"} />
-          </Field>
+          {field("Short description", <textarea value={blurb} onChange={e => setBlurb(e.target.value)} rows={2} className="lb-input" />)}
+          {field("Details, one per line", <textarea value={details} onChange={e => setDetails(e.target.value)} rows={3} className="lb-input" placeholder={"NAFDAC registered\nMade in Ibadan"} />)}
         </div>
 
         <FieldError>{error}</FieldError>
-        <div className="mt-6 flex justify-end gap-3">
+        <div className="mt-6 flex justify-end gap-2">
           <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-          <Button type="submit" disabled={pending}>{pending ? "Saving…" : initial ? "Save changes" : "List product"}</Button>
+          <Button type="submit" disabled={pending}>{pending ? "Saving…" : initial ? "Save changes" : "Add product"}</Button>
         </div>
       </form>
     </div>
-  );
-}
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label className="block text-sm">
-      <span className="t-meta mb-1.5 block">{label}</span>
-      {children}
-    </label>
   );
 }

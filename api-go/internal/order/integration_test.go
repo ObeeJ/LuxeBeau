@@ -42,6 +42,11 @@ func (m *mockUserRepo) GetByEmail(ctx context.Context, email string) (*domain.Us
 	return &user, nil
 }
 
+// noopCodes discards verification codes; this test covers payments only.
+type noopCodes struct{}
+
+func (noopCodes) SendVerificationCode(context.Context, string, string, string) error { return nil }
+
 func TestE2EPaymentIntegration(t *testing.T) {
 	// 1. Setup SQLite in-memory DB
 	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
@@ -56,6 +61,7 @@ func TestE2EPaymentIntegration(t *testing.T) {
 		&domain.Product{},
 		&domain.Order{},
 		&domain.OrderItem{},
+		&domain.EmailOTP{},
 	)
 	if err != nil {
 		t.Fatalf("failed to migrate db: %v", err)
@@ -70,11 +76,11 @@ func TestE2EPaymentIntegration(t *testing.T) {
 	orderRepo := &mockOrderRepo{db: db}
 
 	// 3. Instantiate Services
-	userService := auth.NewAuthService(userRepo, walletRepo, "testing-jwt-secret-key-12345", logger)
+	userService := auth.NewService(db, userRepo, walletRepo, noopCodes{}, auth.Config{JWTSecret: "testing-jwt-secret-key-0123456789abcdef"}, logger)
 	orderService := NewOrderService(orderRepo, productRepo, db, logger)
 
 	// 4. Register a new user (which automatically creates a Wallet)
-	user, _, err := userService.Register(context.Background(), "Luxe Client", "client@luxe.com", "SecurePassword123", "+2348011112222", "buyer")
+	user, err := userService.Register(context.Background(), "Luxe Client", "client@luxe.com", "SecurePassword123", "+2348011112222")
 	if err != nil {
 		t.Fatalf("failed to register client: %v", err)
 	}

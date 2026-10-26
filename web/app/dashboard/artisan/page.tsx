@@ -1,143 +1,173 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { BadgeCheck, CalendarDays, Check, Clock, ExternalLink, Scissors, Star, Wallet } from "lucide-react";
-import { PageHeader, Panel, RecordList, RecordRow, StatCard, StatusPill } from "@/components/dashboard/widgets";
-import { EmptyState, LoadError } from "@/components/site/states";
+import { BadgeCheck } from "lucide-react";
+import { Figures, PageHeader, Panel, RecordList, RecordRow, StatusPill, Tabs } from "@/components/dashboard/widgets";
+import { IdentityPanel } from "@/components/dashboard/identity";
+import { Avatar, visitLabel } from "@/components/site/catalog";
+import { EmptyState, FieldError, LoadError } from "@/components/site/states";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/store";
 import { useConfirmBooking, useMyArtisanProfile, useMyBookings, useWallet } from "@/lib/queries";
+import { type MyBooking } from "@/lib/api";
 import { formatNaira } from "@/lib/format";
-import { useToast } from "@/components/ui/slide-in-notifications";
 import { getFriendlyErrorMessage } from "@/lib/errors";
+
+type Tab = "bookings" | "profile" | "verification";
 
 function duration(mins: number) {
   const h = Math.floor(mins / 60);
   const m = mins % 60;
-  return [h ? `${h}h` : "", m ? `${m}m` : ""].filter(Boolean).join(" ") || "—";
+  return [h ? `${h} hr` : "", m ? `${m} min` : ""].filter(Boolean).join(" ");
 }
 
 export default function ArtisanDashboard() {
   const router = useRouter();
   const user = useAuth(s => s.user);
+  const status = useAuth(s => s.status);
   const isArtisan = user?.role === "artisan";
-  const { toast } = useToast();
 
   const enabled = Boolean(user && isArtisan);
   const profile = useMyArtisanProfile(enabled);
   const bookings = useMyBookings(enabled);
   const wallet = useWallet(enabled);
   const confirm = useConfirmBooking();
+  const [tab, setTab] = useState<Tab>("bookings");
+  const [error, setError] = useState("");
 
   /* Non-artisans are sent to onboarding. */
   useEffect(() => {
-    if (user && !isArtisan) router.replace("/partnership/artisan");
-  }, [user, isArtisan, router]);
+    if (status === "signedIn" && !isArtisan) router.replace("/partnership/artisan");
+  }, [status, isArtisan, router]);
 
-  if (!user || !isArtisan) return null;
+  if (status === "loading") return <Skeleton className="h-64 w-full rounded-[28px] bg-surface" />;
+  if (!user) {
+    return (
+      <div className="mx-auto max-w-sm rounded-[28px] bg-surface p-6 text-center shadow-card sm:p-8">
+        <h1 className="t-display">Artisan studio</h1>
+        <p className="mt-2 text-[16px] text-muted">Sign in with your artisan account.</p>
+        <Button asChild size="lg" className="mt-5"><Link href="/dashboard">Go to sign in</Link></Button>
+      </div>
+    );
+  }
+  if (!isArtisan) return null;
 
   const artisan = profile.data;
   const list = bookings.data ?? [];
   const pending = list.filter(b => b.status === "pending");
-  const upcoming = list.filter(b => b.status === "pending" || b.status === "confirmed");
+  const today = new Date().toISOString().slice(0, 10);
+  const upcoming = list.filter(b => b.status !== "pending" && b.date >= today);
+  const past = list.filter(b => b.status !== "pending" && b.date < today);
 
-  const confirmBooking = (id: string) =>
-    confirm.mutate(id, {
-      onSuccess: () => toast(`Booking ${id} confirmed.`, "success"),
-      onError: err => toast(getFriendlyErrorMessage(err, "We couldn't confirm this booking."), "error"),
-    });
+  const confirmBooking = (id: string) => {
+    setError("");
+    confirm.mutate(id, { onError: err => setError(getFriendlyErrorMessage(err, "We couldn't confirm this booking.")) });
+  };
+
+  const bookingRow = (b: MyBooking, withConfirm = false) => (
+    <RecordRow
+      key={b.id}
+      title={`${b.service}${b.client ? ` · ${b.client}` : ""}`}
+      meta={`${b.date} at ${b.time} · ${b.serviceType === "home" ? `Home visit: ${b.address || "address pending"}` : "At the studio"} · ${b.id}`}
+      status={withConfirm ? undefined : <StatusPill status={b.status} />}
+      actions={withConfirm ? <Button size="sm" onClick={() => confirmBooking(b.id)} disabled={confirm.isPending}>Confirm</Button> : undefined}
+    />
+  );
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        eyebrow="Artisan studio"
-        title={profile.isLoading ? "Loading…" : artisan?.studio || user.name}
-        subtitle={
-          artisan ? (
-            <span className="inline-flex flex-wrap items-center gap-x-2">
-              {[artisan.craft, [artisan.area, artisan.city].filter(Boolean).join(", ")].filter(Boolean).join(" · ")}
-              {artisan.verified && <span className="inline-flex items-center gap-1 text-ink"><BadgeCheck className="h-4 w-4" aria-hidden /> Verified</span>}
-            </span>
-          ) : user.email
-        }
-        action={
-          artisan && (
-            <Button asChild variant="outline">
-              <Link href={`/services/${artisan.slug}`}>View public profile <ExternalLink aria-hidden /></Link>
-            </Button>
-          )
-        }
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-center gap-4">
+        <Avatar src={artisan?.imageUrl} name={user.name} className="h-14 w-14 text-[40px]" />
+        <div className="min-w-0 flex-1">
+          <PageHeader
+            title={artisan?.studio || user.name}
+            subtitle={
+              artisan ? (
+                <span className="inline-flex flex-wrap items-center gap-x-1.5">
+                  {artisan.craft} · {visitLabel(artisan.serviceMode)}
+                  {artisan.verified && <span className="inline-flex items-center gap-1 text-ink"><BadgeCheck className="h-3.5 w-3.5" aria-hidden /> Verified</span>}
+                </span>
+              ) : user.email
+            }
+          />
+        </div>
+        {artisan && (
+          <Button asChild variant="outline"><Link href={`/services/${artisan.slug}`}>View public page</Link></Button>
+        )}
+      </div>
+
+      <Figures
+        items={[
+          { label: "To confirm", value: bookings.isLoading ? "—" : String(pending.length) },
+          { label: "Upcoming", value: bookings.isLoading ? "—" : String(upcoming.length) },
+          { label: "Rating", value: artisan?.rating ? artisan.rating.toFixed(1) : "—" },
+          { label: "Wallet", value: wallet.data ? formatNaira(wallet.data.balanceNGN) : "—" },
+        ]}
       />
 
-      <section className="grid grid-cols-2 gap-3 lg:grid-cols-4" aria-label="Key metrics">
-        <StatCard icon={CalendarDays} label="Awaiting confirmation" value={bookings.isLoading ? "—" : String(pending.length)} />
-        <StatCard icon={Clock} label="Upcoming" value={bookings.isLoading ? "—" : String(upcoming.length)} />
-        <StatCard icon={Star} label="Rating" value={artisan ? artisan.rating.toFixed(1) : "—"} />
-        <StatCard icon={Wallet} label="Wallet balance" value={wallet.data ? formatNaira(wallet.data.balanceNGN) : "—"} />
-      </section>
+      <Tabs<Tab>
+        value={tab}
+        onChange={setTab}
+        tabs={[
+          { id: "bookings", label: "Bookings", count: list.length },
+          { id: "profile", label: "Profile" },
+          { id: "verification", label: "Verification" },
+        ]}
+      />
 
-      <Panel id="bookings" title="Incoming bookings" icon={CalendarDays}>
-        {bookings.isLoading ? (
-          <div className="space-y-2" role="status" aria-busy="true">
-            {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}
-          </div>
-        ) : bookings.isError ? (
-          <LoadError onRetry={() => bookings.refetch()} message="We could not load your bookings." />
-        ) : list.length === 0 ? (
-          <EmptyState>No bookings yet. Share your public profile to start receiving requests.</EmptyState>
-        ) : (
-          <RecordList>
-            {list.map(b => (
-              <RecordRow
-                key={b.id}
-                title={b.service}
-                subtitle={b.client ? `Client: ${b.client}` : undefined}
-                meta={`${b.id} · ${b.date}${b.time ? ` · ${b.time}` : ""}${b.serviceType ? ` · ${b.serviceType}` : ""}`}
-                amount={formatNaira(b.priceNGN)}
-                status={<StatusPill status={b.status} />}
-                actions={
-                  b.status === "pending" && (
-                    <Button size="sm" onClick={() => confirmBooking(b.id)} disabled={confirm.isPending}>
-                      <Check aria-hidden /> Confirm
-                    </Button>
-                  )
-                }
-              />
-            ))}
-          </RecordList>
-        )}
-      </Panel>
+      {tab === "bookings" && (
+        <div className="space-y-5">
+          {bookings.isLoading ? (
+            <Panel><Skeleton className="h-32 w-full" /></Panel>
+          ) : bookings.isError ? (
+            <Panel><LoadError onRetry={() => bookings.refetch()} message="We couldn't load your bookings." /></Panel>
+          ) : list.length === 0 ? (
+            <Panel><EmptyState>No bookings yet. Share your public page to start receiving requests.</EmptyState></Panel>
+          ) : (
+            <>
+              {pending.length > 0 && (
+                <Panel title="Waiting for you to confirm">
+                  <RecordList>{pending.map(b => bookingRow(b, true))}</RecordList>
+                  <FieldError>{error}</FieldError>
+                </Panel>
+              )}
+              {upcoming.length > 0 && <Panel title="Upcoming"><RecordList>{upcoming.map(b => bookingRow(b))}</RecordList></Panel>}
+              {past.length > 0 && <Panel title="Past"><RecordList>{past.map(b => bookingRow(b))}</RecordList></Panel>}
+            </>
+          )}
+        </div>
+      )}
 
-      <Panel title="Your services" icon={Scissors}>
-        {profile.isLoading ? (
-          <Skeleton className="h-24 w-full" />
-        ) : profile.isError ? (
-          <LoadError onRetry={() => profile.refetch()} message="We could not load your profile." />
-        ) : !artisan || artisan.services.length === 0 ? (
-          <EmptyState>No services published yet. Clients can still book from your starting price.</EmptyState>
-        ) : (
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {artisan.services.map(s => (
-              <div key={s.name} className="rounded-[20px] bg-canvas p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <p className="t-sub">{s.name}</p>
-                  <span className="shrink-0 text-[14px] tracking-[-0.014em]">{formatNaira(s.priceNGN)}</span>
-                </div>
-                {s.description && <p className="mt-1 text-[14px] tracking-[-0.014em] text-muted">{s.description}</p>}
-                <p className="t-meta mt-2 flex items-center gap-1 font-normal text-muted"><Clock className="h-3.5 w-3.5" aria-hidden /> {duration(s.durationMins)}</p>
-              </div>
-            ))}
-          </div>
-        )}
-        {artisan && (
-          <p className="t-meta mt-4 font-normal text-muted">
-            Starting price {formatNaira(artisan.fromNGN)} · {artisan.bookings} jobs completed
-          </p>
-        )}
-      </Panel>
+      {tab === "profile" && (
+        <Panel
+          title="Services"
+          action={<Button asChild size="sm" variant="outline"><Link href="/partnership/artisan">Edit profile</Link></Button>}
+        >
+          {profile.isLoading ? (
+            <Skeleton className="h-24 w-full" />
+          ) : profile.isError ? (
+            <LoadError onRetry={() => profile.refetch()} message="We couldn't load your profile." />
+          ) : !artisan || artisan.services.length === 0 ? (
+            <EmptyState>No services listed yet. Clients book from your starting price of {artisan ? formatNaira(artisan.fromNGN) : "—"}.</EmptyState>
+          ) : (
+            <RecordList>
+              {artisan.services.map(s => (
+                <RecordRow key={s.name} title={s.name} subtitle={s.description} meta={duration(s.durationMins)} amount={formatNaira(s.priceNGN)} />
+              ))}
+            </RecordList>
+          )}
+          {artisan && (
+            <p className="mt-4 text-[12px] tracking-[-0.017em] text-muted">
+              {visitLabel(artisan.serviceMode)} · {[artisan.area, artisan.city].filter(Boolean).join(", ")} · From {formatNaira(artisan.fromNGN)}
+            </p>
+          )}
+        </Panel>
+      )}
+
+      {tab === "verification" && <IdentityPanel />}
     </div>
   );
 }

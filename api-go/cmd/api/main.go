@@ -3,7 +3,11 @@ package main
 import (
 	"fmt"
 	"log/slog"
+	"net/http"
 	"os"
+	"strconv"
+	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/driver/postgres"
@@ -16,6 +20,8 @@ import (
 	"luxebeau/internal/domain"
 	"luxebeau/internal/escrow"
 	"luxebeau/internal/kyc"
+	"luxebeau/internal/mail"
+	"luxebeau/internal/media"
 	"luxebeau/internal/middleware"
 	"luxebeau/internal/order"
 	"luxebeau/internal/seed"
@@ -31,10 +37,10 @@ func main() {
 	// ── Environment ─────────────────────────────────────────
 	port := envOrDefault("PORT", "8080")
 	dbURL := envOrDefault("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/luxebeau?sslmode=disable")
-	
+
 	jwtSecret := os.Getenv("JWT_SECRET")
-	if jwtSecret == "" {
-		logger.Error("FATAL: JWT_SECRET environment variable is not set. Server execution halted.")
+	if len(jwtSecret) < 32 {
+		logger.Error("FATAL: JWT_SECRET must be set to at least 32 random bytes. Server execution halted.")
 		os.Exit(1)
 	}
 
@@ -63,6 +69,8 @@ func main() {
 		&domain.OrderItem{},
 		&domain.Escrow{},
 		&domain.LedgerEntry{},
+		&domain.EmailOTP{},
+		&domain.RefreshToken{},
 	); err != nil {
 		logger.Error("Auto-migration failed", slog.Any("error", err))
 		os.Exit(1)
@@ -85,8 +93,31 @@ func main() {
 	bookingRepo := booking.NewGormBookingRepository(db)
 	orderRepo := order.NewGormOrderRepository(db)
 
+	// Email (Cloudflare Email Service over SMTP in production)
+	smtpPort, _ := strconv.Atoi(envOrDefault("SMTP_PORT", "465"))
+	mailer := mail.New(mail.Config{
+		From:         os.Getenv("EMAIL_FROM"),
+		AppURL:       envOrDefault("APP_URL", "http://localhost:3000"),
+		SMTPHost:     os.Getenv("SMTP_HOST"),
+		SMTPPort:     smtpPort,
+		SMTPUsername: os.Getenv("SMTP_USERNAME"),
+		SMTPPassword: os.Getenv("SMTP_PASSWORD"),
+		DevDir:       os.Getenv("MAIL_DEV_DIR"),
+	}, logger)
+
+	// Product and artisan photos (Cloudflare Images direct uploads)
+	images := media.New(media.Config{
+		AccountID:   os.Getenv("CF_ACCOUNT_ID"),
+		APIToken:    os.Getenv("CF_IMAGES_API_TOKEN"),
+		AccountHash: os.Getenv("CF_IMAGES_ACCOUNT_HASH"),
+		Variant:     os.Getenv("CF_IMAGES_VARIANT"),
+	})
+
 	// Services (business logic layer)
-	authService := auth.NewAuthService(userRepo, walletRepo, jwtSecret, logger)
+	authService := auth.NewService(db, userRepo, walletRepo, mailer, auth.Config{
+		JWTSecret:      jwtSecret,
+		GoogleClientID: os.Getenv("GOOGLE_CLIENT_ID"),
+	}, logger)
 	catalogService := catalog.NewCatalogService(productRepo, logger)
 	bookingService := booking.NewBookingService(bookingRepo, db, logger)
 	orderService := order.NewOrderService(orderRepo, productRepo, db, logger)
@@ -98,16 +129,19 @@ func main() {
 	kycService := kyc.NewService(premblyProvider, db, logger)
 
 	// Handlers (HTTP presentation layer)
-	authHandler := auth.NewAuthHandler(authService, logger)
+	authHandler := auth.NewAuthHandler(authService, auth.CookieConfig{
+		Domain: os.Getenv("COOKIE_DOMAIN"),
+		Secure: os.Getenv("COOKIE_SECURE") != "false",
+	}, logger)
 	catalogHandler := catalog.NewCatalogHandler(catalogService, logger)
-	bookingHandler := booking.NewBookingHandler(bookingService, logger)
-	orderHandler := order.NewOrderHandler(orderService, logger)
+	bookingHandler := booking.NewBookingHandler(bookingService, mailer, images, logger)
+	orderHandler := order.NewOrderHandler(orderService, logger).WithMailer(mailer)
 	adminHandler := admin.NewHandler(adminService, logger)
 	kycHandler := kyc.NewHandler(kycService, logger)
 
 	// Seller surface (manage own products + view own sales)
 	sellerService := seller.NewService(seller.NewGormRepository(db), logger)
-	sellerHandler := seller.NewHandler(sellerService, logger)
+	sellerHandler := seller.NewHandler(sellerService, images, logger)
 
 	// Escrow engine (held funds; wallet rail live, cNGN stub; WhatsApp notifier)
 	escrowRails := escrow.NewRegistry(escrow.NewWalletSettlement(logger), escrow.NewCNGNSettlement(logger))
@@ -118,21 +152,56 @@ func main() {
 	// ── Router ──────────────────────────────────────────────
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
+	// Client IPs drive rate limits, so only trust forwarding headers from a
+	// known platform or proxy list; by default trust none.
+	if os.Getenv("TRUSTED_PLATFORM") == "cloudflare" {
+		r.TrustedPlatform = gin.PlatformCloudflare
+	}
+	if err := r.SetTrustedProxies(splitList(os.Getenv("TRUSTED_PROXIES"))); err != nil {
+		logger.Error("invalid TRUSTED_PROXIES", slog.Any("error", err))
+		os.Exit(1)
+	}
 	r.Use(middleware.Logger(logger))
 	r.Use(middleware.Recovery(logger))
-	r.Use(middleware.CORS())
+	r.Use(middleware.CORS(splitList(envOrDefault("ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000"))))
 
 	// ── Health Check ────────────────────────────────────────
 	r.GET("/healthz", func(c *gin.Context) {
 		c.JSON(200, gin.H{"status": "ok", "service": "luxebeau-api"})
 	})
 
-	// ── Public Routes ───────────────────────────────────────
-	v1 := r.Group("/api/v1")
+	// ── Payment webhooks ────────────────────────────────────
+	// No user session and no CSRF header: each is authenticated by verifying
+	// the provider signature over the raw body (fail-closed: a missing secret
+	// returns 503, never trusts an unsigned payload).
+	hooks := r.Group("/api/v1/webhooks")
 	{
-		// Auth (Rate Limited to 5 req/sec burst 10 to protect logins/register)
-		v1.POST("/auth/register", middleware.RateLimiter(5, 10), authHandler.Register)
-		v1.POST("/auth/login", middleware.RateLimiter(5, 10), authHandler.Login)
+		hooks.POST("/paystack",
+			middleware.RequireHMACSignature(os.Getenv("PAYSTACK_SECRET_KEY"), "x-paystack-signature"),
+			orderHandler.PaystackWebhook)
+		hooks.POST("/flutterwave",
+			middleware.RequireSharedSecret(os.Getenv("FLUTTERWAVE_SECRET_HASH"), "verif-hash"),
+			orderHandler.FlutterwaveWebhook)
+		hooks.POST("/monnify",
+			middleware.RequireHMACSignature(os.Getenv("MONNIFY_SECRET"), "monnify-signature"),
+			orderHandler.MonnifyWebhook)
+		hooks.POST("/crypto",
+			middleware.RequireSharedSecret(os.Getenv("CRYPTO_WEBHOOK_SECRET"), "x-webhook-secret"),
+			orderHandler.CryptoWebhook)
+	}
+
+	// ── Public Routes ───────────────────────────────────────
+	v1 := r.Group("/api/v1", middleware.CSRF())
+	{
+		// Auth (rate limited per client IP)
+		authLimit := middleware.RateLimiter(1, 5)
+		v1.POST("/auth/register", authLimit, authHandler.Register)
+		v1.POST("/auth/verify-email", authLimit, authHandler.VerifyEmail)
+		v1.POST("/auth/resend-code", authLimit, authHandler.ResendCode)
+		v1.POST("/auth/login", authLimit, authHandler.Login)
+		v1.POST("/auth/google", authLimit, authHandler.Google)
+		v1.POST("/auth/refresh", middleware.RateLimiter(2, 10), authHandler.Refresh)
+		v1.POST("/auth/logout", authHandler.Logout)
 
 		// Public Catalog
 		v1.GET("/products", catalogHandler.ListProducts)
@@ -141,22 +210,6 @@ func main() {
 		// Public Artisans
 		v1.GET("/artisans", bookingHandler.ListArtisans)
 		v1.GET("/artisans/:id", bookingHandler.GetArtisanProfile)
-
-		// Payment webhooks — no user session, but each is authenticated by
-		// verifying the provider signature over the raw body (fail-closed: a
-		// missing secret returns 503, never trusts an unsigned payload).
-		v1.POST("/webhooks/paystack",
-			middleware.RequireHMACSignature(os.Getenv("PAYSTACK_SECRET_KEY"), "x-paystack-signature"),
-			orderHandler.PaystackWebhook)
-		v1.POST("/webhooks/flutterwave",
-			middleware.RequireSharedSecret(os.Getenv("FLUTTERWAVE_SECRET_HASH"), "verif-hash"),
-			orderHandler.FlutterwaveWebhook)
-		v1.POST("/webhooks/monnify",
-			middleware.RequireHMACSignature(os.Getenv("MONNIFY_SECRET"), "monnify-signature"),
-			orderHandler.MonnifyWebhook)
-		v1.POST("/webhooks/crypto",
-			middleware.RequireSharedSecret(os.Getenv("CRYPTO_WEBHOOK_SECRET"), "x-webhook-secret"),
-			orderHandler.CryptoWebhook)
 	}
 
 	// ── Protected Routes ────────────────────────────────────
@@ -186,6 +239,9 @@ func main() {
 		protected.POST("/me/artisan-onboard", bookingHandler.OnboardArtisan)
 		protected.POST("/me/seller-onboard", bookingHandler.OnboardSeller)
 		protected.GET("/me/artisan", bookingHandler.GetMyArtisanProfile)
+
+		// Photo uploads (direct to Cloudflare Images) for partners
+		protected.POST("/me/uploads/image", auth.RequireRole("seller", "artisan", "admin"), middleware.RateLimiter(1, 10), images.UploadHandler(logger))
 
 		// ── Escrow (held funds + B2B2C escrow links) ─────────
 		protected.GET("/escrows", escrowHandler.List)
@@ -232,10 +288,28 @@ func main() {
 	// ── Start Server ────────────────────────────────────────
 	addr := fmt.Sprintf(":%s", port)
 	logger.Info("LuxeBeau API listening", slog.String("addr", addr))
-	if err := r.Run(addr); err != nil {
+	srv := &http.Server{
+		Addr:              addr,
+		Handler:           r,
+		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       30 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       120 * time.Second,
+	}
+	if err := srv.ListenAndServe(); err != nil {
 		logger.Error("Server failed", slog.Any("error", err))
 		os.Exit(1)
 	}
+}
+
+func splitList(v string) []string {
+	var out []string
+	for _, item := range strings.Split(v, ",") {
+		if item = strings.TrimSpace(item); item != "" {
+			out = append(out, item)
+		}
+	}
+	return out
 }
 
 func envOrDefault(key, fallback string) string {

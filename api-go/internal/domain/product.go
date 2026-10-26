@@ -22,6 +22,7 @@ type Product struct {
 	Details       StringArray `gorm:"type:text" json:"details"`
 	BgColor       string      `gorm:"type:varchar(10)" json:"bg_color"`
 	FgColor       string      `gorm:"type:varchar(10)" json:"fg_color"`
+	ImageURL      string      `gorm:"type:varchar(500)" json:"image_url"`
 	CreatedAt     time.Time   `json:"created_at"`
 	UpdatedAt     time.Time   `json:"updated_at"`
 }

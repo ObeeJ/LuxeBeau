@@ -43,18 +43,19 @@ func seedDatabase(db *gorm.DB, logger *slog.Logger) {
 
 	for _, u := range artisanUsers {
 		user := domain.User{
-			ID:           u.ID,
-			Name:         u.Name,
-			Email:        u.Email,
-			PasswordHash: string(hashedPassword),
-			Phone:        u.Phone,
-			Role:         "artisan",
+			ID:            u.ID,
+			Name:          u.Name,
+			Email:         u.Email,
+			PasswordHash:  string(hashedPassword),
+			EmailVerified: true,
+			Phone:         u.Phone,
+			Role:          "artisan",
 		}
 		if err := db.FirstOrCreate(&user, domain.User{Email: u.Email}).Error; err != nil {
 			logger.Error("Failed to seed user", slog.String("email", u.Email), slog.Any("error", err))
 			return
 		}
-		
+
 		// Create wallet for artisan
 		wallet := domain.Wallet{
 			UserID:  user.ID,
@@ -129,15 +130,15 @@ func seedDatabase(db *gorm.DB, logger *slog.Logger) {
 
 	// 5. Seed products matching the frontend list
 	products := []struct {
-		ID          uint
-		Name        string
-		Brand       string
-		Price       int64
-		Category    string
-		Badge       string
-		BgColor     string
-		Rating      float64
-		Reviews     int
+		ID       uint
+		Name     string
+		Brand    string
+		Price    int64
+		Category string
+		Badge    string
+		BgColor  string
+		Rating   float64
+		Reviews  int
 	}{
 		{2, "Ọsẹ Dúdú Honey Cleansing Bar", "Adunni Organics", 850000, "Skincare", "Bestseller", "#3b2456", 4.9, 412},
 		{3, "Chebé Velvet Hair Butter", "Zaria Roots", 1200000, "Haircare", "Editor's pick", "#4a2c6e", 4.8, 367},

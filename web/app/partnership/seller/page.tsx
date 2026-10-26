@@ -2,40 +2,34 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { BadgeCheck, Loader2, Package, ShieldCheck } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import SiteShell from "@/components/site/shell";
 import { AlreadyPartner, PartnerFrame, SignInPrompt } from "@/components/site/partner";
 import { FieldError } from "@/components/site/states";
 import { useAuth } from "@/lib/store";
 import { useOnboardSeller } from "@/lib/queries";
-import { useToast } from "@/components/ui/slide-in-notifications";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 import { getFriendlyErrorMessage } from "@/lib/errors";
-
-const PERKS = [
-  { icon: Package, title: "Your own seller studio", body: "List products, set stock and see every order that includes your items." },
-  { icon: ShieldCheck, title: "Escrow links", body: "Sell to buyers off-platform with funds held until they confirm delivery." },
-  { icon: BadgeCheck, title: "Verified badge", body: "Our team reviews your CAC registration and marks your account verified." },
-];
 
 export default function SellerOnboarding() {
   const router = useRouter();
   const user = useAuth(s => s.user);
+  const status = useAuth(s => s.status);
   const updateUser = useAuth(s => s.updateUser);
-  const { toast } = useToast();
   const onboardSeller = useOnboardSeller();
 
   const [cacNumber, setCacNumber] = useState("");
   const [error, setError] = useState("");
 
-  /* POST /me/seller-onboard takes only { cac_number } (booking/handler.go). */
+  /* POST /me/seller-onboard takes only { cac_number }. */
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const cac = cacNumber.replace(/\s+/g, "").toUpperCase();
     if (!/^(RC|BN|IT)?\d{4,10}$/.test(cac)) {
-      setError("Enter your CAC registration number, for example RC 1234567 or BN 987654.");
+      setError("Enter your CAC number, for example RC 1234567 or BN 987654.");
       return;
     }
     setError("");
@@ -43,11 +37,10 @@ export default function SellerOnboarding() {
       { cac_number: cac },
       {
         onSuccess: () => {
-          toast("You're set up as a seller. Welcome to LuxeBeau.", "success");
           updateUser({ role: "seller", cac_number: cac });
           router.push("/dashboard/seller");
         },
-        onError: err => toast(getFriendlyErrorMessage(err, "We couldn't submit your registration. Please try again."), "error"),
+        onError: err => setError(getFriendlyErrorMessage(err, "We couldn't submit your registration. Please try again.")),
       },
     );
   };
@@ -55,37 +48,33 @@ export default function SellerOnboarding() {
   return (
     <SiteShell>
       <PartnerFrame
-        eyebrow="Partners"
-        title="Sell your products on LuxeBeau"
-        body="Bring your beauty, hair or grooming brand to buyers across Nigeria."
-        perks={PERKS}
+        title="Sell on LuxeBeau"
+        body="List your beauty, hair or grooming products for buyers across Nigeria."
+        points={[
+          "List products with photos, prices and stock from your seller studio.",
+          "See every order that includes your products.",
+          "Sell to buyers outside LuxeBeau with escrow links.",
+          "We verify your CAC registration before your verified badge goes live.",
+        ]}
       >
-        {!user ? (
+        {status === "loading" ? (
+          <Skeleton className="h-48 w-full rounded-[28px] bg-surface" />
+        ) : !user ? (
           <SignInPrompt what="register as a seller" />
         ) : user.role === "seller" || user.role === "admin" ? (
-          <AlreadyPartner title="Your seller studio is ready" body="List products, track orders and manage escrow links." href="/dashboard/seller" cta="Open seller studio" />
+          <AlreadyPartner title="You're set up to sell" body="Manage products and orders from your seller studio." href="/dashboard/seller" cta="Open seller studio" />
         ) : (
           <form onSubmit={handleSubmit} noValidate className="rounded-[28px] bg-surface p-5 shadow-card sm:p-6">
-            <h2 className="t-display">Seller registration</h2>
-            <p className="mt-1 text-[14px] tracking-[-0.014em] text-muted">
-              Signed in as {user.name}. Your CAC number is used to verify your business.
-            </p>
+            <h2 className="t-sub">Business registration</h2>
+            <p className="mt-1 text-[14px] tracking-[-0.014em] text-muted">Signed in as {user.email}</p>
             <div className="mt-5">
-              <Label htmlFor="cac">CAC RC / BN number</Label>
-              <Input
-                id="cac"
-                value={cacNumber}
-                onChange={e => setCacNumber(e.target.value)}
-                placeholder="RC 1234567"
-                autoComplete="off"
-                className="mt-1.5"
-                aria-invalid={Boolean(error)}
-              />
+              <Label htmlFor="cac">CAC number (RC or BN)</Label>
+              <Input id="cac" value={cacNumber} onChange={e => setCacNumber(e.target.value)} placeholder="RC 1234567" autoComplete="off" className="mt-1.5" aria-invalid={Boolean(error)} />
               <FieldError>{error}</FieldError>
             </div>
             <Button type="submit" disabled={onboardSeller.isPending} size="lg" className="mt-6 w-full">
               {onboardSeller.isPending && <Loader2 className="animate-spin" aria-hidden />}
-              {onboardSeller.isPending ? "Submitting" : "Register as a seller"}
+              Start selling
             </Button>
           </form>
         )}
