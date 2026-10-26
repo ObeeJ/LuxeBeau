@@ -3,6 +3,7 @@ package order
 import (
 	"context"
 	"log/slog"
+	"math"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -125,119 +126,127 @@ func (h *OrderHandler) GetOrder(c *gin.Context) {
 		response.InternalError(c, "Failed to fetch order")
 		return
 	}
-	if order == nil {
+	// Only the buyer (or an admin) may read an order; anyone else gets the
+	// same 404 as a missing order so IDs can't be probed.
+	if order == nil || (order.BuyerID != c.GetString("userID") && c.GetString("userRole") != "admin") {
 		response.NotFound(c, "Order not found")
 		return
 	}
 	response.OK(c, gin.H{"order": order})
 }
 
-type WebhookPayload struct {
+// ── Payment webhooks ──
+// Signatures are verified by middleware before these run. Each handler only
+// translates its provider's payload into a PaymentNotice; ConfirmPayment
+// decides what happens. A 200 is returned for everything except a server
+// error, so providers don't retry notices we have deliberately ignored.
+
+// nairaToKobo converts a decimal naira amount to kobo without float drift.
+func nairaToKobo(n float64) int64 { return int64(math.Round(n * 100)) }
+
+func (h *OrderHandler) applyPayment(c *gin.Context, n domain.PaymentNotice) {
+	outcome, err := h.service.ConfirmPayment(c.Request.Context(), n)
+	if err != nil {
+		h.logger.Error("payment webhook failed", slog.String("provider", n.Provider), slog.Any("error", err))
+		response.InternalError(c, "Webhook processing failed")
+		return
+	}
+	h.logger.Info("payment webhook", slog.String("provider", n.Provider), slog.String("reference", n.Reference), slog.String("outcome", string(outcome)))
+	response.OK(c, gin.H{"outcome": outcome})
+}
+
+type PaystackWebhookPayload struct {
 	Event string `json:"event"`
 	Data  struct {
 		Reference string `json:"reference"`
 		Status    string `json:"status"`
+		Amount    int64  `json:"amount"` // kobo
+		Currency  string `json:"currency"`
 	} `json:"data"`
 }
 
 func (h *OrderHandler) PaystackWebhook(c *gin.Context) {
-	var payload WebhookPayload
-	if err := c.ShouldBindJSON(&payload); err != nil {
+	var p PaystackWebhookPayload
+	if err := c.ShouldBindJSON(&p); err != nil || p.Data.Reference == "" {
 		response.BadRequest(c, "Invalid webhook payload")
 		return
 	}
-
-	h.logger.Info("Paystack webhook received", slog.String("reference", payload.Data.Reference), slog.String("event", payload.Event))
-
-	if err := h.service.ProcessPaystackWebhook(c.Request.Context(), payload.Data.Reference, payload.Data.Status); err != nil {
-		h.logger.Error("Paystack Webhook processing failed", slog.Any("error", err))
-		response.InternalError(c, "Webhook processing failed")
-		return
-	}
-
-	response.OK(c, gin.H{"message": "Webhook processed"})
+	h.applyPayment(c, domain.PaymentNotice{
+		Provider: "paystack", Reference: p.Data.Reference,
+		Succeeded: p.Event == "charge.success" && p.Data.Status == "success",
+		Amount:    p.Data.Amount, Currency: p.Data.Currency,
+	})
 }
 
 type FlutterwaveWebhookPayload struct {
 	Event string `json:"event"`
 	Data  struct {
-		TxRef  string `json:"tx_ref"`
-		Status string `json:"status"`
+		TxRef    string  `json:"tx_ref"`
+		Status   string  `json:"status"`
+		Amount   float64 `json:"amount"` // naira
+		Currency string  `json:"currency"`
 	} `json:"data"`
 }
 
 func (h *OrderHandler) FlutterwaveWebhook(c *gin.Context) {
-	var payload FlutterwaveWebhookPayload
-	if err := c.ShouldBindJSON(&payload); err != nil {
+	var p FlutterwaveWebhookPayload
+	if err := c.ShouldBindJSON(&p); err != nil || p.Data.TxRef == "" {
 		response.BadRequest(c, "Invalid Flutterwave payload")
 		return
 	}
-
-	h.logger.Info("Flutterwave webhook received", slog.String("tx_ref", payload.Data.TxRef), slog.String("status", payload.Data.Status))
-
-	// Map status to our service
-	status := "failed"
-	if payload.Data.Status == "successful" {
-		status = "success"
-	}
-	if err := h.service.ProcessPaystackWebhook(c.Request.Context(), payload.Data.TxRef, status); err != nil {
-		h.logger.Error("Flutterwave Webhook processing failed", slog.Any("error", err))
-		response.InternalError(c, "Webhook processing failed")
-		return
-	}
-
-	response.OK(c, gin.H{"message": "Flutterwave Webhook processed"})
+	h.applyPayment(c, domain.PaymentNotice{
+		Provider: "flutterwave", Reference: p.Data.TxRef,
+		Succeeded: p.Data.Status == "successful",
+		Amount:    nairaToKobo(p.Data.Amount), Currency: p.Data.Currency,
+	})
 }
 
 type MonnifyWebhookPayload struct {
 	EventType string `json:"eventType"`
 	EventData struct {
-		PaymentReference string `json:"paymentReference"`
-		PaymentStatus    string `json:"paymentStatus"`
+		PaymentReference string  `json:"paymentReference"`
+		PaymentStatus    string  `json:"paymentStatus"`
+		AmountPaid       float64 `json:"amountPaid"` // naira
+		Currency         string  `json:"currency"`
 	} `json:"eventData"`
 }
 
 func (h *OrderHandler) MonnifyWebhook(c *gin.Context) {
-	var payload MonnifyWebhookPayload
-	if err := c.ShouldBindJSON(&payload); err != nil {
+	var p MonnifyWebhookPayload
+	if err := c.ShouldBindJSON(&p); err != nil || p.EventData.PaymentReference == "" {
 		response.BadRequest(c, "Invalid Monnify payload")
 		return
 	}
-
-	h.logger.Info("Monnify webhook received", slog.String("ref", payload.EventData.PaymentReference), slog.String("status", payload.EventData.PaymentStatus))
-
-	status := "failed"
-	if payload.EventData.PaymentStatus == "PAID" {
-		status = "success"
-	}
-	if err := h.service.ProcessPaystackWebhook(c.Request.Context(), payload.EventData.PaymentReference, status); err != nil {
-		h.logger.Error("Monnify Webhook processing failed", slog.Any("error", err))
-		response.InternalError(c, "Webhook processing failed")
-		return
-	}
-
-	response.OK(c, gin.H{"message": "Monnify Webhook processed"})
+	h.applyPayment(c, domain.PaymentNotice{
+		Provider: "monnify", Reference: p.EventData.PaymentReference,
+		Succeeded: p.EventData.PaymentStatus == "PAID",
+		Amount:    nairaToKobo(p.EventData.AmountPaid), Currency: p.EventData.Currency,
+	})
 }
 
+// CryptoWebhookPayload is LuxeBeau's own contract with the crypto bridge.
+// It must name the order and the amount settled, in kobo.
 type CryptoWebhookPayload struct {
-	TxHash string `json:"tx_hash"`
-	Status string `json:"status"` // confirmed, pending
+	Reference  string `json:"reference"`
+	TxHash     string `json:"tx_hash"`
+	Status     string `json:"status"` // confirmed, failed, pending
+	AmountKobo int64  `json:"amount_kobo"`
+	Currency   string `json:"currency"`
 }
 
 func (h *OrderHandler) CryptoWebhook(c *gin.Context) {
-	var payload CryptoWebhookPayload
-	if err := c.ShouldBindJSON(&payload); err != nil {
+	var p CryptoWebhookPayload
+	if err := c.ShouldBindJSON(&p); err != nil || p.Reference == "" {
 		response.BadRequest(c, "Invalid Crypto payload")
 		return
 	}
-
-	h.logger.Info("Crypto bridge webhook received", slog.String("tx_hash", payload.TxHash), slog.String("status", payload.Status))
-
-	if err := h.service.ProcessPaystackWebhook(c.Request.Context(), payload.TxHash, payload.Status); err != nil {
-		h.logger.Error("Crypto Webhook processing failed", slog.Any("error", err))
-		response.InternalError(c, "Webhook processing failed")
+	if p.Status != "confirmed" && p.Status != "failed" {
+		response.OK(c, gin.H{"outcome": domain.PaymentIgnored}) // still pending
 		return
 	}
-
-	response.OK(c, gin.H{"message": "Crypto Webhook processed"})
+	h.applyPayment(c, domain.PaymentNotice{
+		Provider: "crypto", Reference: p.Reference,
+		Succeeded: p.Status == "confirmed",
+		Amount:    p.AmountKobo, Currency: p.Currency,
+	})
 }

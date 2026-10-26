@@ -66,5 +66,27 @@ type OrderService interface {
 	}, address, city, state, phone, payMethod string) (*Order, error)
 	GetOrderDetails(ctx context.Context, orderID string) (*Order, error)
 	ListMyOrders(ctx context.Context, buyerID string) ([]Order, error)
-	ProcessPaystackWebhook(ctx context.Context, reference string, status string) error
+	// ConfirmPayment applies a verified payment-provider notification.
+	ConfirmPayment(ctx context.Context, n PaymentNotice) (PaymentOutcome, error)
 }
+
+// PaymentNotice is a provider's report about one order's payment, already
+// signature-checked by the webhook middleware. Amount is in kobo.
+type PaymentNotice struct {
+	Provider  string
+	Reference string // our order ID
+	Succeeded bool
+	Amount    int64
+	Currency  string
+}
+
+// PaymentOutcome says what a notice did to the order.
+type PaymentOutcome string
+
+const (
+	PaymentMarkedPaid    PaymentOutcome = "paid"
+	PaymentMarkedFailed  PaymentOutcome = "failed"
+	PaymentIgnored       PaymentOutcome = "ignored"        // duplicate, or a failure after payment
+	PaymentUnknownOrder  PaymentOutcome = "unknown_order"  // no order with that reference
+	PaymentAmountInvalid PaymentOutcome = "amount_invalid" // success, but wrong amount or currency
+)

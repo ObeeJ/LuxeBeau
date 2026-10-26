@@ -1,9 +1,11 @@
 package escrow
 
 import (
+	"bytes"
 	"context"
 	"io"
 	"log/slog"
+	"strings"
 	"testing"
 
 	"gorm.io/driver/sqlite"
@@ -152,5 +154,71 @@ func TestAutoReleaseSweep(t *testing.T) {
 	got, _ := s.Get(context.Background(), e.ID)
 	if got.State != domain.EscrowReleased {
 		t.Fatalf("state = %s, want released", got.State)
+	}
+}
+
+func TestRefund_PayeeOrAdminOnly(t *testing.T) {
+	s, db := newTestService(t)
+	wallet(t, db, buyer, 5000000)
+	wallet(t, db, payee, 0)
+	e := createFunded(t, s, db)
+
+	// The buyer can't pull funded money back on their own; they must dispute.
+	if _, err := s.Refund(context.Background(), e.ID, buyer, false); err == nil {
+		t.Fatal("buyer refunded their own funded escrow")
+	}
+	if _, err := s.Refund(context.Background(), e.ID, "someone-else", false); err == nil {
+		t.Fatal("a stranger refunded the escrow")
+	}
+	refunded, err := s.Refund(context.Background(), e.ID, payee, false)
+	if err != nil || refunded.State != domain.EscrowRefunded {
+		t.Fatalf("payee refund: state=%v err=%v", refunded, err)
+	}
+	// A second refund of the same escrow is refused and pays nothing.
+	if _, err := s.Refund(context.Background(), e.ID, payee, false); err == nil {
+		t.Fatal("escrow refunded twice")
+	}
+	var bw domain.Wallet
+	db.First(&bw, "user_id = ?", buyer)
+	if bw.Balance != 5000000 {
+		t.Fatalf("buyer balance = %d, want exactly 5000000", bw.Balance)
+	}
+}
+
+func TestLedgerFailureRollsBackMoneyMovement(t *testing.T) {
+	s, db := newTestService(t)
+	wallet(t, db, buyer, 5000000)
+	wallet(t, db, payee, 0)
+	e, err := s.Create(context.Background(), CreateInput{Kind: domain.EscrowKindOrder, BuyerID: buyer, PayeeID: payee, Title: "Dunks", Amount: 4000000})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Break the ledger so its write fails inside the funding transaction.
+	if err := db.Migrator().DropTable(&domain.LedgerEntry{}); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { db.AutoMigrate(&domain.LedgerEntry{}) })
+
+	if _, err := s.Fund(context.Background(), e.ID); err == nil {
+		t.Fatal("funding succeeded without a ledger entry")
+	}
+	var bw domain.Wallet
+	db.First(&bw, "user_id = ?", buyer)
+	var got domain.Escrow
+	db.First(&got, "id = ?", e.ID)
+	if bw.Balance != 5000000 || got.State == domain.EscrowFunded {
+		t.Fatalf("money moved without a ledger record: balance=%d state=%s", bw.Balance, got.State)
+	}
+}
+
+func TestLogNotifierOmitsPersonalData(t *testing.T) {
+	var buf bytes.Buffer
+	n := NewLogNotifier(slog.New(slog.NewTextHandler(&buf, nil)))
+	e := &domain.Escrow{ID: "ESC-1", Title: "Dunks", Amount: 4000000, BuyerName: "Ada Obi"}
+	if err := n.Notify(context.Background(), "+2348030000001", EventFunded, e); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(buf.String(), "2348030000001") || strings.Contains(buf.String(), "Ada Obi") {
+		t.Fatalf("log contains personal data: %s", buf.String())
 	}
 }

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"luxebeau/internal/domain"
 )
@@ -120,7 +121,9 @@ func (s *Service) Fund(ctx context.Context, id string) (*domain.Escrow, error) {
 		if err := tx.Save(e).Error; err != nil {
 			return err
 		}
-		s.ledger(tx, e, "fund", e.BuyerID, "escrow", e.Amount, "buyer funded escrow")
+		if err := s.ledger(tx, e, "fund", e.BuyerID, "escrow", e.Amount, "buyer funded escrow"); err != nil {
+			return err
+		}
 		funded = e
 		return nil
 	})
@@ -156,9 +159,13 @@ func (s *Service) Release(ctx context.Context, id, actorID string, admin bool) (
 		if err := tx.Save(e).Error; err != nil {
 			return err
 		}
-		s.ledger(tx, e, "release", "escrow", e.PayeeID, net, "released to payee")
+		if err := s.ledger(tx, e, "release", "escrow", e.PayeeID, net, "released to payee"); err != nil {
+			return err
+		}
 		if fee > 0 {
-			s.ledger(tx, e, "fee", "escrow", "platform", fee, "platform fee")
+			if err := s.ledger(tx, e, "fee", "escrow", "platform", fee, "platform fee"); err != nil {
+				return err
+			}
 		}
 		s.bumpReputation(tx, e.PayeeID)
 		released = e
@@ -179,7 +186,10 @@ func (s *Service) Refund(ctx context.Context, id, actorID string, admin bool) (*
 		if err != nil {
 			return err
 		}
-		if !admin && e.BuyerID != actorID && e.PayeeID != actorID {
+		// The payee may give the money back; the buyer can't take it back
+		// on their own (that would remove the seller's protection) and must
+		// open a dispute for an admin to resolve.
+		if !admin && e.PayeeID != actorID {
 			return fmt.Errorf("not authorised to refund this escrow")
 		}
 		if e.State != domain.EscrowFunded && e.State != domain.EscrowDisputed {
@@ -194,7 +204,9 @@ func (s *Service) Refund(ctx context.Context, id, actorID string, admin bool) (*
 		if err := tx.Save(e).Error; err != nil {
 			return err
 		}
-		s.ledger(tx, e, "refund", "escrow", e.BuyerID, e.Amount, "refunded to buyer")
+		if err := s.ledger(tx, e, "refund", "escrow", e.BuyerID, e.Amount, "refunded to buyer"); err != nil {
+			return err
+		}
 		refunded = e
 		return nil
 	})
@@ -207,26 +219,31 @@ func (s *Service) Refund(ctx context.Context, id, actorID string, admin bool) (*
 
 // Dispute flags a funded escrow for admin resolution.
 func (s *Service) Dispute(ctx context.Context, id, actorID, reason string) (*domain.Escrow, error) {
-	e, err := s.repo.Get(ctx, id)
+	var disputed *domain.Escrow
+	err := s.repo.DB().WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		e, err := s.lockedGet(tx, id)
+		if err != nil {
+			return err
+		}
+		if e.BuyerID != actorID && e.PayeeID != actorID {
+			return fmt.Errorf("not authorised to dispute this escrow")
+		}
+		if e.State != domain.EscrowFunded {
+			return fmt.Errorf("only funded escrows can be disputed")
+		}
+		e.State = domain.EscrowDisputed
+		e.DisputeReason = reason
+		if err := tx.Save(e).Error; err != nil {
+			return err
+		}
+		disputed = e
+		return nil
+	})
 	if err != nil {
 		return nil, err
 	}
-	if e == nil {
-		return nil, fmt.Errorf("escrow not found")
-	}
-	if e.BuyerID != actorID && e.PayeeID != actorID {
-		return nil, fmt.Errorf("not authorised to dispute this escrow")
-	}
-	if e.State != domain.EscrowFunded {
-		return nil, fmt.Errorf("only funded escrows can be disputed")
-	}
-	e.State = domain.EscrowDisputed
-	e.DisputeReason = reason
-	if err := s.repo.DB().WithContext(ctx).Save(e).Error; err != nil {
-		return nil, err
-	}
-	s.notify(ctx, e, EventDisputed)
-	return e, nil
+	s.notify(ctx, disputed, EventDisputed)
+	return disputed, nil
 }
 
 // Resolve is the admin arbitration entry point: release or refund a dispute.
@@ -273,17 +290,22 @@ func (s *Service) Get(ctx context.Context, id string) (*domain.Escrow, error) {
 
 func (s *Service) lockedGet(tx *gorm.DB, id string) (*domain.Escrow, error) {
 	var e domain.Escrow
-	if err := tx.Where("id = ?", id).First(&e).Error; err != nil {
+	// SELECT ... FOR UPDATE: concurrent release/refund/dispute calls on one
+	// escrow queue behind each other, so the state checks can't race.
+	if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("id = ?", id).First(&e).Error; err != nil {
 		return nil, fmt.Errorf("escrow not found")
 	}
 	return &e, nil
 }
 
-func (s *Service) ledger(tx *gorm.DB, e *domain.Escrow, typ, from, to string, amount int64, memo string) {
+// ledger records a money movement. It runs inside the same transaction, and
+// its error must roll that transaction back so balances and ledger can't drift.
+func (s *Service) ledger(tx *gorm.DB, e *domain.Escrow, typ, from, to string, amount int64, memo string) error {
 	entry := &domain.LedgerEntry{EscrowID: e.ID, Type: typ, FromAccount: from, ToAccount: to, Amount: amount, Memo: memo}
 	if err := tx.Create(entry).Error; err != nil {
-		s.logger.Warn("ledger write failed", slog.String("escrow", e.ID), slog.Any("error", err))
+		return fmt.Errorf("ledger write: %w", err)
 	}
+	return nil
 }
 
 // bumpReputation increments the payee's completed-escrow count (jobs_completed

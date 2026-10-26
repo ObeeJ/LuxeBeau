@@ -2,9 +2,12 @@ package order
 
 import (
 	"context"
+	crand "crypto/rand"
+	"encoding/hex"
+	"errors"
 	"fmt"
 	"log/slog"
-	"math/rand"
+	"strings"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -84,7 +87,11 @@ func (s *orderService) CreateCheckout(ctx context.Context, buyerID string, items
 		deliveryFee = 150000 // ₦1,500
 	}
 
-	orderID := fmt.Sprintf("LB-%05d", rand.Intn(90000)+10000)
+	orderID, err := newOrderID()
+	if err != nil {
+		tx.Rollback()
+		return nil, err
+	}
 
 	order := &domain.Order{
 		ID:             orderID,
@@ -133,6 +140,16 @@ func (s *orderService) CreateCheckout(ctx context.Context, buyerID string, items
 	return order, nil
 }
 
+// newOrderID returns LB- plus 8 random hex characters (2^32 possibilities;
+// the old 5-digit IDs collided after a few hundred orders).
+func newOrderID() (string, error) {
+	b := make([]byte, 4)
+	if _, err := crand.Read(b); err != nil {
+		return "", fmt.Errorf("order id: %w", err)
+	}
+	return "LB-" + strings.ToUpper(hex.EncodeToString(b)), nil
+}
+
 func (s *orderService) GetOrderDetails(ctx context.Context, orderID string) (*domain.Order, error) {
 	return s.orderRepo.GetOrderByID(ctx, orderID)
 }
@@ -141,9 +158,47 @@ func (s *orderService) ListMyOrders(ctx context.Context, buyerID string) ([]doma
 	return s.orderRepo.ListOrdersByBuyer(ctx, buyerID)
 }
 
-func (s *orderService) ProcessPaystackWebhook(ctx context.Context, reference string, status string) error {
-	if status == "success" {
-		return s.orderRepo.UpdatePaymentStatus(ctx, reference, "paid")
+// ConfirmPayment marks an order paid only when the provider reports success
+// for exactly the order total in naira. A paid order is never moved back to
+// failed (providers can send a stale failure after a retry succeeds), and
+// each change is a conditional UPDATE so duplicate deliveries are no-ops.
+func (s *orderService) ConfirmPayment(ctx context.Context, n domain.PaymentNotice) (domain.PaymentOutcome, error) {
+	var order domain.Order
+	err := s.db.WithContext(ctx).Select("id", "total", "payment_status").First(&order, "id = ?", n.Reference).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return domain.PaymentUnknownOrder, nil
 	}
-	return s.orderRepo.UpdatePaymentStatus(ctx, reference, "failed")
+	if err != nil {
+		return "", err
+	}
+
+	if !n.Succeeded {
+		res := s.db.WithContext(ctx).Model(&domain.Order{}).
+			Where("id = ? AND payment_status = ?", order.ID, "pending").
+			Update("payment_status", "failed")
+		if res.Error != nil {
+			return "", res.Error
+		}
+		if res.RowsAffected == 0 {
+			return domain.PaymentIgnored, nil
+		}
+		return domain.PaymentMarkedFailed, nil
+	}
+
+	if n.Amount != order.Total || !strings.EqualFold(n.Currency, "NGN") {
+		s.logger.Warn("payment amount mismatch; order left unpaid",
+			slog.String("order", order.ID), slog.String("provider", n.Provider),
+			slog.Int64("expected", order.Total), slog.Int64("received", n.Amount), slog.String("currency", n.Currency))
+		return domain.PaymentAmountInvalid, nil
+	}
+	res := s.db.WithContext(ctx).Model(&domain.Order{}).
+		Where("id = ? AND payment_status IN ?", order.ID, []string{"pending", "failed"}).
+		Update("payment_status", "paid")
+	if res.Error != nil {
+		return "", res.Error
+	}
+	if res.RowsAffected == 0 {
+		return domain.PaymentIgnored, nil
+	}
+	return domain.PaymentMarkedPaid, nil
 }

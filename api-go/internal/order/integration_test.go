@@ -179,9 +179,12 @@ func TestE2EPaymentIntegration(t *testing.T) {
 	}
 
 	// 9. Simulate Paystack Webhook Success
-	err = orderService.ProcessPaystackWebhook(context.Background(), paystackOrder.ID, "success")
-	if err != nil {
-		t.Fatalf("failed to process webhook: %v", err)
+	outcome, err := orderService.ConfirmPayment(context.Background(), domain.PaymentNotice{
+		Provider: "paystack", Reference: paystackOrder.ID, Succeeded: true,
+		Amount: paystackOrder.Total, Currency: "NGN",
+	})
+	if err != nil || outcome != domain.PaymentMarkedPaid {
+		t.Fatalf("failed to process webhook: outcome=%s err=%v", outcome, err)
 	}
 
 	// Verify order status updated to "paid"

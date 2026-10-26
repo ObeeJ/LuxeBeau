@@ -18,11 +18,20 @@ func NewCatalogHandler(service domain.ProductService, logger *slog.Logger) *Cata
 	return &CatalogHandler{service: service, logger: logger}
 }
 
+// maxPageSize caps ?limit= so one request can't pull the whole table.
+const maxPageSize = 100
+
 func (h *CatalogHandler) ListProducts(c *gin.Context) {
 	category := c.Query("category")
 	search := c.Query("search")
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	if limit < 1 || limit > maxPageSize {
+		limit = maxPageSize
+	}
+	if page < 1 {
+		page = 1
+	}
 
 	products, err := h.service.ListProducts(c.Request.Context(), category, search, page, limit)
 	if err != nil {
@@ -51,19 +60,4 @@ func (h *CatalogHandler) GetProduct(c *gin.Context) {
 	}
 
 	response.OK(c, gin.H{"product": product})
-}
-
-func (h *CatalogHandler) CreateProduct(c *gin.Context) {
-	var prod domain.Product
-	if err := c.ShouldBindJSON(&prod); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
-		return
-	}
-
-	if err := h.service.CreateProduct(c.Request.Context(), &prod); err != nil {
-		response.InternalError(c, "Failed to create product")
-		return
-	}
-
-	response.Created(c, gin.H{"product": prod})
 }

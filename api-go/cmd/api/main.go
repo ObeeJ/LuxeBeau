@@ -224,9 +224,6 @@ func main() {
 		// Auth
 		protected.GET("/auth/me", authHandler.Me)
 
-		// Products (seller/admin only — can add middleware later)
-		protected.POST("/products", auth.RequireRole("admin"), catalogHandler.CreateProduct)
-
 		// Bookings (Rate Limited to 2 req/sec burst 5 to protect scheduler state)
 		protected.POST("/bookings", middleware.RateLimiter(2, 5), bookingHandler.CreateBooking)
 		protected.PATCH("/bookings/:id/confirm", bookingHandler.ConfirmBooking)
