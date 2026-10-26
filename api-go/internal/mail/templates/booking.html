@@ -1,0 +1,7 @@
+{{define "body"}}
+{{template "h1" .Data.Heading}}
+<p style="margin:0;font-size:16px;line-height:1.5;letter-spacing:-0.5px;color:#000000;">{{.Data.Intro}}</p>
+{{template "rows" .Data.Summary}}
+{{if .Data.Note}}<p style="margin:20px 0 0;font-size:14px;line-height:1.5;letter-spacing:-0.2px;color:#787574;">{{.Data.Note}}</p>{{end}}
+{{template "button" .Data.Button}}
+{{end}}

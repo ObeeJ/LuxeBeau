@@ -1,25 +1,19 @@
 import type { Metadata } from "next";
-import { Fraunces, Hanken_Grotesk } from "next/font/google";
+import { Inter } from "next/font/google";
 import "./globals.css";
 import Providers from "./providers";
 
-const fraunces = Fraunces({
-  variable: "--font-fraunces",
+/* Inter stands in for GT Standard (the design system's named substitute). */
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  style: ["normal", "italic"],
-});
-
-const hanken = Hanken_Grotesk({
-  variable: "--font-hanken",
-  subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
+  weight: ["400", "500"],
 });
 
 export const metadata: Metadata = {
   title: "LuxeBeau, Nigeria's Luxury Beauty Marketplace",
   description:
-    "Shop curated beauty crafted for melanin-rich skin and book vetted artisans across Lagos, Abuja and Port Harcourt. Pay securely with Paystack.",
+    "Shop curated beauty crafted for melanin-rich skin and book vetted artisans across Lagos, Abuja and Port Harcourt.",
 };
 
 export default function RootLayout({
@@ -28,8 +22,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en-NG" className={`${fraunces.variable} ${hanken.variable}`}>
-      <body className="grain">
+    <html lang="en-NG" className={inter.variable}>
+      <body>
         <Providers>{children}</Providers>
       </body>
     </html>

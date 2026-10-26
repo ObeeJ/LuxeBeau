@@ -5,13 +5,23 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MotionConfig } from "framer-motion";
 import { ToastProvider } from "@/components/ui/slide-in-notifications";
 import { AuthDialog } from "@/components/auth/auth-dialog";
-import { useTheme } from "@/lib/store";
+import { fetchSessionUser } from "@/lib/queries";
+import { useAuth } from "@/lib/store";
 
-function ThemeApplier() {
-  const theme = useTheme((s) => s.theme);
+/* Resolves the cookie session once on load so every page knows who is
+   signed in without storing credentials in the browser. */
+function SessionSync() {
   useEffect(() => {
-    document.documentElement.classList.toggle("light", theme === "light");
-  }, [theme]);
+    let active = true;
+    fetchSessionUser().then(user => {
+      if (!active) return;
+      if (user) useAuth.getState().signIn(user);
+      else useAuth.getState().signOut();
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
   return null;
 }
 
@@ -32,7 +42,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
           OS "reduce motion" setting globally (WCAG 2.3.3). */}
       <MotionConfig reducedMotion="user">
         <ToastProvider>
-          <ThemeApplier />
+          <SessionSync />
           {children}
           <AuthDialog />
         </ToastProvider>

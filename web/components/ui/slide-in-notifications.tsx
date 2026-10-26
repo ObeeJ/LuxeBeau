@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { CheckCircle2, AlertCircle, X } from "lucide-react";
+import { CheckCircle2, AlertCircle, Info, X } from "lucide-react";
 
 type ToastType = "success" | "error" | "info";
 
@@ -48,7 +48,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   return (
     <ToastContext.Provider value={{ toast: addToast }}>
       {children}
-      <div className="flex flex-col gap-2 w-80 fixed bottom-4 right-4 z-[9999] pointer-events-none">
+      <div className="pointer-events-none fixed inset-x-4 bottom-20 z-[9999] flex flex-col gap-2 sm:left-auto sm:right-4 sm:bottom-4 sm:w-80" aria-live="polite">
         <AnimatePresence>
           {toasts.map((t) => (
             <ToastItem key={t.id} toast={t} remove={removeToast} />
@@ -68,9 +68,9 @@ const ToastItem = ({ toast, remove }: { toast: Toast; remove: (id: string) => vo
   }, [toast, remove]);
 
   const icons = {
-    success: <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />,
-    error: <AlertCircle className="w-5 h-5 text-red-400 shrink-0" />,
-    info: <AlertCircle className="w-5 h-5 text-purple-300 shrink-0" />,
+    success: <CheckCircle2 className="h-5 w-5 shrink-0 text-ink" aria-hidden />,
+    error: <AlertCircle className="h-5 w-5 shrink-0 text-ink" aria-hidden />,
+    info: <Info className="h-5 w-5 shrink-0 text-muted" aria-hidden />,
   };
 
   return (
@@ -80,17 +80,19 @@ const ToastItem = ({ toast, remove }: { toast: Toast; remove: (id: string) => vo
       animate={{ x: 0, opacity: 1, scale: 1 }}
       exit={{ x: 50, opacity: 0, scale: 0.95 }}
       transition={{ duration: 0.25, ease: "easeOut" }}
-      className="p-4 flex items-start gap-3 rounded-2xl shadow-lg shadow-purple-900/20 border border-purple-400/10 bg-[#1B0A2E]/95 backdrop-blur-xl text-white pointer-events-auto w-full"
+      role={toast.type === "error" ? "alert" : "status"}
+      className="pointer-events-auto flex w-full items-start gap-3 rounded-[20px] bg-surface p-4 text-ink shadow-float"
     >
       {icons[toast.type]}
-      <div className="flex-1 text-xs font-medium leading-tight">
+      <div className="t-sub flex-1 font-normal">
         {toast.text}
       </div>
       <button
         onClick={() => remove(toast.id)}
-        className="text-white/40 hover:text-white transition-colors cursor-pointer shrink-0"
+        aria-label="Dismiss notification"
+        className="shrink-0 rounded-full p-1 text-muted transition-colors duration-200 hover:bg-canvas hover:text-ink"
       >
-        <X className="w-4 h-4" />
+        <X className="h-4 w-4" aria-hidden />
       </button>
     </motion.div>
   );

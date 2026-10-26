@@ -2,326 +2,280 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { AnimatePresence, motion } from "framer-motion";
-import { ArrowLeft, ArrowRight, CheckCircle2, Loader2, Lock, Minus, Plus, ShoppingBag, Trash2 } from "lucide-react";
-import SiteNav from "@/components/site/nav";
-import SiteFooter from "@/components/site/footer";
+import { CheckCircle2, ChevronLeft, Loader2, Minus, Plus, X } from "lucide-react";
+import SiteShell, { Container } from "@/components/site/shell";
+import { Photo } from "@/components/site/catalog";
+import { FieldError } from "@/components/site/states";
+import { PageHeader } from "@/components/dashboard/widgets";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { formatNaira } from "@/lib/format";
 import { useCart, useAuth } from "@/lib/store";
-import { useCreateOrder } from "@/lib/queries";
-import { deliverySchema } from "@/lib/api";
+import { useCreateOrder, useWallet } from "@/lib/queries";
+import { deliveryFeeNGN, deliverySchema, type OrderResult } from "@/lib/api";
 import { useAuthModal } from "@/components/auth/auth-dialog";
-import { useToast } from "@/components/ui/slide-in-notifications";
 import { getFriendlyErrorMessage } from "@/lib/errors";
+import { cn } from "@/lib/utils";
 
-type Step = "bag" | "delivery" | "payment" | "done";
-type PayMethod = "card" | "transfer" | "ussd" | "wallet";
+type PayMethod = "wallet" | "card" | "transfer" | "ussd";
 
-const DELIVERY_FEE = 2500;
-const NG_CITIES = ["Lagos", "Abuja", "Port Harcourt", "Ibadan", "Kano", "Enugu", "Benin City", "Other"];
-const PAY_METHODS: { id: PayMethod; label: string; hint: string }[] = [
-  { id: "card", label: "Debit card", hint: "Visa, Mastercard, Verve" },
-  { id: "transfer", label: "Bank transfer", hint: "Pay from any Nigerian bank" },
-  { id: "ussd", label: "USSD", hint: "Dial and confirm on your phone" },
-  { id: "wallet", label: "Luxe Wallet", hint: "Use your wallet balance" },
+const NG_STATES = ["Lagos", "FCT Abuja", "Rivers", "Oyo", "Kano", "Enugu", "Edo", "Ogun", "Kaduna", "Delta", "Anambra", "Other"];
+
+/* pay_method values accepted by POST /orders. Only the wallet settles at
+   checkout; the others are confirmed later by the payment provider. */
+const PAY_METHODS: { id: PayMethod; label: string }[] = [
+  { id: "card", label: "Card" },
+  { id: "transfer", label: "Bank transfer" },
+  { id: "ussd", label: "USSD" },
+  { id: "wallet", label: "LuxeBeau wallet" },
 ];
-
-const ease = [0.22, 1, 0.36, 1] as const;
 
 export default function CartPage() {
   const { detailed, setQty, remove, clear, subtotalNGN, count } = useCart();
   const user = useAuth(s => s.user);
   const showAuth = useAuthModal(s => s.show);
   const createOrder = useCreateOrder();
-  const { toast } = useToast();
+  const wallet = useWallet(Boolean(user));
 
-  const [step, setStep] = useState<Step>("bag");
+  const [checkout, setCheckout] = useState(false);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
-  const [city, setCity] = useState("Lagos");
+  const [city, setCity] = useState("");
+  const [state, setState] = useState("Lagos");
   const [pay, setPay] = useState<PayMethod>("card");
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [orderRef, setOrderRef] = useState("");
+  const [formError, setFormError] = useState("");
+  const [placed, setPlaced] = useState<OrderResult | null>(null);
 
-  const total = subtotalNGN + (count > 0 ? DELIVERY_FEE : 0);
+  const fee = deliveryFeeNGN(subtotalNGN);
+  const total = subtotalNGN + fee;
+  const balance = wallet.data?.balanceNGN;
+  const walletShort = pay === "wallet" && (balance === undefined || balance < total);
 
-  const goToDelivery = () => {
-    if (!user) {
-      toast("Please sign in to complete your purchase.", "info");
-      showAuth("login", () => setStep("delivery"));
-      return;
+  /* Contact details prefill from the profile when checkout opens. */
+  const openCheckout = () => {
+    const current = useAuth.getState().user;
+    if (current) {
+      setName(n => n || current.name);
+      setPhone(p => p || current.phone || "");
     }
-    setStep("delivery");
+    setCheckout(true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const submitDelivery = (e: React.FormEvent) => {
+  const startCheckout = () => {
+    if (!user) {
+      showAuth("signin", openCheckout, "Sign in to check out. Your bag is saved.");
+      return;
+    }
+    openCheckout();
+  };
+
+  const placeOrder = (e: React.FormEvent) => {
     e.preventDefault();
-    const parsed = deliverySchema.safeParse({ name, phone, address, city, state: city });
+    setFormError("");
+    const parsed = deliverySchema.safeParse({ name, phone, address, city, state });
     if (!parsed.success) {
       const next: Record<string, string> = {};
-      for (const issue of parsed.error.issues) {
-        const key = String(issue.path[0]);
-        if (!next[key]) next[key] = issue.message;
-      }
+      for (const issue of parsed.error.issues) next[String(issue.path[0])] ??= issue.message;
       setErrors(next);
       return;
     }
     setErrors({});
-    setStep("payment");
-  };
-
-  const numericId = (id: string) => Number(id.replace(/\D/g, "")) || 1;
-
-  const handlePay = () => {
+    const items = detailed.map(d => ({ product_id: Number(d.product.id), qty: d.qty }));
+    if (items.some(i => !Number.isInteger(i.product_id) || i.product_id <= 0)) {
+      setFormError("An item in your bag is no longer available. Remove it and try again.");
+      return;
+    }
     createOrder.mutate(
-      {
-        items: detailed.map(d => ({ product_id: numericId(d.product.id), qty: d.qty })),
-        delivery: { name, phone, address, city, state: city },
-        pay_method: pay,
-      },
+      { items, delivery: parsed.data, pay_method: pay },
       {
         onSuccess: result => {
-          setOrderRef(result.reference ?? `LB-${result.id}`);
+          setPlaced(result);
           clear();
-          setStep("done");
-          toast("Payment confirmed! Your order is being processed, and we've emailed your receipt.", "success");
+          window.scrollTo({ top: 0 });
         },
-        onError: err => toast(getFriendlyErrorMessage(err, "We couldn't complete your payment. Please try again or use another payment method."), "error"),
+        onError: err => setFormError(getFriendlyErrorMessage(err, "We couldn't place your order. Please try again.")),
       },
     );
   };
 
-  return (
-    <div className="min-h-dvh">
-      <SiteNav />
-
-      <main className="mx-auto max-w-5xl px-4 py-12 sm:px-6">
-        {step === "done" ? (
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, ease }}
-            className="mx-auto max-w-lg py-16 text-center"
-          >
-            <CheckCircle2 className="mx-auto h-14 w-14 text-success" aria-hidden />
-            <h1 className="mt-6 font-display text-3xl font-medium">Order confirmed</h1>
-            <p className="mt-3 text-lavender-200">
-              Reference <span className="font-semibold text-gold-300">{orderRef}</span>. Your items are being
-              packed now. Track delivery from your email or your dashboard. Thank you for shopping LuxeBeau.
+  if (placed) {
+    return (
+      <SiteShell>
+        <Container className="pt-10">
+          <div className="mx-auto max-w-md rounded-[28px] bg-surface p-6 shadow-card sm:p-8">
+            <CheckCircle2 className="h-8 w-8" strokeWidth={1.5} aria-hidden />
+            <h1 className="t-display mt-4">Order {placed.id} placed</h1>
+            <p className="mt-2 text-[16px] text-muted">
+              {placed.paymentStatus === "paid"
+                ? "Paid from your wallet. We've emailed your receipt."
+                : "We've emailed your order details. We'll start packing as soon as the payment is confirmed."}
             </p>
-            <div className="mt-10 flex justify-center gap-4">
-              <Button asChild className="rounded-full px-7"><Link href="/shop">Keep shopping</Link></Button>
-              <Button asChild variant="outline" className="rounded-full border-velvet-700 px-7"><Link href="/">Back home</Link></Button>
+            <dl className="mt-5 divide-y divide-hairline text-[14px] tracking-[-0.014em]">
+              <div className="flex justify-between py-2.5"><dt className="text-muted">Delivery</dt><dd>{placed.deliveryFeeNGN ? formatNaira(placed.deliveryFeeNGN) : "Free"}</dd></div>
+              <div className="flex justify-between py-2.5"><dt className="text-muted">Total</dt><dd>{formatNaira(placed.totalNGN)}</dd></div>
+            </dl>
+            <div className="mt-6 flex flex-wrap gap-2">
+              <Button asChild><Link href="/dashboard">Track order</Link></Button>
+              <Button asChild variant="outline"><Link href="/shop">Keep shopping</Link></Button>
             </div>
-          </motion.div>
-        ) : (
-          <>
-            <ol className="flex items-center gap-3 text-xs font-semibold uppercase tracking-widest" aria-label="Checkout progress">
-              {(["bag", "delivery", "payment"] as const).map((s, i) => (
-                <li key={s} className="flex items-center gap-3">
-                  <span className={step === s ? "text-gold-300" : "text-lavender-400"}>
-                    {i + 1}. {s === "bag" ? "Your bag" : s === "delivery" ? "Delivery" : "Payment"}
-                  </span>
-                  {i < 2 && <span className="h-px w-8 bg-velvet-700" aria-hidden />}
+          </div>
+        </Container>
+      </SiteShell>
+    );
+  }
+
+  if (count === 0) {
+    return (
+      <SiteShell>
+        <Container className="pt-8 md:pt-12">
+          <PageHeader title="Your bag" />
+          <div className="mt-6 rounded-[28px] bg-surface p-8 text-center shadow-card">
+            <p className="text-[16px] text-muted">Your bag is empty.</p>
+            <Button asChild className="mt-4"><Link href="/shop">Start shopping</Link></Button>
+          </div>
+        </Container>
+      </SiteShell>
+    );
+  }
+
+  const summary = (
+    <dl className="divide-y divide-hairline text-[14px] tracking-[-0.014em]">
+      <div className="flex justify-between py-2.5"><dt className="text-muted">Subtotal</dt><dd className="tabular-nums">{formatNaira(subtotalNGN)}</dd></div>
+      <div className="flex justify-between py-2.5">
+        <dt className="text-muted">Delivery</dt>
+        <dd className="tabular-nums">{fee ? formatNaira(fee) : "Free"}</dd>
+      </div>
+      <div className="flex justify-between py-2.5 text-[16px] tracking-[-0.031em]"><dt>Total</dt><dd className="tabular-nums">{formatNaira(total)}</dd></div>
+    </dl>
+  );
+
+  return (
+    <SiteShell>
+      <Container className="pt-8 md:pt-12">
+        {checkout ? (
+          <button onClick={() => setCheckout(false)} className="inline-flex items-center gap-1 text-[14px] tracking-[-0.014em] text-muted hover:text-ink">
+            <ChevronLeft className="h-4 w-4" aria-hidden /> Bag
+          </button>
+        ) : null}
+        <PageHeader title={checkout ? "Checkout" : "Your bag"} subtitle={checkout ? undefined : `${count} item${count === 1 ? "" : "s"}`} />
+
+        <div className="mt-6 grid gap-6 lg:grid-cols-[1.5fr_1fr] lg:gap-10">
+          {!checkout ? (
+            <ul className="divide-y divide-hairline rounded-[28px] bg-surface px-4 shadow-card sm:px-5">
+              {detailed.map(({ product, qty }) => (
+                <li key={product.id} className="flex gap-3 py-4">
+                  <Link href={`/shop/${product.slug}`} className="h-20 w-20 shrink-0 sm:h-24 sm:w-24">
+                    <Photo src={product.imageUrl} alt={product.name} fallback="" sizes="sm" className="rounded-[16px]" />
+                  </Link>
+                  <div className="flex min-w-0 flex-1 flex-col">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-[12px] tracking-[-0.017em] text-muted">{product.brand}</p>
+                        <Link href={`/shop/${product.slug}`} className="line-clamp-2 text-[14px] tracking-[-0.014em] hover:underline">{product.name}</Link>
+                      </div>
+                      <button onClick={() => remove(product.id)} className="-mr-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted hover:bg-canvas hover:text-ink" aria-label={`Remove ${product.name}`}>
+                        <X className="h-4 w-4" aria-hidden />
+                      </button>
+                    </div>
+                    <div className="mt-auto flex items-center justify-between gap-2 pt-2">
+                      <div className="flex h-9 items-center rounded-full border border-hairline px-1" role="group" aria-label={`Quantity of ${product.name}`}>
+                        <button onClick={() => setQty(product.id, qty - 1)} className="flex h-7 w-7 items-center justify-center rounded-full hover:bg-canvas" aria-label="Decrease">
+                          <Minus className="h-3.5 w-3.5" aria-hidden />
+                        </button>
+                        <span className="w-6 text-center text-[14px] tabular-nums">{qty}</span>
+                        <button onClick={() => setQty(product.id, qty + 1)} className="flex h-7 w-7 items-center justify-center rounded-full hover:bg-canvas" aria-label="Increase">
+                          <Plus className="h-3.5 w-3.5" aria-hidden />
+                        </button>
+                      </div>
+                      <span className="text-[16px] tabular-nums tracking-[-0.031em]">{formatNaira(product.priceNGN * qty)}</span>
+                    </div>
+                  </div>
                 </li>
               ))}
-            </ol>
+            </ul>
+          ) : (
+            <form id="checkout" onSubmit={placeOrder} noValidate className="space-y-8">
+              <section aria-label="Delivery" className="rounded-[28px] bg-surface p-5 shadow-card sm:p-6">
+                <h2 className="t-sub">Delivery</h2>
+                <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <Label htmlFor="name">Full name</Label>
+                    <Input id="name" value={name} onChange={e => setName(e.target.value)} autoComplete="name" className="mt-1.5" aria-invalid={Boolean(errors.name)} />
+                    <FieldError>{errors.name}</FieldError>
+                  </div>
+                  <div>
+                    <Label htmlFor="phone">Phone</Label>
+                    <Input id="phone" type="tel" inputMode="tel" value={phone} onChange={e => setPhone(e.target.value)} autoComplete="tel" placeholder="0803 123 4567" className="mt-1.5" aria-invalid={Boolean(errors.phone)} />
+                    <FieldError>{errors.phone}</FieldError>
+                  </div>
+                  <div className="sm:col-span-2">
+                    <Label htmlFor="address">Address</Label>
+                    <Textarea id="address" value={address} onChange={e => setAddress(e.target.value)} rows={2} autoComplete="street-address" placeholder="House number, street and a landmark" className="mt-1.5 min-h-0" aria-invalid={Boolean(errors.address)} />
+                    <FieldError>{errors.address}</FieldError>
+                  </div>
+                  <div>
+                    <Label htmlFor="city">City or area</Label>
+                    <Input id="city" value={city} onChange={e => setCity(e.target.value)} autoComplete="address-level2" placeholder="Lekki" className="mt-1.5" aria-invalid={Boolean(errors.city)} />
+                    <FieldError>{errors.city}</FieldError>
+                  </div>
+                  <div>
+                    <Label htmlFor="state">State</Label>
+                    <select id="state" value={state} onChange={e => setState(e.target.value)} className="lb-input mt-1.5 h-11" autoComplete="address-level1">
+                      {NG_STATES.map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </div>
+                </div>
+              </section>
 
-            <h1 className="mt-6 font-display text-3xl font-medium sm:text-4xl">
-              {step === "bag" && <>Your <em className="text-gold-gradient italic">bag</em></>}
-              {step === "delivery" && <>Where should we <em className="text-gold-gradient italic">deliver?</em></>}
-              {step === "payment" && <>Secure <em className="text-gold-gradient italic">payment</em></>}
-            </h1>
+              <section aria-label="Payment" className="rounded-[28px] bg-surface p-5 shadow-card sm:p-6">
+                <h2 className="t-sub">Payment</h2>
+                <div className="mt-3 overflow-hidden rounded-[20px] border border-hairline" role="radiogroup" aria-label="Payment method">
+                  {PAY_METHODS.map((m, i) => {
+                    const selected = pay === m.id;
+                    const hint = m.id === "wallet" ? (balance !== undefined ? `Balance ${formatNaira(balance)}` : "Balance unavailable") : null;
+                    return (
+                      <button
+                        key={m.id}
+                        type="button"
+                        role="radio"
+                        aria-checked={selected}
+                        onClick={() => setPay(m.id)}
+                        className={cn("flex w-full items-center gap-3 px-4 py-3 text-left transition-colors duration-150 hover:bg-canvas", i > 0 && "border-t border-hairline")}
+                      >
+                        <span className={cn("flex h-5 w-5 shrink-0 items-center justify-center rounded-full border", selected ? "border-ink" : "border-stone")} aria-hidden>
+                          {selected && <span className="h-2.5 w-2.5 rounded-full bg-ink" />}
+                        </span>
+                        <span className="flex-1 text-[16px] tracking-[-0.031em]">{m.label}</span>
+                        {hint && <span className="text-[12px] text-muted">{hint}</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+                {walletShort && <FieldError>Your wallet balance doesn&apos;t cover this order. Choose another method.</FieldError>}
+              </section>
+              {formError && <FieldError>{formError}</FieldError>}
+            </form>
+          )}
 
-            {count === 0 && step === "bag" ? (
-              <div className="mt-16 text-center">
-                <ShoppingBag className="mx-auto h-12 w-12 text-lavender-400" aria-hidden />
-                <p className="mt-4 text-lavender-200">Your bag is empty. The shelf is waiting.</p>
-                <Button asChild className="mt-6 rounded-full px-7"><Link href="/shop">Browse the edit</Link></Button>
-              </div>
+          <aside className="h-fit rounded-[28px] bg-surface p-5 shadow-card sm:p-6 lg:sticky lg:top-8" aria-label="Order summary">
+            {summary}
+            {fee > 0 && <p className="mt-1 text-[12px] text-muted">Free delivery from {formatNaira(10000)}.</p>}
+            {checkout ? (
+              <Button type="submit" form="checkout" size="lg" disabled={createOrder.isPending || walletShort} className="mt-5 w-full">
+                {createOrder.isPending && <Loader2 className="animate-spin" aria-hidden />}
+                Place order · {formatNaira(total)}
+              </Button>
             ) : (
-              <div className="mt-10 grid gap-10 lg:grid-cols-[1.6fr_1fr]">
-                <AnimatePresence mode="wait">
-                  <motion.div
-                    key={step}
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -20 }}
-                    transition={{ duration: 0.3, ease }}
-                  >
-                    {step === "bag" && (
-                      <ul className="space-y-4">
-                        {detailed.map(({ product, qty }) => (
-                          <li key={product.id} className="card-velvet flex gap-4 rounded-2xl p-4">
-                            <div
-                              className="h-24 w-24 shrink-0 rounded-xl"
-                              style={{ background: `linear-gradient(140deg, ${product.tint[0]}, ${product.tint[1]})` }}
-                              aria-hidden
-                            />
-                            <div className="flex flex-1 flex-col">
-                              <div className="flex items-start justify-between gap-2">
-                                <div>
-                                  <h2 className="font-display font-semibold leading-snug">{product.name}</h2>
-                                  <p className="text-sm text-lavender-400">{product.brand}</p>
-                                </div>
-                                <button
-                                  onClick={() => { remove(product.id); toast(`${product.name} removed from your bag.`, "info"); }}
-                                  className="rounded-full p-2 text-lavender-400 transition-colors hover:text-danger"
-                                  aria-label={`Remove ${product.name}`}
-                                >
-                                  <Trash2 className="h-4 w-4" aria-hidden />
-                                </button>
-                              </div>
-                              <div className="mt-auto flex items-center justify-between pt-3">
-                                <div className="flex items-center gap-2" role="group" aria-label={`Quantity of ${product.name}`}>
-                                  <button onClick={() => setQty(product.id, qty - 1)} className="rounded-full border border-velvet-700 p-1.5 hover:border-royal-400/60" aria-label="Decrease">
-                                    <Minus className="h-3.5 w-3.5" aria-hidden />
-                                  </button>
-                                  <span className="w-6 text-center text-sm font-semibold tabular-nums">{qty}</span>
-                                  <button onClick={() => setQty(product.id, qty + 1)} className="rounded-full border border-velvet-700 p-1.5 hover:border-royal-400/60" aria-label="Increase">
-                                    <Plus className="h-3.5 w-3.5" aria-hidden />
-                                  </button>
-                                </div>
-                                <span className="font-display font-semibold text-gold-300 tabular-nums">{formatNaira(product.priceNGN * qty)}</span>
-                              </div>
-                            </div>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-
-                    {step === "delivery" && (
-                      <form className="card-velvet space-y-5 rounded-2xl p-6" onSubmit={submitDelivery} noValidate>
-                        <div>
-                          <Label htmlFor="name">Full name</Label>
-                          <Input id="name" value={name} onChange={e => setName(e.target.value)} autoComplete="name" className="mt-1.5" aria-invalid={Boolean(errors.name)} />
-                          {errors.name && <p role="alert" className="mt-1.5 text-xs text-danger">{errors.name}</p>}
-                        </div>
-                        <div>
-                          <Label htmlFor="phone">Phone (WhatsApp preferred)</Label>
-                          <Input id="phone" type="tel" inputMode="tel" value={phone} onChange={e => setPhone(e.target.value)} autoComplete="tel" placeholder="0803 123 4567" className="mt-1.5" aria-invalid={Boolean(errors.phone)} />
-                          {errors.phone && <p role="alert" className="mt-1.5 text-xs text-danger">{errors.phone}</p>}
-                        </div>
-                        <div>
-                          <Label htmlFor="address">Delivery address</Label>
-                          <Textarea id="address" value={address} onChange={e => setAddress(e.target.value)} rows={3} autoComplete="street-address" placeholder="14B Admiralty Way, Lekki Phase 1 (white gate beside the pharmacy)" className="mt-1.5" aria-invalid={Boolean(errors.address)} />
-                          {errors.address && <p role="alert" className="mt-1.5 text-xs text-danger">{errors.address}</p>}
-                          <p className="mt-1.5 text-xs text-lavender-400">Add a landmark. It helps dispatch riders find you faster.</p>
-                        </div>
-                        <div>
-                          <Label htmlFor="city">City</Label>
-                          <Select value={city} onValueChange={setCity}>
-                            <SelectTrigger id="city" className="mt-1.5"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              {NG_CITIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="flex gap-3 pt-2">
-                          <Button type="button" variant="outline" onClick={() => setStep("bag")} className="rounded-full border-velvet-700">
-                            <ArrowLeft className="h-4 w-4" aria-hidden /> Back
-                          </Button>
-                          <Button type="submit" className="flex-1 rounded-full">Continue to payment</Button>
-                        </div>
-                      </form>
-                    )}
-
-                    {step === "payment" && (
-                      <div className="card-velvet rounded-2xl p-6">
-                        <p className="flex items-center gap-2 text-sm text-lavender-200">
-                          <Lock className="h-4 w-4 text-gold-400" aria-hidden />
-                          You will be charged <strong className="text-gold-300">{formatNaira(total)}</strong> through Paystack.
-                        </p>
-
-                        <fieldset className="mt-6">
-                          <legend className="text-sm font-medium text-lavender-200">Choose how to pay</legend>
-                          <div className="mt-3 grid gap-3 sm:grid-cols-2" role="radiogroup" aria-label="Payment method">
-                            {PAY_METHODS.map(m => (
-                              <button
-                                key={m.id}
-                                type="button"
-                                role="radio"
-                                aria-checked={pay === m.id}
-                                onClick={() => setPay(m.id)}
-                                className={`rounded-xl border p-4 text-left transition-colors ${
-                                  pay === m.id ? "border-gold-400/70 bg-gold-400/5" : "border-velvet-700 hover:border-royal-400/60"
-                                }`}
-                              >
-                                <p className="text-sm font-semibold">{m.label}</p>
-                                <p className="mt-0.5 text-xs text-lavender-400">{m.hint}</p>
-                              </button>
-                            ))}
-                          </div>
-                        </fieldset>
-
-                        <div className="mt-6 rounded-xl border border-velvet-700 bg-velvet-950 p-5 text-sm text-lavender-400">
-                          <p>Delivering to:</p>
-                          <p className="mt-1 text-lavender-100">{name} · {phone}</p>
-                          <p>{address}, {city}</p>
-                        </div>
-
-                        <div className="mt-6 flex gap-3">
-                          <Button type="button" variant="outline" onClick={() => setStep("delivery")} className="rounded-full border-velvet-700">
-                            <ArrowLeft className="h-4 w-4" aria-hidden /> Edit details
-                          </Button>
-                          <Button
-                            onClick={handlePay}
-                            disabled={createOrder.isPending}
-                            className="flex-1 rounded-full bg-gold-400 font-bold text-velvet-950 hover:bg-gold-300"
-                          >
-                            {createOrder.isPending && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
-                            {createOrder.isPending ? "Contacting Paystack" : `Pay ${formatNaira(total)} securely`}
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-                  </motion.div>
-                </AnimatePresence>
-
-                <aside className="card-velvet h-fit rounded-2xl p-6" aria-label="Order summary">
-                  <h2 className="font-display text-lg font-semibold">Summary</h2>
-                  <dl className="mt-4 space-y-3 text-sm">
-                    <div className="flex justify-between">
-                      <dt className="text-lavender-400">Subtotal ({count} item{count === 1 ? "" : "s"})</dt>
-                      <dd className="font-semibold tabular-nums">{formatNaira(subtotalNGN)}</dd>
-                    </div>
-                    <div className="flex justify-between">
-                      <dt className="text-lavender-400">Delivery</dt>
-                      <dd className="font-semibold tabular-nums">{count > 0 ? formatNaira(DELIVERY_FEE) : formatNaira(0)}</dd>
-                    </div>
-                    <div className="flex justify-between border-t border-velvet-700/60 pt-3 text-base">
-                      <dt className="font-semibold">Total</dt>
-                      <dd className="font-display font-semibold text-gold-300 tabular-nums">{formatNaira(total)}</dd>
-                    </div>
-                  </dl>
-                  {step === "bag" && count > 0 && (
-                    <Button onClick={goToDelivery} className="mt-6 w-full rounded-full">
-                      Checkout <ArrowRight className="h-4 w-4" aria-hidden />
-                    </Button>
-                  )}
-                  <p className="mt-4 flex items-center gap-2 text-xs text-lavender-400">
-                    <Lock className="h-3.5 w-3.5" aria-hidden /> Payments secured by Paystack. We never store card details.
-                  </p>
-                </aside>
-              </div>
+              <Button onClick={startCheckout} size="lg" className="mt-5 w-full">Checkout</Button>
             )}
-          </>
-        )}
-      </main>
-
-      <SiteFooter />
-    </div>
+          </aside>
+        </div>
+      </Container>
+    </SiteShell>
   );
 }

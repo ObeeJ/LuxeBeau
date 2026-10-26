@@ -22,12 +22,33 @@ type Artisan struct {
 	JobsCompleted int         `gorm:"type:integer;default:0" json:"jobs_completed"`
 	Verified      bool        `gorm:"type:boolean;default:false" json:"verified"`
 	Available     bool        `gorm:"type:boolean;default:true" json:"available"`
+	ServiceMode   string      `gorm:"type:varchar(10);not null;default:'studio'" json:"service_mode"` // studio, home, both
+	ImageURL      string      `gorm:"type:varchar(500)" json:"image_url"`
 	BgColor       string      `gorm:"type:varchar(10)" json:"bg_color"`
 	FgColor       string      `gorm:"type:varchar(10)" json:"fg_color"`
 	Bio           string      `gorm:"type:text" json:"bio"`
 	Services      ServiceList `gorm:"type:text" json:"services"`
 	CreatedAt     time.Time   `json:"created_at"`
 	UpdatedAt     time.Time   `json:"updated_at"`
+}
+
+// Artisan service modes: where an artisan is willing to work.
+const (
+	ServiceStudio = "studio"
+	ServiceHome   = "home"
+	ServiceBoth   = "both"
+)
+
+// Offers reports whether an artisan with this mode takes the given visit type.
+func (a *Artisan) Offers(visit string) bool {
+	switch a.ServiceMode {
+	case ServiceBoth:
+		return visit == ServiceStudio || visit == ServiceHome
+	case ServiceHome:
+		return visit == ServiceHome
+	default:
+		return visit == ServiceStudio
+	}
 }
 
 type BookingSlot struct {
@@ -47,7 +68,8 @@ type Booking struct {
 	ServiceName string    `gorm:"type:varchar(255);not null" json:"service_name" binding:"required"`
 	BookingDate time.Time `gorm:"type:date;not null" json:"booking_date" binding:"required"`
 	BookingTime string    `gorm:"type:varchar(10);not null" json:"booking_time" binding:"required"`
-	ServiceType string    `gorm:"type:varchar(20);not null" json:"service_type" binding:"required,oneof=home studio both"`
+	ServiceType string    `gorm:"type:varchar(20);not null" json:"service_type"`         // studio or home
+	Address     string    `gorm:"type:text" json:"address"`                              // client address for home visits
 	Amount      int64     `gorm:"type:bigint;not null" json:"amount" binding:"required"` // stored in Kobo
 	Status      string    `gorm:"type:varchar(20);default:'pending'" json:"status"`      // pending, confirmed, completed, cancelled
 	CreatedAt   time.Time `json:"created_at"`
@@ -69,10 +91,10 @@ type BookingRepository interface {
 }
 
 type BookingService interface {
-	BookService(ctx context.Context, buyerID string, artisanID uint, serviceName string, date time.Time, slotTime string, svcType string) (*Booking, error)
+	BookService(ctx context.Context, buyerID string, artisanID uint, serviceName string, date time.Time, slotTime string, svcType string, address string) (*Booking, error)
 	GetArtisanProfile(ctx context.Context, artisanID uint) (*Artisan, []BookingSlot, error)
 	ListArtisans(ctx context.Context, specialty, location string) ([]Artisan, error)
-	ConfirmBooking(ctx context.Context, bookingID string) error
+	ConfirmBooking(ctx context.Context, bookingID, actorID string, admin bool) (*Booking, error)
 	ListMyBookings(ctx context.Context, userID string) ([]Booking, error)
 	OnboardArtisan(ctx context.Context, userID string, artisan *Artisan) (*Artisan, error)
 	OnboardSeller(ctx context.Context, userID string, cacNumber string) error

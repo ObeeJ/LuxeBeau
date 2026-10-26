@@ -3,293 +3,168 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import {
-  ArrowRight,
-  Banknote,
-  Brush,
-  CalendarDays,
-  CheckCircle2,
-  Loader2,
-  Package,
-  Shield,
-  ShieldCheck,
-  ShoppingBag,
-  Sparkles,
-  Store,
-} from "lucide-react";
-import { StatCard, StatusPill } from "@/components/dashboard/widgets";
-import { LoadError } from "@/components/site/states";
+import { PageHeader, Panel, RecordList, RecordRow, StatusPill, Tabs } from "@/components/dashboard/widgets";
+import { EmptyState, LoadError } from "@/components/site/states";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/store";
-import { useMyBookings, useMyOrders, useSubmitKyc } from "@/lib/queries";
+import { useMyBookings, useMyOrders, useWallet } from "@/lib/queries";
 import { formatNaira } from "@/lib/format";
+import { type MyBooking } from "@/lib/api";
 import { useAuthModal } from "@/components/auth/auth-dialog";
-import { useToast } from "@/components/ui/slide-in-notifications";
-import { getFriendlyErrorMessage } from "@/lib/errors";
 
-const workspaces = [
-  { href: "/dashboard/seller", icon: Store, title: "Seller studio", body: "Track orders, payouts and product performance for your beauty brand.", roles: ["seller", "admin"] },
-  { href: "/dashboard/artisan", icon: Brush, title: "Artisan studio", body: "Manage your calendar, confirm bookings and watch your craft earn.", roles: ["artisan", "admin"] },
-  { href: "/dashboard/admin", icon: Shield, title: "Admin console", body: "Verify partners, monitor marketplace health and resolve disputes.", roles: ["admin"] },
-];
+type Tab = "orders" | "bookings" | "account";
 
-const titleCase = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : "Pending");
+function ListSkeleton() {
+  return (
+    <div className="space-y-2" role="status" aria-busy="true">
+      {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}
+    </div>
+  );
+}
+
+const paymentLabel = (s: string) => (s === "paid" ? "Paid" : s === "failed" ? "Payment failed" : "Awaiting payment");
+const visitText = (t: string) => (t === "home" ? "Home visit" : "At the studio");
+
+function BookingGroup({ title, list }: { title: string; list: MyBooking[] }) {
+  if (list.length === 0) return null;
+  return (
+    <Panel title={title}>
+      <RecordList>
+        {list.map(b => (
+          <RecordRow
+            key={b.id}
+            title={`${b.service} with ${b.artisan || "your artisan"}`}
+            meta={`${b.date} at ${b.time} · ${visitText(b.serviceType)}${b.serviceType === "home" && b.address ? `: ${b.address}` : ""}`}
+            status={<StatusPill status={b.status === "pending" ? "awaiting confirmation" : b.status} />}
+          />
+        ))}
+      </RecordList>
+    </Panel>
+  );
+}
 
 export default function DashboardHome() {
   const router = useRouter();
   const user = useAuth(s => s.user);
+  const status = useAuth(s => s.status);
   const showAuth = useAuthModal(s => s.show);
+  const [tab, setTab] = useState<Tab>("orders");
 
-  /* Auto-redirect partner roles to their workspace. Buyers stay here. */
+  /* Partners land in their own studio; buyers and admins stay here. */
   useEffect(() => {
-    if (!user) return;
-    if (user.role === "artisan") router.replace("/dashboard/artisan");
-    else if (user.role === "seller") router.replace("/dashboard/seller");
+    if (user?.role === "artisan") router.replace("/dashboard/artisan");
+    else if (user?.role === "seller") router.replace("/dashboard/seller");
   }, [user, router]);
 
-  // Orders/bookings are only meaningful for a signed-in person.
   const enabled = Boolean(user);
   const orders = useMyOrders(enabled);
   const bookings = useMyBookings(enabled);
+  const wallet = useWallet(enabled);
 
-  const submitKyc = useSubmitKyc();
-  const { toast } = useToast();
-  const [kycType, setKycType] = useState<"nin" | "bvn">("nin");
-  const [kycValue, setKycValue] = useState("");
+  if (status === "loading") return <ListSkeleton />;
 
   if (!user) {
     return (
-      <main className="mx-auto max-w-2xl py-20 text-center">
-        <Sparkles className="mx-auto h-10 w-10 text-gold-400" aria-hidden />
-        <h1 className="mt-6 font-display text-3xl font-medium">Your LuxeBeau account</h1>
-        <p className="mt-3 text-lavender-200">
-          Sign in to see your orders, track deliveries and manage your bookings.
-        </p>
-        <button
-          onClick={() => showAuth("login")}
-          className="mt-8 inline-flex items-center gap-2 rounded-full bg-royal-500 px-7 py-3 text-sm font-semibold transition-colors hover:bg-royal-400"
-        >
-          Sign in <ArrowRight className="h-4 w-4" aria-hidden />
-        </button>
-      </main>
+      <div className="mx-auto max-w-sm rounded-[28px] bg-surface p-6 text-center shadow-card sm:p-8">
+        <h1 className="t-display">Your account</h1>
+        <p className="mt-2 text-[16px] text-muted">Sign in to see your orders and bookings.</p>
+        <Button onClick={() => showAuth("signin")} size="lg" className="mt-5">Sign in</Button>
+      </div>
     );
   }
 
   const ordersList = orders.data ?? [];
   const bookingsList = bookings.data ?? [];
-  const totalSpend = ordersList.reduce((s, o) => s + o.totalNGN, 0);
-  const isArtisan = user.role === "artisan";
+  const today = new Date().toISOString().slice(0, 10);
+  const upcoming = bookingsList.filter(b => b.date >= today && b.status !== "cancelled");
+  const past = bookingsList.filter(b => !upcoming.includes(b));
 
   return (
-    <main className="mx-auto max-w-6xl">
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.35em] text-gold-300">
-            {isArtisan ? "Artisan account" : "My account"}
-          </p>
-          <h1 className="mt-2 font-display text-3xl font-medium">
-            Welcome back, <em className="text-gold-gradient italic">{user.name.split(" ")[0]}</em>
-          </h1>
-          <p className="mt-1 text-sm text-lavender-400">
-            {titleCase(user.role)} · {user.email}
-          </p>
-        </div>
-        <div className="flex gap-3">
-          <Link href="/shop" className="rounded-full border border-velvet-700 px-5 py-2.5 text-sm font-semibold text-lavender-200 transition-colors hover:border-gold-400/60">
-            Shop
-          </Link>
-          <Link href="/services" className="rounded-full bg-royal-500 px-5 py-2.5 text-sm font-semibold transition-colors hover:bg-royal-400">
-            Book a service
-          </Link>
-        </div>
-      </header>
+    <div className="space-y-5">
+      <PageHeader title={`Hi, ${user.name.split(" ")[0]}`} subtitle={user.email} />
 
-      {/* Stats */}
-      <section className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-label="Account summary">
-        <StatCard icon={Package} label="Orders" value={String(ordersList.length)} />
-        <StatCard icon={CalendarDays} label={isArtisan ? "Incoming bookings" : "Bookings"} value={String(bookingsList.length)} />
-        <StatCard icon={Banknote} label={isArtisan ? "Booking value" : "Total spend"} value={formatNaira(isArtisan ? bookingsList.reduce((s, b) => s + b.priceNGN, 0) : totalSpend)} />
-      </section>
+      <Tabs<Tab>
+        value={tab}
+        onChange={setTab}
+        tabs={[
+          { id: "orders", label: "Orders", count: orders.data?.length },
+          { id: "bookings", label: "Bookings", count: bookings.data?.length },
+          { id: "account", label: "Account" },
+        ]}
+      />
 
-      {/* Identity verification (NIN/BVN via Prembly) */}
-      <section className="card-velvet mt-6 rounded-3xl p-6" aria-label="Identity verification">
-        <h2 className="flex items-center gap-2 font-display text-lg font-semibold">
-          <ShieldCheck className="h-5 w-5 text-gold-400" aria-hidden /> Identity verification
-        </h2>
-        {user.kyc_status === "verified" ? (
-          <p className="mt-4 flex items-center gap-2 rounded-xl border border-success/30 bg-success/5 p-4 text-sm text-success">
-            <CheckCircle2 className="h-5 w-5" aria-hidden /> Your identity is verified. Thank you for keeping LuxeBeau trusted.
-          </p>
-        ) : user.kyc_status === "pending" ? (
-          <p className="mt-4 rounded-xl border border-warning/30 bg-warning/5 p-4 text-sm text-warning">
-            Your submission is under review. We will update your status shortly.
-          </p>
-        ) : (
-          <form
-            className="mt-4"
-            onSubmit={e => {
-              e.preventDefault();
-              if (!/^\d{11}$/.test(kycValue.trim())) {
-                toast(`Please enter a valid eleven-digit ${kycType.toUpperCase()} number.`, "error");
-                return;
-              }
-              submitKyc.mutate(
-                { type: kycType, value: kycValue.trim() },
-                {
-                  onSuccess: r => toast(r.kyc_status === "verified" ? "Identity successfully verified. Thank you for keeping LuxeBeau secure." : "Verification documents submitted successfully. We will review your profile within twenty-four hours.", "success"),
-                  onError: err => toast(getFriendlyErrorMessage(err, "Verification failed. Please check the number and try again."), "error"),
-                },
-              );
-            }}
-          >
-            <p className="text-sm text-lavender-300">
-              Every LuxeBeau member verifies their identity. Submit your NIN or BVN; we never store the raw number.
-            </p>
-            <div className="mt-4 flex flex-wrap items-end gap-3">
-              <label className="text-sm">
-                <span className="mb-1 block text-xs uppercase tracking-wider text-lavender-400">Document</span>
-                <select
-                  value={kycType}
-                  onChange={e => setKycType(e.target.value as "nin" | "bvn")}
-                  className="rounded-lg border border-velvet-700 bg-velvet-900 px-3 py-2.5 text-sm"
-                >
-                  <option value="nin">NIN</option>
-                  <option value="bvn">BVN</option>
-                </select>
-              </label>
-              <label className="flex-1 text-sm">
-                <span className="mb-1 block text-xs uppercase tracking-wider text-lavender-400">{kycType.toUpperCase()} number</span>
-                <input
-                  inputMode="numeric"
-                  value={kycValue}
-                  onChange={e => setKycValue(e.target.value)}
-                  placeholder={kycType === "nin" ? "11-digit NIN" : "11-digit BVN"}
-                  className="w-full min-w-40 rounded-lg border border-velvet-700 bg-velvet-900 px-3 py-2.5 text-sm placeholder:text-lavender-400/60"
-                />
-              </label>
-              <button
-                type="submit"
-                disabled={submitKyc.isPending}
-                className="inline-flex items-center gap-2 rounded-full bg-royal-500 px-6 py-2.5 text-sm font-semibold transition-colors hover:bg-royal-400 disabled:opacity-60"
-              >
-                {submitKyc.isPending && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
-                Verify identity
-              </button>
-            </div>
-          </form>
-        )}
-      </section>
-
-      {/* Orders */}
-      {!isArtisan && (
-        <section className="card-velvet mt-8 overflow-x-auto rounded-3xl p-6" aria-label="Your orders">
-          <h2 className="flex items-center gap-2 font-display text-lg font-semibold">
-            <ShoppingBag className="h-5 w-5 text-gold-400" aria-hidden /> Your orders
-          </h2>
+      {tab === "orders" && (
+        <Panel aria-label="Orders">
           {orders.isLoading ? (
-            <div className="mt-5 space-y-3" aria-busy="true" role="status">
-              {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-12 w-full bg-velvet-800/60" />)}
-            </div>
+            <ListSkeleton />
           ) : orders.isError ? (
-            <LoadError onRetry={() => orders.refetch()} message="We could not load your orders." />
+            <LoadError onRetry={() => orders.refetch()} message="We couldn't load your orders." />
           ) : ordersList.length === 0 ? (
-            <div className="mt-6 rounded-xl border border-velvet-700 p-8 text-center text-sm text-lavender-400">
-              <p>No orders yet. When you check out, your receipts and delivery tracking show up here.</p>
-              <Link href="/shop" className="mt-4 inline-block font-semibold text-gold-300 hover:underline">Browse the shelf</Link>
-            </div>
+            <EmptyState>
+              No orders yet. <Link href="/shop" className="text-ink underline underline-offset-4">Start shopping</Link>
+            </EmptyState>
           ) : (
-            <table className="mt-5 w-full min-w-[36rem] text-left text-sm">
-              <thead>
-                <tr className="border-b border-velvet-700/60 text-xs uppercase tracking-wider text-lavender-400">
-                  <th scope="col" className="pb-3 pr-4">Ref</th>
-                  <th scope="col" className="pb-3 pr-4">Items</th>
-                  <th scope="col" className="pb-3 pr-4">Date</th>
-                  <th scope="col" className="pb-3 pr-4 text-right">Total</th>
-                  <th scope="col" className="pb-3">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {ordersList.map(o => (
-                  <tr key={o.id} className="border-b border-velvet-700/30 last:border-0">
-                    <td className="py-4 pr-4 font-semibold text-gold-300">{o.id}</td>
-                    <td className="max-w-64 truncate py-4 pr-4 text-lavender-400">{o.itemSummary}</td>
-                    <td className="py-4 pr-4 text-lavender-400">{o.date || "—"}</td>
-                    <td className="py-4 pr-4 text-right font-semibold tabular-nums">{formatNaira(o.totalNGN)}</td>
-                    <td className="py-4"><StatusPill status={titleCase(o.status)} /></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <RecordList>
+              {ordersList.map(o => (
+                <RecordRow
+                  key={o.id}
+                  title={o.itemSummary}
+                  meta={`${o.id} · ${o.date} · ${paymentLabel(o.paymentStatus)}`}
+                  amount={formatNaira(o.totalNGN)}
+                  status={<StatusPill status={o.shippingStatus === "pending" ? "processing" : o.shippingStatus} />}
+                />
+              ))}
+            </RecordList>
           )}
-        </section>
+        </Panel>
       )}
 
-      {/* Bookings */}
-      <section className="card-velvet mt-6 overflow-x-auto rounded-3xl p-6" aria-label="Your bookings">
-        <h2 className="flex items-center gap-2 font-display text-lg font-semibold">
-          <CalendarDays className="h-5 w-5 text-gold-400" aria-hidden /> {isArtisan ? "Incoming bookings" : "Your bookings"}
-        </h2>
-        {bookings.isLoading ? (
-          <div className="mt-5 space-y-3" aria-busy="true" role="status">
-            {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-12 w-full bg-velvet-800/60" />)}
-          </div>
-        ) : bookings.isError ? (
-          <LoadError onRetry={() => bookings.refetch()} message="We could not load your bookings." />
-        ) : bookingsList.length === 0 ? (
-          <div className="mt-6 rounded-xl border border-velvet-700 p-8 text-center text-sm text-lavender-400">
-            <p>{isArtisan ? "No bookings yet. They appear here the moment a client books you." : "No bookings yet. Find a verified artisan and hold your slot."}</p>
-            <Link href="/services" className="mt-4 inline-block font-semibold text-gold-300 hover:underline">Browse artisans</Link>
-          </div>
-        ) : (
-          <table className="mt-5 w-full min-w-[36rem] text-left text-sm">
-            <thead>
-              <tr className="border-b border-velvet-700/60 text-xs uppercase tracking-wider text-lavender-400">
-                <th scope="col" className="pb-3 pr-4">Ref</th>
-                <th scope="col" className="pb-3 pr-4">{isArtisan ? "Client" : "Artisan"}</th>
-                <th scope="col" className="pb-3 pr-4">Service</th>
-                <th scope="col" className="pb-3 pr-4">When</th>
-                <th scope="col" className="pb-3 pr-4 text-right">Fee</th>
-                <th scope="col" className="pb-3">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {bookingsList.map(b => (
-                <tr key={b.id} className="border-b border-velvet-700/30 last:border-0">
-                  <td className="py-4 pr-4 font-semibold text-gold-300">{b.id}</td>
-                  <td className="py-4 pr-4">{b.with || "—"}</td>
-                  <td className="max-w-48 truncate py-4 pr-4 text-lavender-400">{b.service}</td>
-                  <td className="py-4 pr-4 text-lavender-400">{b.date || "—"}{b.time ? ` · ${b.time}` : ""}</td>
-                  <td className="py-4 pr-4 text-right font-semibold tabular-nums">{formatNaira(b.priceNGN)}</td>
-                  <td className="py-4"><StatusPill status={titleCase(b.status)} /></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </section>
+      {tab === "bookings" && (
+        <div className="space-y-5">
+          {bookings.isLoading ? (
+            <Panel><ListSkeleton /></Panel>
+          ) : bookings.isError ? (
+            <Panel><LoadError onRetry={() => bookings.refetch()} message="We couldn't load your bookings." /></Panel>
+          ) : bookingsList.length === 0 ? (
+            <Panel>
+              <EmptyState>
+                No bookings yet. <Link href="/services" className="text-ink underline underline-offset-4">Find an artisan</Link>
+              </EmptyState>
+            </Panel>
+          ) : (
+            <>
+              <BookingGroup title="Upcoming" list={upcoming} />
+              <BookingGroup title="Past" list={past} />
+            </>
+          )}
+        </div>
+      )}
 
-      {/* Workspaces for elevated roles */}
-      {(() => {
-        const available = workspaces.filter(w => w.roles.includes(user.role));
-        if (available.length === 0) return null;
-        return (
-          <section className="mt-10" aria-label="Workspaces">
-            <h2 className="font-display text-lg font-semibold">Your workspaces</h2>
-            <div className="mt-5 grid gap-6 md:grid-cols-3">
-              {available.map(({ href, icon: Icon, title, body }) => (
-                <Link key={href} href={href} className="card-velvet group rounded-3xl p-7 transition-colors duration-300 hover:border-gold-400/50">
-                  <Icon className="h-7 w-7 text-gold-400" aria-hidden />
-                  <h3 className="mt-5 font-display text-xl font-semibold">{title}</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-lavender-400">{body}</p>
-                  <span className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-gold-300">
-                    Enter <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" aria-hidden />
-                  </span>
-                </Link>
-              ))}
-            </div>
-          </section>
-        );
-      })()}
-    </main>
+      {tab === "account" && (
+        <Panel aria-label="Account details">
+          <dl className="divide-y divide-hairline text-[14px] tracking-[-0.014em]">
+            {[
+              ["Name", user.name],
+              ["Email", user.email],
+              ["Phone", user.phone || "Not added"],
+              ["Wallet balance", wallet.data ? formatNaira(wallet.data.balanceNGN) : "Unavailable"],
+            ].map(([k, v]) => (
+              <div key={k} className="flex justify-between gap-4 py-3">
+                <dt className="text-muted">{k}</dt>
+                <dd className="text-right">{v}</dd>
+              </div>
+            ))}
+          </dl>
+          {user.role === "buyer" && (
+            <p className="mt-5 text-[14px] tracking-[-0.014em] text-muted">
+              Selling beauty products or offering services?{" "}
+              <Link href="/partnership/seller" className="text-ink underline underline-offset-4">Sell on LuxeBeau</Link> or{" "}
+              <Link href="/partnership/artisan" className="text-ink underline underline-offset-4">join as an artisan</Link>.
+            </p>
+          )}
+        </Panel>
+      )}
+    </div>
   );
 }

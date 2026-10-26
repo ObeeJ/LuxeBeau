@@ -1,46 +1,37 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { clearToken, setToken, type Product, type User } from "@/lib/api";
+import { type Product, type User } from "@/lib/api";
 
 /* ── Auth store ──────────────────────────────────────────────
-   Zustand keeps the session globally; the JWT itself lives in
-   localStorage (see lib/api) so apiFetch can attach it. */
+   Holds the signed-in profile for rendering. The session itself is an
+   HttpOnly cookie the browser sends automatically; nothing sensitive is
+   stored in JavaScript. `status` stays "loading" until the first /auth/me
+   check so pages never flash a signed-out state. */
+type AuthStatus = "loading" | "signedIn" | "signedOut";
+
 interface AuthState {
   user: User | null;
-  signIn: (token: string, user: User) => void;
+  status: AuthStatus;
+  signIn: (user: User) => void;
   signOut: () => void;
   isAuthed: () => boolean;
   updateUser: (user: Partial<User>) => void;
 }
 
-export const useAuth = create<AuthState>()(
-  persist(
-    (set, get) => ({
-      user: null,
-      signIn: (token, user) => {
-        setToken(token);
-        set({ user });
-      },
-      signOut: () => {
-        clearToken();
-        set({ user: null });
-      },
-      isAuthed: () => Boolean(get().user),
-      updateUser: (updated) =>
-        set((state) => {
-          if (!state.user) return {};
-          return { user: { ...state.user, ...updated } };
-        }),
-    }),
-    { name: "lb_auth" },
-  ),
-);
+export const useAuth = create<AuthState>()((set, get) => ({
+  user: null,
+  status: "loading",
+  signIn: user => set({ user, status: "signedIn" }),
+  signOut: () => set({ user: null, status: "signedOut" }),
+  isAuthed: () => Boolean(get().user),
+  updateUser: updated =>
+    set(state => (state.user ? { user: { ...state.user, ...updated } } : {})),
+}));
 
 /* ── Cart store ──────────────────────────────────────────────
-   Each line carries a snapshot of the product (name, price, tint) taken at
-   add-time. This decouples the cart from any catalogue source: the bag keeps
-   working even if the product is later edited or the API is offline, and the
-   price the buyer agreed to is the price that is charged. */
+   Works signed out (window shopping) and persists in this browser. Each line
+   keeps a snapshot for display; the API recalculates prices from the
+   catalogue at checkout, so the server total is authoritative. */
 export interface CartSnapshot {
   id: string;
   slug: string;
@@ -48,6 +39,7 @@ export interface CartSnapshot {
   brand: string;
   priceNGN: number;
   tint: [string, string];
+  imageUrl?: string;
 }
 
 export interface CartLine extends CartSnapshot {
@@ -63,7 +55,7 @@ interface CartState {
 }
 
 function snapshot(p: Product | CartSnapshot): CartSnapshot {
-  return { id: p.id, slug: p.slug, name: p.name, brand: p.brand, priceNGN: p.priceNGN, tint: p.tint };
+  return { id: p.id, slug: p.slug, name: p.name, brand: p.brand, priceNGN: p.priceNGN, tint: p.tint, imageUrl: p.imageUrl };
 }
 
 export const useCartStore = create<CartState>()(
@@ -89,26 +81,6 @@ export const useCartStore = create<CartState>()(
       clear: () => set({ lines: [] }),
     }),
     { name: "lb_cart_v3" },
-  ),
-);
-
-/* ── Theme store ─────────────────────────────────────────────
-   Persists "dark" | "light" preference. ThemeApplier in
-   providers.tsx syncs this to the <html> class on every mount. */
-interface ThemeState {
-  theme: "dark" | "light";
-  toggleTheme: () => void;
-  setTheme: (t: "dark" | "light") => void;
-}
-
-export const useTheme = create<ThemeState>()(
-  persist(
-    (set) => ({
-      theme: "dark",
-      toggleTheme: () => set((s) => ({ theme: s.theme === "dark" ? "light" : "dark" })),
-      setTheme: (theme) => set({ theme }),
-    }),
-    { name: "lb_theme" },
   ),
 );
 

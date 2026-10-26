@@ -1,104 +1,188 @@
-import { FlaskConical, type LucideIcon } from "lucide-react";
-import { formatCompactNaira } from "@/lib/format";
+import { type LucideIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
 
-/* Honest labelling: these studio views still run on sample figures because the
-   seller-orders / verification-queue / weekly-revenue endpoints do not exist
-   yet. The badge keeps demo data from being mistaken for live data. */
-export function SampleDataBadge() {
-  return (
-    <span className="inline-flex items-center gap-1.5 rounded-full border border-gold-400/40 bg-gold-400/10 px-3 py-1 text-xs font-semibold text-gold-300">
-      <FlaskConical className="h-3.5 w-3.5" aria-hidden /> Sample data
-    </span>
-  );
-}
-
-export function StatCard({
+/* White elevated panel: 28px radius, dual soft shadow, no border. */
+export function Panel({
+  title,
   icon: Icon,
-  label,
-  value,
-  delta,
+  action,
+  id,
+  className,
+  children,
+  "aria-label": ariaLabel,
 }: {
-  icon: LucideIcon;
-  label: string;
-  value: string;
-  delta?: string;
+  title?: string;
+  icon?: LucideIcon;
+  action?: React.ReactNode;
+  id?: string;
+  className?: string;
+  children: React.ReactNode;
+  "aria-label"?: string;
 }) {
   return (
-    <div className="card-velvet rounded-2xl p-5">
-      <div className="flex items-center justify-between">
-        <span className="text-sm text-lavender-400">{label}</span>
-        <Icon className="h-4 w-4 text-gold-400" aria-hidden />
-      </div>
-      <p className="mt-3 font-display text-2xl font-semibold">{value}</p>
-      {delta && <p className="mt-1 text-xs font-medium text-success">{delta} vs last week</p>}
+    <section
+      id={id}
+      aria-label={ariaLabel ?? title}
+      className={cn("scroll-mt-20 rounded-[28px] bg-surface p-4 shadow-card sm:p-6", className)}
+    >
+      {(title || action) && (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          {title && (
+            <h2 className="flex items-center gap-2">
+              {Icon && <Icon className="h-4 w-4" strokeWidth={1.75} aria-hidden />}
+              <span className="t-sub">{title}</span>
+            </h2>
+          )}
+          {action}
+        </div>
+      )}
+      {children}
+    </section>
+  );
+}
+
+/* Segmented pill tabs with optional counts. */
+export function Tabs<T extends string>({
+  value,
+  onChange,
+  tabs,
+  label = "Sections",
+}: {
+  value: T;
+  onChange: (v: T) => void;
+  tabs: { id: T; label: string; count?: number }[];
+  label?: string;
+}) {
+  return (
+    <div role="tablist" aria-label={label} className="no-scrollbar -mx-4 flex gap-1 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+      {tabs.map(t => (
+        <button
+          key={t.id}
+          role="tab"
+          aria-selected={value === t.id}
+          onClick={() => onChange(t.id)}
+          className={cn(
+            "inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full px-4 text-[14px] tracking-[-0.014em] transition-colors duration-200",
+            value === t.id ? "bg-ink text-surface" : "text-ink hover:bg-surface",
+          )}
+        >
+          {t.label}
+          {t.count !== undefined && <span className={cn("tabular-nums", value === t.id ? "text-surface/70" : "text-muted")}>{t.count}</span>}
+        </button>
+      ))}
     </div>
   );
 }
 
-export function StatusPill({ status }: { status: string }) {
-  const tone =
-    {
-      Paid: "bg-royal-500/20 text-royal-400",
-      Shipped: "bg-gold-400/15 text-gold-300",
-      Delivered: "bg-success/15 text-success",
-      Completed: "bg-success/15 text-success",
-      Confirmed: "bg-royal-500/20 text-royal-400",
-      Approved: "bg-success/15 text-success",
-      Pending: "bg-warning/15 text-warning",
-      "Awaiting review": "bg-warning/15 text-warning",
-      "Docs requested": "bg-gold-400/15 text-gold-300",
-      Refunded: "bg-danger/15 text-danger",
-      Cancelled: "bg-danger/15 text-danger",
-    }[status] ?? "bg-velvet-700 text-lavender-200";
+const POSITIVE = new Set(["paid", "delivered", "completed", "confirmed", "released", "verified", "active", "approved", "shipped"]);
+const NEGATIVE = new Set(["failed", "cancelled", "refunded", "disputed", "suspended", "sold out", "payment failed"]);
 
+/* Monochrome status chip: filled ink for done, outlined ink for problems,
+   mist for anything still in flight. No second accent colour. */
+export function StatusPill({ status }: { status: string }) {
+  const label = status || "pending";
+  const key = label.toLowerCase();
+  const tone = POSITIVE.has(key)
+    ? "bg-ink text-surface"
+    : NEGATIVE.has(key)
+      ? "border border-ink bg-surface text-ink"
+      : "bg-canvas text-ink";
   return (
-    <span className={`inline-block rounded-full px-2.5 py-1 text-xs font-semibold ${tone}`}>
-      {status}
+    <span className={cn("inline-flex h-6 shrink-0 items-center whitespace-nowrap rounded-full px-2.5 text-[12px] tracking-[-0.017em]", tone)}>
+      {label.charAt(0).toUpperCase() + label.slice(1)}
     </span>
   );
 }
 
-/* Pure-CSS grouped bar chart: no chart library needed at this data size. */
-export function RevenueBars({
-  data,
-  seriesA,
-  seriesB,
-}: {
-  data: { day: string; productNGN: number; serviceNGN: number }[];
-  seriesA: string;
-  seriesB: string;
-}) {
-  const max = Math.max(...data.flatMap(d => [d.productNGN, d.serviceNGN]));
+/* Responsive record row: stacks on phones, aligns into columns from sm. */
+export function RecordList({ children }: { children: React.ReactNode }) {
+  return <ul className="divide-y divide-hairline">{children}</ul>;
+}
 
+export function RecordRow({
+  title,
+  subtitle,
+  meta,
+  amount,
+  status,
+  actions,
+  leading,
+}: {
+  title: React.ReactNode;
+  subtitle?: React.ReactNode;
+  meta?: React.ReactNode;
+  amount?: React.ReactNode;
+  status?: React.ReactNode;
+  actions?: React.ReactNode;
+  leading?: React.ReactNode;
+}) {
   return (
-    <div>
-      <div className="flex items-end gap-3 sm:gap-5" role="img" aria-label={`Weekly revenue chart. ${data.map(d => `${d.day}: ${seriesA} ${formatCompactNaira(d.productNGN)}, ${seriesB} ${formatCompactNaira(d.serviceNGN)}`).join(". ")}`}>
-        {data.map(d => (
-          <div key={d.day} className="flex flex-1 flex-col items-center gap-2">
-            <div className="flex h-40 w-full items-end justify-center gap-1.5">
-              <div
-                className="w-3 rounded-t bg-royal-500 sm:w-4"
-                style={{ height: `${(d.productNGN / max) * 100}%` }}
-                title={`${d.day} ${seriesA}: ${formatCompactNaira(d.productNGN)}`}
-              />
-              <div
-                className="w-3 rounded-t bg-gold-400 sm:w-4"
-                style={{ height: `${(d.serviceNGN / max) * 100}%` }}
-                title={`${d.day} ${seriesB}: ${formatCompactNaira(d.serviceNGN)}`}
-              />
-            </div>
-            <span className="text-xs text-lavender-400">{d.day}</span>
-          </div>
-        ))}
+    <li className="flex flex-wrap items-center gap-x-4 gap-y-2 py-3 first:pt-0 last:pb-0">
+      {leading}
+      <div className="min-w-0 flex-1 basis-48">
+        <p className="line-clamp-2 text-[16px] tracking-[-0.031em]">{title}</p>
+        {subtitle && <p className="truncate text-[14px] tracking-[-0.014em] text-muted">{subtitle}</p>}
+        {meta && <p className="mt-0.5 text-[12px] tracking-[-0.017em] text-muted">{meta}</p>}
       </div>
-      <div className="mt-4 flex gap-6 text-xs text-lavender-400">
-        <span className="flex items-center gap-2">
-          <span className="h-2.5 w-2.5 rounded-sm bg-royal-500" aria-hidden /> {seriesA}
-        </span>
-        <span className="flex items-center gap-2">
-          <span className="h-2.5 w-2.5 rounded-sm bg-gold-400" aria-hidden /> {seriesB}
-        </span>
-      </div>
+      {(amount || status) && (
+        <div className="flex items-center gap-3">
+          {amount && <span className="text-[16px] tabular-nums tracking-[-0.031em]">{amount}</span>}
+          {status}
+        </div>
+      )}
+      {actions && <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">{actions}</div>}
+    </li>
+  );
+}
+
+/* Data table for staff views; scrolls inside its panel on narrow screens. */
+export function Table({ head, children, minWidth = 640 }: { head: string[]; children: React.ReactNode; minWidth?: number }) {
+  return (
+    <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+      <table className="w-full text-left text-[14px] tracking-[-0.014em]" style={{ minWidth }}>
+        <thead>
+          <tr className="border-b border-hairline text-[12px] tracking-[-0.017em] text-muted">
+            {head.map((h, i) => (
+              <th key={h || i} scope="col" className={cn("pb-2.5 pr-4 font-normal", i === head.length - 1 && "pr-0 text-right")}>{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-hairline">{children}</tbody>
+      </table>
     </div>
+  );
+}
+
+export function PageHeader({
+  title,
+  subtitle,
+  action,
+}: {
+  title: string;
+  subtitle?: React.ReactNode;
+  action?: React.ReactNode;
+}) {
+  return (
+    <header className="flex flex-wrap items-end justify-between gap-4">
+      <div className="min-w-0">
+        <h1 className="t-display">{title}</h1>
+        {subtitle && <p className="mt-1 text-[14px] tracking-[-0.014em] text-muted">{subtitle}</p>}
+      </div>
+      {action}
+    </header>
+  );
+}
+
+/* Small figure row for studio headers: plain numbers, no icon tiles. */
+export function Figures({ items }: { items: { label: string; value: string }[] }) {
+  return (
+    <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-[20px] bg-hairline sm:grid-cols-4">
+      {items.map(i => (
+        <div key={i.label} className="bg-surface px-4 py-3">
+          <dt className="text-[12px] tracking-[-0.017em] text-muted">{i.label}</dt>
+          <dd className="mt-0.5 text-[20px] tabular-nums tracking-[-0.05em]">{i.value}</dd>
+        </div>
+      ))}
+    </dl>
   );
 }

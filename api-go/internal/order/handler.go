@@ -1,20 +1,70 @@
 package order
 
 import (
+	"context"
 	"log/slog"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"luxebeau/internal/domain"
+	"luxebeau/internal/mail"
 	"luxebeau/internal/response"
 )
 
 type OrderHandler struct {
 	service domain.OrderService
+	mailer  *mail.Mailer
 	logger  *slog.Logger
 }
 
 func NewOrderHandler(service domain.OrderService, logger *slog.Logger) *OrderHandler {
 	return &OrderHandler{service: service, logger: logger}
+}
+
+// WithMailer enables order confirmation emails.
+func (h *OrderHandler) WithMailer(m *mail.Mailer) *OrderHandler {
+	h.mailer = m
+	return h
+}
+
+func naira(kobo int64) string {
+	s := strconv.FormatInt(kobo/100, 10)
+	for i := len(s) - 3; i > 0; i -= 3 {
+		s = s[:i] + "," + s[i:]
+	}
+	return "₦" + s
+}
+
+// sendConfirmation emails the buyer a receipt built from the stored order.
+func (h *OrderHandler) sendConfirmation(c *gin.Context, orderID string) {
+	user, _ := c.Get("user")
+	buyer, _ := user.(*domain.User)
+	if h.mailer == nil || buyer == nil {
+		return
+	}
+	order, err := h.service.GetOrderDetails(c.Request.Context(), orderID)
+	if err != nil || order == nil {
+		return
+	}
+	email := mail.OrderEmail{
+		OrderID:       order.ID,
+		PaymentStatus: order.PaymentStatus,
+		Subtotal:      naira(order.Subtotal),
+		Delivery:      naira(order.DeliveryFee),
+		Total:         naira(order.Total),
+		PaymentMethod: order.PaymentMethod,
+		Address:       order.Address + ", " + order.City + ", " + order.State,
+	}
+	if order.DeliveryFee == 0 {
+		email.Delivery = "Free"
+	}
+	for _, it := range order.Items {
+		email.Items = append(email.Items, mail.OrderLine{
+			Name: it.Product.Name, Brand: it.Product.Brand, Qty: it.Qty, Total: naira(it.Price * int64(it.Qty)),
+		})
+	}
+	to, name := buyer.Email, buyer.Name
+	h.mailer.Go("order_placed", func(ctx context.Context) error { return h.mailer.OrderPlaced(ctx, to, name, email) })
 }
 
 type CheckoutRequest struct {
@@ -54,6 +104,7 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 		return
 	}
 
+	h.sendConfirmation(c, order.ID)
 	response.Created(c, gin.H{"order": order})
 }
 

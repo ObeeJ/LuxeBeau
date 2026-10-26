@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
-import { Lock, Plus, Shield, ShieldCheck, X } from "lucide-react";
-import { LoadError } from "@/components/site/states";
+import { Plus, X } from "lucide-react";
+import { PageHeader, Panel, RecordList, RecordRow, StatusPill } from "@/components/dashboard/widgets";
+import { EmptyState, FieldError, LoadError } from "@/components/site/states";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/store";
 import {
   useCreateEscrow,
@@ -17,126 +18,129 @@ import {
 import { type Escrow } from "@/lib/api";
 import { formatNaira } from "@/lib/format";
 import { useToast } from "@/components/ui/slide-in-notifications";
+import { useAuthModal } from "@/components/auth/auth-dialog";
 import { getFriendlyErrorMessage } from "@/lib/errors";
 
-const stateTone: Record<string, string> = {
-  pending: "bg-warning/15 text-warning",
-  funded: "bg-royal-500/20 text-royal-300",
-  released: "bg-success/15 text-success",
-  refunded: "bg-lavender-400/15 text-lavender-200",
-  disputed: "bg-danger/15 text-danger",
-};
-
-function EscrowPill({ state }: { state: string }) {
-  return <span className={`inline-block rounded-full px-2.5 py-1 text-xs font-semibold capitalize ${stateTone[state] ?? "bg-velvet-700 text-lavender-200"}`}>{state}</span>;
+function escrowMeta(e: Escrow, side: "buyer" | "seller") {
+  return [
+    e.id,
+    e.kind,
+    side === "seller" && (e.buyerName || e.buyerPhone) ? `buyer ${e.buyerName || e.buyerPhone}` : "",
+    e.deliveryCity,
+    e.disputeReason ? `dispute: ${e.disputeReason}` : "",
+  ].filter(Boolean).join(" · ");
 }
 
 export default function EscrowCenter() {
   const user = useAuth(s => s.user);
+  const showAuth = useAuthModal(s => s.show);
   const { toast } = useToast();
-  const enabled = Boolean(user);
 
-  const escrows = useMyEscrows(enabled);
+  const escrows = useMyEscrows(Boolean(user));
   const createEscrow = useCreateEscrow();
   const fund = useFundEscrow();
   const release = useReleaseEscrow();
   const dispute = useDisputeEscrow();
 
   const [showForm, setShowForm] = useState(false);
-
   const canSell = user?.role === "seller" || user?.role === "artisan" || user?.role === "admin";
 
   if (!user) {
     return (
-      <main className="mx-auto max-w-xl py-24 text-center">
-        <Lock className="mx-auto h-10 w-10 text-gold-400" aria-hidden />
-        <h1 className="mt-6 font-display text-3xl font-medium">Secure escrow</h1>
-        <p className="mt-3 text-lavender-200">Sign in to protect your payments with LuxeBeau escrow.</p>
-        <Link href="/dashboard" className="mt-8 inline-block rounded-full bg-royal-500 px-7 py-3 text-sm font-semibold transition-colors hover:bg-royal-400">Back to your account</Link>
-      </main>
+      <div className="mx-auto max-w-sm rounded-[28px] bg-surface p-6 text-center shadow-card sm:p-8">
+        <h1 className="t-display">Escrow</h1>
+        <p className="mt-2 text-[16px] text-muted">Sign in to see payments held in escrow.</p>
+        <Button onClick={() => showAuth("signin")} size="lg" className="mt-5">Sign in</Button>
+      </div>
     );
   }
 
   const act = (fn: typeof fund, id: string, ok: string, reason?: string) =>
     fn.mutate(
       { id, reason },
-      { onSuccess: () => toast(ok, "success"), onError: e => toast(getFriendlyErrorMessage(e, "We couldn't perform this action. Please check your internet connection and try again."), "error") },
+      {
+        onSuccess: () => toast(ok, "success"),
+        onError: e => toast(getFriendlyErrorMessage(e, "We couldn't complete that action. Please try again."), "error"),
+      },
     );
 
   const buying = escrows.data?.buying ?? [];
   const selling = escrows.data?.selling ?? [];
 
   return (
-    <main className="mx-auto max-w-5xl">
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.35em] text-gold-300">
-            <ShieldCheck className="h-4 w-4" aria-hidden /> Secure escrow
-          </p>
-          <h1 className="mt-2 font-display text-3xl font-medium">Protected payments</h1>
-          <p className="mt-1 text-sm text-lavender-400">Funds are held safely and only released when delivery is confirmed.</p>
-        </div>
-        {canSell && (
-          <button onClick={() => setShowForm(true)} className="inline-flex items-center gap-2 rounded-full bg-royal-500 px-6 py-3 text-sm font-semibold transition-colors hover:bg-royal-400">
-            <Plus className="h-4 w-4" aria-hidden /> New escrow link
-          </button>
-        )}
-      </header>
+    <div className="space-y-6">
+      <PageHeader
+        title="Escrow"
+        subtitle="Funds are held and only released when the buyer confirms delivery."
+        action={canSell && <Button onClick={() => setShowForm(true)}><Plus aria-hidden /> New escrow link</Button>}
+      />
 
       {escrows.isLoading ? (
-        <div className="mt-8 space-y-3" aria-busy="true" role="status">
-          {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-20 w-full bg-velvet-800/60" />)}
+        <div className="space-y-3" aria-busy="true" role="status">
+          {Array.from({ length: 2 }).map((_, i) => <Skeleton key={i} className="h-40 w-full rounded-[28px] bg-surface" />)}
         </div>
       ) : escrows.isError ? (
-        <div className="mt-8"><LoadError onRetry={() => escrows.refetch()} message="We could not load your escrows." /></div>
+        <LoadError onRetry={() => escrows.refetch()} message="We could not load your escrows." />
       ) : (
-        <>
-          {/* Buying */}
-          <section className="mt-8" aria-label="Escrows you are paying">
-            <h2 className="font-display text-lg font-semibold">Paying</h2>
+        <div className="grid gap-6 lg:grid-cols-2">
+          <Panel title="Paying">
             {buying.length === 0 ? (
-              <p className="mt-4 rounded-2xl border border-velvet-700 p-6 text-center text-sm text-lavender-400">No escrow payments yet.</p>
+              <EmptyState>No escrow payments yet.</EmptyState>
             ) : (
-              <ul className="mt-4 space-y-3">
+              <RecordList>
                 {buying.map(e => (
-                  <EscrowCard key={e.id} e={e} side="buyer">
-                    {e.state === "pending" && (
-                      <button onClick={() => act(fund, e.id, "Payment completed successfully. Your funds are secured in escrow.")} disabled={fund.isPending} className="rounded-full bg-gold-400 px-4 py-2 text-xs font-bold text-velvet-950 transition-colors hover:bg-gold-300 disabled:opacity-60">Fund now</button>
-                    )}
-                    {e.state === "funded" && (
-                      <>
-                        <button onClick={() => act(release, e.id, "Funds released to the seller successfully. Thank you for using LuxeBeau!")} disabled={release.isPending} className="rounded-full bg-success/90 px-4 py-2 text-xs font-bold text-velvet-950 transition-colors hover:bg-success disabled:opacity-60">Confirm received</button>
-                        <button
-                          onClick={() => { const r = window.prompt("What went wrong? (this opens a dispute)"); if (r) act(dispute, e.id, "Dispute has been formally opened. Our support team will review the details and contact both parties.", r); }}
-                          disabled={dispute.isPending}
-                          className="rounded-full border border-danger/50 px-4 py-2 text-xs font-semibold text-danger transition-colors hover:bg-danger/10 disabled:opacity-60"
-                        >Open dispute</button>
-                      </>
-                    )}
-                  </EscrowCard>
+                  <RecordRow
+                    key={e.id}
+                    title={e.title}
+                    meta={escrowMeta(e, "buyer")}
+                    amount={formatNaira(e.amountNGN)}
+                    status={<StatusPill status={e.state} />}
+                    actions={
+                      e.state === "pending" ? (
+                        <Button size="sm" onClick={() => act(fund, e.id, "Funds secured in escrow.")} disabled={fund.isPending}>Fund from wallet</Button>
+                      ) : e.state === "funded" ? (
+                        <>
+                          <Button size="sm" onClick={() => act(release, e.id, "Funds released to the seller.")} disabled={release.isPending}>Confirm received</Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={dispute.isPending}
+                            onClick={() => {
+                              const r = window.prompt("What went wrong? This opens a dispute for our team to review.");
+                              if (r?.trim()) act(dispute, e.id, "Dispute opened. Our team will review it.", r.trim());
+                            }}
+                          >
+                            Open dispute
+                          </Button>
+                        </>
+                      ) : undefined
+                    }
+                  />
                 ))}
-              </ul>
+              </RecordList>
             )}
-          </section>
+          </Panel>
 
-          {/* Selling */}
           {canSell && (
-            <section className="mt-10" aria-label="Escrows where you are paid">
-              <h2 className="font-display text-lg font-semibold">Receiving</h2>
+            <Panel title="Receiving">
               {selling.length === 0 ? (
-                <p className="mt-4 rounded-2xl border border-velvet-700 p-6 text-center text-sm text-lavender-400">
-                  No incoming escrows yet. Create an escrow link to sell safely to anyone, even off-platform.
-                </p>
+                <EmptyState>No incoming escrows yet. Create an escrow link to sell safely to anyone.</EmptyState>
               ) : (
-                <ul className="mt-4 space-y-3">
+                <RecordList>
                   {selling.map(e => (
-                    <EscrowCard key={e.id} e={e} side="seller" />
+                    <RecordRow
+                      key={e.id}
+                      title={e.title}
+                      meta={escrowMeta(e, "seller")}
+                      amount={formatNaira(e.amountNGN)}
+                      status={<StatusPill status={e.state} />}
+                    />
                   ))}
-                </ul>
+                </RecordList>
               )}
-            </section>
+            </Panel>
           )}
-        </>
+        </div>
       )}
 
       {showForm && (
@@ -145,92 +149,72 @@ export default function EscrowCenter() {
           onClose={() => setShowForm(false)}
           onSubmit={input =>
             createEscrow.mutate(input, {
-              onSuccess: () => { toast("Escrow link created successfully! Share it with your buyer to secure payment.", "success"); setShowForm(false); },
+              onSuccess: () => { toast("Escrow link created.", "success"); setShowForm(false); },
               onError: e => toast(getFriendlyErrorMessage(e, "We couldn't create your escrow link. Please try again."), "error"),
             })
           }
         />
       )}
-    </main>
+    </div>
   );
 }
 
-function EscrowCard({ e, side, children }: { e: Escrow; side: "buyer" | "seller"; children?: React.ReactNode }) {
-  return (
-    <li className="card-velvet flex flex-wrap items-center justify-between gap-3 rounded-2xl p-5">
-      <div className="min-w-0">
-        <div className="flex items-center gap-2">
-          <Shield className="h-4 w-4 shrink-0 text-gold-400" aria-hidden />
-          <p className="truncate font-semibold">{e.title}</p>
-          <EscrowPill state={e.state} />
-        </div>
-        <p className="mt-1 text-xs text-lavender-400">
-          {e.id} · {e.kind}
-          {side === "seller" && (e.buyerName || e.buyerPhone) ? ` · buyer ${e.buyerName || e.buyerPhone}` : ""}
-          {e.deliveryCity ? ` · ${e.deliveryCity}` : ""}
-          {e.disputeReason ? ` · dispute: ${e.disputeReason}` : ""}
-        </p>
-      </div>
-      <div className="flex items-center gap-2">
-        <span className="font-display text-lg font-semibold text-gold-300">{formatNaira(e.amountNGN)}</span>
-        {children}
-      </div>
-    </li>
-  );
-}
-
+/* POST /escrows: the signed-in user is the payee. The API requires a buyer
+   phone because link buyers have no account (escrow/service.go Create). */
 function EscrowLinkForm({ pending, onClose, onSubmit }: { pending: boolean; onClose: () => void; onSubmit: (i: CreateEscrowInput) => void }) {
   const [title, setTitle] = useState("");
   const [amount, setAmount] = useState("");
   const [buyerName, setBuyerName] = useState("");
   const [buyerPhone, setBuyerPhone] = useState("");
   const [city, setCity] = useState("");
+  const [error, setError] = useState("");
 
   const submit = (ev: React.FormEvent) => {
     ev.preventDefault();
     const kobo = Math.round(parseFloat(amount) * 100);
-    if (!title.trim() || !kobo || kobo <= 0) return;
+    if (!title.trim()) return setError("Describe what you are selling.");
+    if (!kobo || kobo <= 0) return setError("Enter an amount above zero.");
+    if (!/^0[789][01]\d{8}$/.test(buyerPhone.replace(/\s+/g, ""))) return setError("Enter the buyer's Nigerian phone number, for example 0803 123 4567.");
+    setError("");
     onSubmit({
       title: title.trim(),
       amount: kobo,
       buyer_name: buyerName.trim() || undefined,
-      buyer_phone: buyerPhone.trim() || undefined,
+      buyer_phone: buyerPhone.replace(/\s+/g, ""),
       delivery_city: city.trim() || undefined,
     });
   };
 
+  const field = (label: string, input: React.ReactNode) => (
+    <label className="block">
+      <span className="t-meta mb-1.5 block">{label}</span>
+      {input}
+    </label>
+  );
+
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-velvet-950/70 p-4 backdrop-blur-md" role="dialog" aria-modal="true" aria-label="New escrow link" onKeyDown={e => e.key === "Escape" && onClose()}>
-      <form onSubmit={submit} className="w-full max-w-md rounded-3xl border border-velvet-700/70 bg-velvet-900/90 p-6 shadow-2xl">
+    <div className="fixed inset-0 z-50 grid place-items-end bg-black/40 sm:place-items-center sm:p-4" role="dialog" aria-modal="true" aria-label="New escrow link" onKeyDown={e => e.key === "Escape" && onClose()}>
+      <form onSubmit={submit} noValidate className="max-h-[92dvh] w-full max-w-md overflow-y-auto rounded-t-[28px] bg-surface p-5 shadow-float sm:rounded-[28px] sm:p-6">
         <div className="flex items-center justify-between">
-          <h2 className="font-display text-xl font-semibold">New escrow link</h2>
-          <button type="button" onClick={onClose} aria-label="Close" className="rounded-full p-2 text-lavender-300 hover:bg-velvet-800"><X className="h-5 w-5" aria-hidden /></button>
+          <h2 className="t-display">New escrow link</h2>
+          <button type="button" onClick={onClose} aria-label="Close" className="flex h-9 w-9 items-center justify-center rounded-full transition-colors duration-200 hover:bg-canvas"><X className="h-5 w-5" aria-hidden /></button>
         </div>
-        <p className="mt-2 text-sm text-lavender-300">Sell safely to anyone. We hold the buyer&apos;s funds and release them to you once they confirm delivery.</p>
+        <p className="mt-1 text-[14px] tracking-[-0.014em] text-muted">We hold the buyer&apos;s funds and release them to you once they confirm delivery.</p>
         <div className="mt-5 grid gap-4">
-          <label className="block text-sm"><span className="mb-1.5 block text-xs uppercase tracking-wider text-lavender-400">What are you selling?</span>
-            <input value={title} onChange={e => setTitle(e.target.value)} required className="lb-input" placeholder="Premium Dunks (UK 9)" />
-          </label>
+          {field("What are you selling?", <input value={title} onChange={e => setTitle(e.target.value)} className="lb-input h-11" placeholder="Bridal gele, 2 pieces" />)}
           <div className="grid gap-4 sm:grid-cols-2">
-            <label className="block text-sm"><span className="mb-1.5 block text-xs uppercase tracking-wider text-lavender-400">Amount (₦)</span>
-              <input value={amount} onChange={e => setAmount(e.target.value)} required inputMode="decimal" className="lb-input" placeholder="40000" />
-            </label>
-            <label className="block text-sm"><span className="mb-1.5 block text-xs uppercase tracking-wider text-lavender-400">Delivery city</span>
-              <input value={city} onChange={e => setCity(e.target.value)} className="lb-input" placeholder="Abuja" />
-            </label>
+            {field("Amount (₦)", <input value={amount} onChange={e => setAmount(e.target.value)} inputMode="decimal" className="lb-input h-11" placeholder="40000" />)}
+            {field("Delivery city", <input value={city} onChange={e => setCity(e.target.value)} className="lb-input h-11" placeholder="Abuja" />)}
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
-            <label className="block text-sm"><span className="mb-1.5 block text-xs uppercase tracking-wider text-lavender-400">Buyer name</span>
-              <input value={buyerName} onChange={e => setBuyerName(e.target.value)} className="lb-input" placeholder="Amina" />
-            </label>
-            <label className="block text-sm"><span className="mb-1.5 block text-xs uppercase tracking-wider text-lavender-400">Buyer WhatsApp</span>
-              <input value={buyerPhone} onChange={e => setBuyerPhone(e.target.value)} inputMode="tel" className="lb-input" placeholder="0803 123 4567" />
-            </label>
+            {field("Buyer name", <input value={buyerName} onChange={e => setBuyerName(e.target.value)} className="lb-input h-11" placeholder="Amina" />)}
+            {field("Buyer phone", <input value={buyerPhone} onChange={e => setBuyerPhone(e.target.value)} inputMode="tel" className="lb-input h-11" placeholder="0803 123 4567" />)}
           </div>
         </div>
+        <FieldError>{error}</FieldError>
         <div className="mt-6 flex justify-end gap-3">
-          <button type="button" onClick={onClose} className="rounded-full border border-velvet-700 px-5 py-2.5 text-sm font-semibold text-lavender-200 transition-colors hover:border-gold-400/60">Cancel</button>
-          <button type="submit" disabled={pending} className="rounded-full bg-royal-500 px-6 py-2.5 text-sm font-semibold transition-colors hover:bg-royal-400 disabled:opacity-60">{pending ? "Creating…" : "Create link"}</button>
+          <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
+          <Button type="submit" disabled={pending}>{pending ? "Creating…" : "Create link"}</Button>
         </div>
       </form>
     </div>

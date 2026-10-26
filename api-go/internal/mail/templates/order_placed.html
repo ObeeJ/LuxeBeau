@@ -1,0 +1,19 @@
+{{define "body"}}
+{{template "h1" "Thanks for your order"}}
+<p style="margin:0;font-size:16px;line-height:1.5;letter-spacing:-0.5px;color:#000000;">Hi {{.Data.Name}}, we've received order <strong style="font-weight:500;">{{.Data.OrderID}}</strong>.{{if eq .Data.PaymentStatus "paid"}} Payment is complete and your items are being prepared.{{else}} We'll start preparing it as soon as your payment is confirmed.{{end}}</p>
+
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:24px;">
+{{range $i, $it := .Data.Items}}<tr>
+  <td style="padding:14px 0;{{if $i}}border-top:1px solid #ebebeb;{{end}}">
+    <div style="font-size:15px;line-height:1.35;letter-spacing:-0.3px;color:#000000;">{{$it.Name}}</div>
+    <div style="font-size:13px;line-height:1.35;letter-spacing:-0.2px;color:#787574;">{{$it.Brand}} · Qty {{$it.Qty}}</div>
+  </td>
+  <td align="right" valign="top" style="padding:14px 0;{{if $i}}border-top:1px solid #ebebeb;{{end}}font-size:15px;letter-spacing:-0.3px;color:#000000;white-space:nowrap;">{{$it.Total}}</td>
+</tr>{{end}}
+</table>
+
+{{template "rows" .Data.Summary}}
+
+<p style="margin:20px 0 0;font-size:14px;line-height:1.5;letter-spacing:-0.2px;color:#787574;">Delivering to {{.Data.Address}}</p>
+{{template "button" .Data.Button}}
+{{end}}

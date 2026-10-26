@@ -7,16 +7,18 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"luxebeau/internal/domain"
+	"luxebeau/internal/media"
 	"luxebeau/internal/response"
 )
 
 type Handler struct {
 	service *Service
+	images  *media.Images
 	logger  *slog.Logger
 }
 
-func NewHandler(service *Service, logger *slog.Logger) *Handler {
-	return &Handler{service: service, logger: logger}
+func NewHandler(service *Service, images *media.Images, logger *slog.Logger) *Handler {
+	return &Handler{service: service, images: images, logger: logger}
 }
 
 // productRequest is the seller-editable shape. Prices arrive in Kobo, matching
@@ -27,12 +29,13 @@ type productRequest struct {
 	Price         int64    `json:"price" binding:"required,min=1"`
 	OriginalPrice int64    `json:"original_price"`
 	Category      string   `json:"category" binding:"required"`
-	Stock         int      `json:"stock"`
+	Stock         int      `json:"stock" binding:"min=0"`
 	Badge         string   `json:"badge"`
 	Blurb         string   `json:"blurb"`
 	Details       []string `json:"details"`
 	BgColor       string   `json:"bg_color"`
 	FgColor       string   `json:"fg_color"`
+	ImageURL      string   `json:"image_url" binding:"max=500"`
 }
 
 func (r productRequest) toDomain() *domain.Product {
@@ -48,6 +51,7 @@ func (r productRequest) toDomain() *domain.Product {
 		Details:       domain.StringArray(r.Details),
 		BgColor:       r.BgColor,
 		FgColor:       r.FgColor,
+		ImageURL:      r.ImageURL,
 	}
 }
 
@@ -72,6 +76,10 @@ func (h *Handler) CreateProduct(c *gin.Context) {
 		response.BadRequest(c, "Invalid product: "+err.Error())
 		return
 	}
+	if !h.images.ValidURL(req.ImageURL) {
+		response.BadRequest(c, "Upload product photos through LuxeBeau.")
+		return
+	}
 	p, err := h.service.CreateProduct(c.Request.Context(), sellerID(c), req.toDomain())
 	if err != nil {
 		response.BadRequest(c, err.Error())
@@ -89,6 +97,10 @@ func (h *Handler) UpdateProduct(c *gin.Context) {
 	var req productRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequest(c, "Invalid product: "+err.Error())
+		return
+	}
+	if !h.images.ValidURL(req.ImageURL) {
+		response.BadRequest(c, "Upload product photos through LuxeBeau.")
 		return
 	}
 	p, err := h.service.UpdateProduct(c.Request.Context(), sellerID(c), uint(id), req.toDomain())

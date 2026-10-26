@@ -3,7 +3,6 @@ package middleware
 import (
 	"log/slog"
 	"net/http"
-	"os"
 	"strings"
 	"sync"
 	"time"
@@ -66,33 +65,54 @@ func Recovery(logger *slog.Logger) gin.HandlerFunc {
 	}
 }
 
-func CORS() gin.HandlerFunc {
+// CORS allows credentialed requests only from an exact list of origins
+// (ALLOWED_ORIGINS, comma separated). A wildcard is never honoured because
+// session cookies ride on these requests.
+func CORS(allowedOrigins []string) gin.HandlerFunc {
+	allowed := make(map[string]bool, len(allowedOrigins))
+	for _, o := range allowedOrigins {
+		if o = strings.TrimRight(strings.TrimSpace(o), "/"); o != "" && o != "*" {
+			allowed[o] = true
+		}
+	}
 	return func(c *gin.Context) {
 		origin := c.Request.Header.Get("Origin")
-		allowedOrigin := os.Getenv("ALLOWED_ORIGINS")
-		
-		// Fallback check if allowed origin matches or is empty (defaulting to safe dev paths)
-		if allowedOrigin == "" {
-			if origin == "http://localhost:3000" || origin == "http://localhost:3001" || origin == "https://luxebeau.vercel.app" || 
-				strings.HasPrefix(origin, "http://localhost:") || strings.HasPrefix(origin, "http://127.0.0.1:") {
-				c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
-			}
-		} else if allowedOrigin == "*" {
-			// In production do not use wildcard with credentials; reflect origin if it matches list or just reflect origin
+		c.Writer.Header().Add("Vary", "Origin")
+		if origin != "" && allowed[origin] {
 			c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
-		} else {
-			c.Writer.Header().Set("Access-Control-Allow-Origin", allowedOrigin)
+			c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
+			c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Accept, "+CSRFHeader)
+			c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PATCH, PUT, DELETE, OPTIONS")
+			c.Writer.Header().Set("Access-Control-Max-Age", "600")
 		}
-
-		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
-		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
-		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, DELETE, PATCH")
-
-		if c.Request.Method == "OPTIONS" {
+		if c.Request.Method == http.MethodOptions {
 			c.AbortWithStatus(http.StatusNoContent)
 			return
 		}
+		c.Next()
+	}
+}
 
+// CSRFHeader must accompany every state-changing request. Browsers cannot
+// attach a custom header cross-site without a CORS preflight, which CORS
+// above only grants to allowed origins. Together with SameSite=Strict
+// cookies this blocks cross-site request forgery.
+const CSRFHeader = "X-LuxeBeau-Client"
+
+func CSRF() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		switch c.Request.Method {
+		case http.MethodGet, http.MethodHead, http.MethodOptions:
+			c.Next()
+			return
+		}
+		if c.GetHeader(CSRFHeader) == "" {
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
+				"success": false,
+				"error":   gin.H{"code": "CSRF_REJECTED", "message": "Request blocked. Please reload the page and try again."},
+			})
+			return
+		}
 		c.Next()
 	}
 }
@@ -113,9 +133,9 @@ func init() {
 		for {
 			time.Sleep(1 * time.Minute)
 			mu.Lock()
-			for ip, cl := range limiters {
+			for key, cl := range limiters {
 				if time.Since(cl.lastSeen) > 5*time.Minute {
-					delete(limiters, ip)
+					delete(limiters, key)
 				}
 			}
 			mu.Unlock()
@@ -128,14 +148,16 @@ func init() {
 // b: bucket size (maximum burst)
 func RateLimiter(r rate.Limit, b int) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ip := c.ClientIP()
+		// One bucket per route and client, so a tight limit on one endpoint
+		// never inherits a looser bucket created by another.
+		key := c.FullPath() + "|" + c.ClientIP()
 		mu.Lock()
-		cl, exists := limiters[ip]
+		cl, exists := limiters[key]
 		if !exists {
 			cl = &clientLimiter{
 				limiter: rate.NewLimiter(r, b),
 			}
-			limiters[ip] = cl
+			limiters[key] = cl
 		}
 		cl.lastSeen = time.Now()
 		mu.Unlock()

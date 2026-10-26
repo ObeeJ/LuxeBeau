@@ -65,6 +65,7 @@ func (s *Service) UpdateProduct(ctx context.Context, sellerID string, id uint, i
 	existing.Badge = in.Badge
 	existing.Blurb = in.Blurb
 	existing.Details = in.Details
+	existing.ImageURL = in.ImageURL
 	if in.BgColor != "" {
 		existing.BgColor = in.BgColor
 	}

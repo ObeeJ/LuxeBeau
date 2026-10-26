@@ -50,6 +50,11 @@ func TestRun_SeedsAndIsIdempotent(t *testing.T) {
 	if artisans != 6 {
 		t.Errorf("artisans = %d, want 6", artisans)
 	}
+	var wallets int64
+	db.Model(&domain.Wallet{}).Count(&wallets)
+	if wallets != 9 {
+		t.Errorf("wallets = %d, want one per seeded account (9)", wallets)
+	}
 	if slots != 6*14*5 {
 		t.Errorf("slots = %d, want %d", slots, 6*14*5)
 	}

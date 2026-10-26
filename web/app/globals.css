@@ -1,244 +1,239 @@
 @import "tailwindcss";
 
 /* ───────────────────────────────────────────────
-   LuxeBeau
-   Dark editorial luxury: plum velvet, lavender ink,
-   champagne gold. Built for the Nigerian beauty market.
+   LuxeBeau, "Floating constellation on white marble"
+   Light, achromatic UI with one violet accent. Products carry the colour;
+   the interface stays white, ink and hairline grey.
    ─────────────────────────────────────────────── */
 
 :root {
-  /* Canvas */
-  --velvet-950: #0b0514;
-  /* page canvas — near-black plum */
-  --velvet-900: #120a20;
-  /* raised surface */
-  --velvet-800: #1c1130;
-  /* card surface */
-  --velvet-700: #2a1b47;
-  /* hover surface / borders on dark */
+  /* Colors */
+  --color-canvas-mist: #f2f4f5;
+  --color-pure-white: #ffffff;
+  --color-ink-black: #000000;
+  --color-faint-border: #ebebeb;
+  --color-muted-gray: #787574;
+  --color-cool-stone: #cccccc;
+  --color-warm-fog: #acb0aa;
+  --color-shop-violet: #5433eb;
+  --color-violet-wash: #c0b5f3;
+  --color-slate-ink: #332f2d;
+  --color-ash-veil: #665a54;
 
-  /* Purple core */
-  --royal-600: #6d3fb8;
-  /* brand purple */
-  --royal-500: #8254d6;
-  /* interactive */
-  --royal-400: #9b74e8;
-  /* hover */
+  /* Typography, font families (Inter substitutes GT Standard / Shopify Sans) */
+  --font-gt-standard: var(--font-inter), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-shopify-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 
-  /* Lavender ink (text on dark) */
-  --lavender-100: #f1eafe;
-  /* primary text on dark */
-  --lavender-200: #d9c9f6;
-  /* secondary text */
-  --lavender-400: #a98fd9;
-  /* muted text — 4.6:1 on velvet-950 */
+  /* Typography, scale */
+  --text-caption: 11px;
+  --leading-caption: 1.33;
+  --text-body-sm: 12px;
+  --leading-body-sm: 1.33;
+  --text-body: 14px;
+  --leading-body: 1.33;
+  --text-body-lg: 16px;
+  --leading-body-lg: 1.33;
 
-  /* Champagne gold accent */
-  --gold-300: #e8cf9a;
-  /* gold text on dark */
-  --gold-400: #d4af6a;
-  /* gold accents, rules */
-  --gold-500: #b8924e;
-  /* gold on light */
+  /* Typography, weights */
+  --font-weight-regular: 400;
+  --font-weight-bold: 700;
 
-  /* Paper sections (light editorial breaks) */
-  --paper-50: #faf7f2;
-  /* warm cream */
-  --paper-100: #f3ede3;
-  --paper-ink: #1d1228;
-  /* text on paper */
-  --paper-muted: #5d4a73;
-  /* secondary on paper — 6.2:1 */
+  /* Spacing */
+  --spacing-4: 4px;
+  --spacing-6: 6px;
+  --spacing-8: 8px;
+  --spacing-10: 10px;
+  --spacing-11: 11px;
+  --spacing-12: 12px;
+  --spacing-16: 16px;
+  --spacing-20: 20px;
+  --spacing-24: 24px;
+  --spacing-32: 32px;
+  --spacing-38: 38px;
+  --spacing-40: 40px;
+  --spacing-48: 48px;
+  --spacing-64: 64px;
 
-  /* Semantic */
-  --success: #7fd6a4;
-  --warning: #e8c468;
-  --danger: #f08a8a;
-  --danger-strong: #c0392b;
+  /* Layout */
+  --page-max-width: 1200px;
+  --section-gap: 64px;
+  --element-gap: 12px;
 
-  --background: var(--velvet-950);
-  --foreground: var(--lavender-100);
+  /* Shadows */
+  --shadow-sm: rgba(0, 0, 0, 0.06) 0px 2px 8px 0px;
+  --shadow-sm-2: rgba(0, 0, 0, 0.1) 0px 4px 6px -1px, rgba(0, 0, 0, 0.1) 0px 2px 4px -2px;
+  --shadow-lg: rgba(0, 0, 0, 0.12) 0px 4px 24px 0px;
+  --shadow-lg-2: rgba(69, 36, 219, 0.34) 0px 4px 24px 0px;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-canvas: var(--color-canvas-mist);
+  --color-surface: var(--color-pure-white);
+  --color-ink: var(--color-ink-black);
+  --color-hairline: var(--color-faint-border);
+  --color-muted: var(--color-muted-gray);
+  --color-stone: var(--color-cool-stone);
+  --color-fog: var(--color-warm-fog);
+  --color-violet: var(--color-shop-violet);
+  --color-violet-wash: var(--color-violet-wash);
+  --color-slate: var(--color-slate-ink);
+  --color-ash: var(--color-ash-veil);
 
-  --color-velvet-950: var(--velvet-950);
-  --color-velvet-900: var(--velvet-900);
-  --color-velvet-800: var(--velvet-800);
-  --color-velvet-700: var(--velvet-700);
+  /* shadcn semantic tokens mapped onto the palette */
+  --color-background: var(--color-canvas-mist);
+  --color-foreground: var(--color-ink-black);
+  --color-card: var(--color-pure-white);
+  --color-card-foreground: var(--color-ink-black);
+  --color-popover: var(--color-pure-white);
+  --color-popover-foreground: var(--color-ink-black);
+  --color-primary: var(--color-ink-black);
+  --color-primary-foreground: var(--color-pure-white);
+  --color-secondary: var(--color-canvas-mist);
+  --color-secondary-foreground: var(--color-ink-black);
+  --color-muted-foreground: var(--color-muted-gray);
+  --color-accent: var(--color-canvas-mist);
+  --color-accent-foreground: var(--color-ink-black);
+  --color-destructive: var(--color-ink-black);
+  --color-border: var(--color-faint-border);
+  --color-input: var(--color-faint-border);
+  --color-ring: var(--color-ink-black);
 
-  --color-royal-600: var(--royal-600);
-  --color-royal-500: var(--royal-500);
-  --color-royal-400: var(--royal-400);
+  --radius-card: 28px;
+  --radius-inner: 20px;
+  --radius-label: 12px;
 
-  --color-lavender-100: var(--lavender-100);
-  --color-lavender-200: var(--lavender-200);
-  --color-lavender-400: var(--lavender-400);
+  --shadow-pill: var(--shadow-sm);
+  --shadow-card: var(--shadow-sm-2);
+  --shadow-float: var(--shadow-lg);
+  --shadow-violet: var(--shadow-lg-2);
 
-  --color-gold-300: var(--gold-300);
-  --color-gold-400: var(--gold-400);
-  --color-gold-500: var(--gold-500);
+  --font-sans: var(--font-gt-standard);
+  --font-system: var(--font-shopify-sans);
 
-  --color-paper-50: var(--paper-50);
-  --color-paper-100: var(--paper-100);
-  --color-paper-ink: var(--paper-ink);
-  --color-paper-muted: var(--paper-muted);
-
-  --color-success: var(--success);
-  --color-warning: var(--warning);
-  --color-danger: var(--danger);
-  --color-danger-strong: var(--danger-strong);
-
-  /* shadcn semantic tokens mapped onto the Velvet Atelier palette */
-  --color-card: var(--velvet-800);
-  --color-card-foreground: var(--lavender-100);
-  --color-popover: var(--velvet-900);
-  --color-popover-foreground: var(--lavender-100);
-  --color-primary: var(--royal-500);
-  --color-primary-foreground: var(--lavender-100);
-  --color-secondary: var(--velvet-700);
-  --color-secondary-foreground: var(--lavender-200);
-  --color-muted: var(--velvet-800);
-  --color-muted-foreground: var(--lavender-400);
-  --color-accent: var(--velvet-700);
-  --color-accent-foreground: var(--gold-300);
-  --color-destructive: var(--danger-strong);
-  --color-destructive-foreground: var(--lavender-100);
-  --color-border: var(--velvet-700);
-  --color-input: var(--velvet-700);
-  --color-ring: var(--gold-400);
-  --radius: 1rem;
-  --radius-sm: calc(var(--radius) * 0.5);
-  --radius-md: calc(var(--radius) * 0.75);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.5);
-
-  --font-display: var(--font-fraunces), Georgia, serif;
-  --font-sans: var(--font-hanken), system-ui, sans-serif;
-
-  --animate-aurora: aurora 14s ease-in-out infinite alternate;
-  --animate-rise: rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
-  --animate-marquee: marquee 38s linear infinite;
+  --text-caption: 11px;
+  --text-micro: 9px;
 }
 
 /* ─── Base ─── */
 
+html {
+  background: var(--color-canvas-mist);
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-sans);
+  background: var(--color-canvas-mist);
+  color: var(--color-ink-black);
+  font-family: var(--font-gt-standard);
+  font-size: 16px;
+  line-height: 1.33;
+  letter-spacing: -0.031em;
   -webkit-font-smoothing: antialiased;
 }
 
 ::selection {
-  background: var(--royal-500);
-  color: var(--lavender-100);
+  background: var(--color-violet-wash);
+  color: var(--color-ink-black);
 }
 
 button,
 [role="button"],
-a {
+a,
+select,
+summary {
   cursor: pointer;
 }
 
 :focus-visible {
-  outline: 2px solid var(--gold-400);
-  outline-offset: 3px;
-  border-radius: 2px;
+  outline: 2px solid var(--color-ink-black);
+  outline-offset: 2px;
 }
 
-/* ─── Atmosphere ─── */
+@layer components {
+/* ─── Type grades: hierarchy through tracking, never weight contrast ─── */
 
-.grain::after {
-  content: "";
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 60;
-  opacity: 0.05;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+.t-display {
+  font-size: 20px;
+  line-height: 1.1;
+  letter-spacing: -0.05em;
+  font-weight: 500;
 }
 
-.aurora-field {
-  background:
-    radial-gradient(42rem 28rem at 18% 8%, rgba(109, 63, 184, 0.32), transparent 60%),
-    radial-gradient(36rem 26rem at 84% 18%, rgba(212, 175, 106, 0.10), transparent 55%),
-    radial-gradient(50rem 34rem at 55% 96%, rgba(130, 84, 214, 0.18), transparent 60%);
+.t-body {
+  font-size: 16px;
+  line-height: 1.33;
+  letter-spacing: -0.031em;
 }
 
-.gold-rule {
-  height: 1px;
-  background: linear-gradient(90deg, transparent, var(--gold-400) 30%, var(--gold-400) 70%, transparent);
+.t-sub {
+  font-size: 14px;
+  line-height: 1.33;
+  letter-spacing: -0.014em;
+  font-weight: 500;
 }
 
-.text-gold-gradient {
-  background: linear-gradient(105deg, var(--gold-300), #f6e7c4 45%, var(--gold-400));
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+.t-meta {
+  font-size: 12px;
+  line-height: 1.33;
+  letter-spacing: -0.017em;
+  font-weight: 500;
 }
 
-.card-velvet {
-  background: linear-gradient(160deg, var(--velvet-800), var(--velvet-900));
-  border: 1px solid var(--velvet-700);
+.t-micro {
+  font-size: 9px;
+  line-height: 1.38;
+  letter-spacing: -0.058em;
 }
 
-/* Shared form control used by dashboard editors. */
+/* ─── Shared form control (pill inputs) ─── */
+
 .lb-input {
   width: 100%;
-  border-radius: 0.5rem;
-  border: 1px solid var(--velvet-700);
-  background: var(--velvet-900);
-  padding: 0.625rem 0.75rem;
-  font-size: 0.875rem;
-  color: var(--lavender-100);
-  transition: border-color 0.18s ease;
+  border-radius: 9999px;
+  border: 1px solid var(--color-faint-border);
+  background: var(--color-pure-white);
+  padding: 10px 16px;
+  font-size: 16px;
+  letter-spacing: -0.031em;
+  color: var(--color-ink-black);
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+textarea.lb-input {
+  border-radius: 20px;
+  resize: none;
+}
+
+select.lb-input {
+  appearance: none;
+  padding-right: 40px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
 }
 
 .lb-input::placeholder {
-  color: color-mix(in srgb, var(--lavender-400) 60%, transparent);
+  color: var(--color-muted-gray);
 }
 
 .lb-input:focus-visible {
   outline: none;
-  border-color: var(--royal-400);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--royal-500) 30%, transparent);
+  border-color: rgba(0, 0, 0, 0.4);
+  box-shadow: var(--shadow-sm);
 }
 
-/* ─── Keyframes ─── */
-
-@keyframes aurora {
-  0% {
-    transform: translate3d(-2%, 0, 0) scale(1);
-  }
-
-  100% {
-    transform: translate3d(2%, -3%, 0) scale(1.06);
-  }
+.lb-input[aria-invalid="true"] {
+  border-color: var(--color-ink-black);
 }
 
-@keyframes rise {
-  from {
-    opacity: 0;
-    transform: translateY(22px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
 }
 
-@keyframes marquee {
-  from {
-    transform: translateX(0);
-  }
+/* Horizontal rails scroll without a visible bar; arrows signal more. */
+.no-scrollbar {
+  scrollbar-width: none;
+}
 
-  to {
-    transform: translateX(-50%);
-  }
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -251,41 +246,4 @@ a {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
-}
-
-/* ─── Light mode ─────────────────────────────────────────────
-   Remap base palette tokens on .light so every component that
-   references velvet-*, lavender-*, gold-* tokens (or the
-   semantic bg-background / text-foreground aliases) flips
-   automatically — no per-component class changes needed.
-   ─────────────────────────────────────────────────────────── */
-
-.light {
-  /* Canvas: warm cream instead of near-black plum */
-  --velvet-950: #faf7f2;
-  --velvet-900: #f3ede3;
-  --velvet-800: #ffffff;
-  --velvet-700: #ddd0ee;
-
-  /* Text: deep plum on cream (reversed from dark) */
-  --lavender-100: #1d1228;
-  --lavender-200: #3d2657;
-  --lavender-400: #5d4a73;
-
-  /* Gold: deeper warmth so it reads on cream */
-  --gold-300: #b8924e;
-  --gold-400: #966f30;
-  --gold-500: #7a5a22;
-
-  /* Semantic roots */
-  --background: #faf7f2;
-  --foreground: #1d1228;
-}
-
-/* Gold gradient wordmark needs richer tones on cream */
-.light .text-gold-gradient {
-  background: linear-gradient(105deg, #8b6914, #c8953a 45%, #6d4f0f);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
 }
