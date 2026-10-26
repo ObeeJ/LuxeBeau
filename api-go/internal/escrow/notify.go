@@ -31,9 +31,9 @@ type LogNotifier struct{ logger *slog.Logger }
 func NewLogNotifier(logger *slog.Logger) *LogNotifier { return &LogNotifier{logger: logger} }
 
 func (n *LogNotifier) Notify(ctx context.Context, to, event string, e *domain.Escrow) error {
-	n.logger.Info("escrow notification",
-		slog.String("to", to), slog.String("event", event),
-		slog.String("escrow", e.ID), slog.String("text", message(event, e)))
+	// Recipient numbers and message text are personal data: log only what
+	// identifies the event.
+	n.logger.Info("escrow notification", slog.String("event", event), slog.String("escrow", e.ID))
 	return nil
 }
 
@@ -57,7 +57,7 @@ func (n *WhatsAppNotifier) Notify(ctx context.Context, to, event string, e *doma
 	}
 	// TODO: POST to https://graph.facebook.com/v21.0/{phoneID}/messages with the
 	// approved template for `event`, recipient `to`, and escrow params.
-	n.logger.Info("whatsapp send (stub)", slog.String("to", to), slog.String("event", event), slog.String("escrow", e.ID))
+	n.logger.Info("whatsapp send (stub)", slog.String("event", event), slog.String("escrow", e.ID))
 	return nil
 }
 
