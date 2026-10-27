@@ -34,8 +34,11 @@ type Artisan struct {
 	SlotMinutes  int         `gorm:"type:integer;not null;default:60" json:"slot_minutes"`
 	DaysOff      StringArray `gorm:"type:text" json:"days_off"`
 	SlotsThrough *time.Time  `gorm:"type:date" json:"-"` // weekly slots exist up to this date
-	CreatedAt    time.Time   `json:"created_at"`
-	UpdatedAt    time.Time   `json:"updated_at"`
+	// CancelWindowHours is how much notice a client must give to cancel a
+	// confirmed booking for free. A later cancellation is recorded as late.
+	CancelWindowHours int       `gorm:"type:integer;not null;default:24" json:"cancel_window_hours"`
+	CreatedAt         time.Time `json:"created_at"`
+	UpdatedAt         time.Time `json:"updated_at"`
 }
 
 // Artisan service modes: where an artisan is willing to work.
@@ -101,10 +104,51 @@ type Booking struct {
 	ServiceType string    `gorm:"type:varchar(20);not null" json:"service_type"`         // studio or home
 	Address     string    `gorm:"type:text" json:"address"`                              // client address for home visits
 	Amount      int64     `gorm:"type:bigint;not null" json:"amount" binding:"required"` // stored in Kobo
-	Status      string    `gorm:"type:varchar(20);default:'pending'" json:"status"`      // pending, confirmed, completed, cancelled
+	Status      string    `gorm:"type:varchar(20);default:'pending'" json:"status"`      // pending, confirmed, completed, cancelled, no_show
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
+
+	// PolicyHours is the cancellation notice the artisan required when this
+	// was booked. It is copied here so later changes to the artisan's policy
+	// never change the terms the client agreed to.
+	PolicyHours int `gorm:"type:integer;not null;default:24" json:"policy_hours"`
+	// ExpiresAt is when an unanswered request is cancelled automatically.
+	ExpiresAt      *time.Time `json:"expires_at,omitempty"`
+	CancelledAt    *time.Time `json:"cancelled_at,omitempty"`
+	CancelledBy    string     `gorm:"type:varchar(10)" json:"cancelled_by,omitempty"` // buyer, artisan, admin, system
+	CancelReason   string     `gorm:"type:varchar(300)" json:"cancel_reason,omitempty"`
+	LateCancel     bool       `gorm:"type:boolean;not null;default:false" json:"late_cancel"` // the client cancelled a confirmed booking inside the notice window
+	ReminderSentAt *time.Time `json:"-"`
+
+	// Computed when listing; never stored.
+	FreeCancelUntil *time.Time `gorm:"-" json:"free_cancel_until,omitempty"`
+	BuyerStrikes    int        `gorm:"-" json:"buyer_strikes,omitempty"` // late cancellations and no-shows in the last 90 days
 }
+
+// Booking statuses.
+const (
+	BookingPending   = "pending"
+	BookingConfirmed = "confirmed"
+	BookingCompleted = "completed"
+	BookingCancelled = "cancelled"
+	BookingNoShow    = "no_show"
+)
+
+// Booking policy.
+const (
+	DefaultCancelWindowHours = 24
+	// ConfirmWithin is how long an artisan has to answer a request.
+	ConfirmWithin = 24 * time.Hour
+	// NoShowGrace is how long after the start time an artisan waits before
+	// marking a client as a no-show.
+	NoShowGrace = 15 * time.Minute
+	// StrikeWindow is how far back late cancellations and no-shows count.
+	StrikeWindow = 90 * 24 * time.Hour
+)
+
+// CancelWindowChoices are the notice periods an artisan can pick, in hours.
+// Zero means clients can always cancel for free.
+var CancelWindowChoices = []int{0, 12, 24, 48, 72}
 
 type BookingRepository interface {
 	CreateBooking(ctx context.Context, booking *Booking) error
@@ -130,6 +174,12 @@ type BookingService interface {
 	// ArtisanUser returns the artisan's account for notifications.
 	ArtisanUser(ctx context.Context, artisanID uint) (*User, error)
 	ConfirmBooking(ctx context.Context, bookingID, actorID string, admin bool) (*Booking, error)
+	// CancelBooking cancels a pending or confirmed booking before it starts.
+	// The client, the artisan or an admin may cancel; anyone else gets "not found".
+	CancelBooking(ctx context.Context, bookingID, actorID string, admin bool, reason string) (*Booking, error)
+	// CompleteBooking and MarkNoShow close a confirmed booking after its start time.
+	CompleteBooking(ctx context.Context, bookingID, actorID string, admin bool) (*Booking, error)
+	MarkNoShow(ctx context.Context, bookingID, actorID string, admin bool) (*Booking, error)
 	ListMyBookings(ctx context.Context, userID string) ([]Booking, error)
 	OnboardArtisan(ctx context.Context, userID string, artisan *Artisan) (*Artisan, error)
 	OnboardSeller(ctx context.Context, userID string, cacNumber string) error

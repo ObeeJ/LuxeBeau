@@ -3,13 +3,15 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { PageHeader, Panel, RecordList, RecordRow, StatusPill, Tabs } from "@/components/dashboard/widgets";
+import { PageHeader, Panel, RecordList, Tabs } from "@/components/dashboard/widgets";
+import { OrderRow } from "@/components/dashboard/order-row";
+import { BookingRow } from "@/components/dashboard/booking-row";
 import { EmptyState, LoadError } from "@/components/site/states";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/store";
 import { useMyBookings, useMyOrders, useWallet } from "@/lib/queries";
-import { formatNaira } from "@/lib/format";
+import { formatNaira, lagosToday } from "@/lib/format";
 import { type MyBooking, type MyOrder } from "@/lib/api";
 import { useAuthModal } from "@/components/auth/auth-dialog";
 
@@ -34,21 +36,12 @@ function orderProgress(o: MyOrder) {
   return { status, subtitle: notes.filter(Boolean).join(" · ") };
 }
 
-const visitText = (t: string) => (t === "home" ? "Home visit" : "At the studio");
-
 function BookingGroup({ title, list }: { title: string; list: MyBooking[] }) {
   if (list.length === 0) return null;
   return (
     <Panel title={title}>
       <RecordList>
-        {list.map(b => (
-          <RecordRow
-            key={b.id}
-            title={`${b.service} with ${b.artisan || "your artisan"}`}
-            meta={`${b.date} at ${b.time} · ${visitText(b.serviceType)}${b.serviceType === "home" && b.address ? `: ${b.address}` : ""}`}
-            status={<StatusPill status={b.status === "pending" ? "awaiting confirmation" : b.status} />}
-          />
-        ))}
+        {list.map(b => <BookingRow key={b.id} booking={b} viewer="client" />)}
       </RecordList>
     </Panel>
   );
@@ -86,8 +79,8 @@ export default function DashboardHome() {
 
   const ordersList = orders.data ?? [];
   const bookingsList = bookings.data ?? [];
-  const today = new Date().toISOString().slice(0, 10);
-  const upcoming = bookingsList.filter(b => b.date >= today && b.status !== "cancelled");
+  const today = lagosToday();
+  const upcoming = bookingsList.filter(b => b.date >= today && (b.status === "pending" || b.status === "confirmed"));
   const past = bookingsList.filter(b => !upcoming.includes(b));
 
   return (
@@ -119,13 +112,12 @@ export default function DashboardHome() {
               {ordersList.map(o => {
                 const progress = orderProgress(o);
                 return (
-                  <RecordRow
+                  <OrderRow
                     key={o.id}
-                    title={o.itemSummary}
+                    order={o}
+                    status={progress.status}
                     subtitle={progress.subtitle || undefined}
-                    meta={`${o.id} · ${o.date} · ${paymentLabel(o.paymentStatus)}`}
-                    amount={formatNaira(o.totalNGN)}
-                    status={<StatusPill status={progress.status} />}
+                    paymentLabel={paymentLabel(o.paymentStatus)}
                   />
                 );
               })}

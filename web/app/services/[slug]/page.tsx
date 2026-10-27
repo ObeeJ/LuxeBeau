@@ -11,7 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { formatNaira } from "@/lib/format";
+import { bookingStart, formatLagosDateTime, formatNaira } from "@/lib/format";
 import { useAuth } from "@/lib/store";
 import { useArtisan, useAvailability, useCreateBooking } from "@/lib/queries";
 import { ApiError, type ArtisanService, type BookingResult } from "@/lib/api";
@@ -34,6 +34,17 @@ const dayFmt = new Intl.DateTimeFormat("en-NG", { day: "numeric", month: "short"
 function dayLabel(iso: string) {
   const d = new Date(`${iso}T00:00:00Z`);
   return { iso, weekday: weekdayFmt.format(d), date: dayFmt.format(d) };
+}
+
+/* The cancellation terms in words, shown before the client requests a booking
+   (the API stores the same notice on the booking so the terms can't change later). */
+function policyLine(hours: number, day: string, time: string): string {
+  if (hours <= 0) return "Free to cancel any time";
+  if (day && time) {
+    const until = new Date(bookingStart(day, time).getTime() - hours * 3_600_000);
+    return `Free to cancel until ${formatLagosDateTime(until)}`;
+  }
+  return `Free to cancel up to ${hours} hours before`;
 }
 
 function duration(mins: number) {
@@ -172,6 +183,7 @@ export default function ArtisanPage({ params }: { params: Promise<{ slug: string
                 ["Service", service?.name],
                 ["When", `${dayLabel(day).weekday} ${dayLabel(day).date}, ${to12h(slot)}`],
                 ["Where", chosenVisit === "home" ? address : studioAddress],
+                ["Cancellation", policyLine(artisan.cancelWindowHours, day, slot)],
                 ["Reference", booked.id],
               ].map(([k, v]) => (
                 <div key={k} className="flex justify-between gap-4 py-2.5">
@@ -197,6 +209,7 @@ export default function ArtisanPage({ params }: { params: Promise<{ slug: string
           ["Service", service?.name ?? "Choose a service"],
           ["Where", chosenVisit === "home" ? "Your address" : chosenVisit === "studio" ? studioAddress : "Choose where"],
           ["When", dayInfo ? `${dayInfo.weekday} ${dayInfo.date}${slot ? `, ${to12h(slot)}` : ""}` : "Choose a time"],
+          ["Cancellation", policyLine(artisan.cancelWindowHours, day, slot)],
         ].map(([k, v]) => (
           <div key={k} className="flex justify-between gap-4 py-2.5">
             <dt className="text-muted">{k}</dt>
@@ -337,11 +350,18 @@ export default function ArtisanPage({ params }: { params: Promise<{ slug: string
                     ))}
                   </div>
                   {dayInfo ? (
-                    <div className="mt-3 flex flex-wrap gap-2" role="radiogroup" aria-label="Time">
-                      {dayInfo.times.map(t => (
-                        <Chip key={t} selected={slot === t} onClick={() => setSlot(t)} className="h-10">{to12h(t)}</Chip>
-                      ))}
-                    </div>
+                    <>
+                      <div className="mt-3 flex flex-wrap gap-2" role="radiogroup" aria-label="Time">
+                        {dayInfo.times.map(t => (
+                          <Chip key={t} selected={slot === t} onClick={() => setSlot(t)} className="h-10">{to12h(t)}</Chip>
+                        ))}
+                      </div>
+                      {/* The summary sidebar is desktop-only, so the terms are repeated here for phones. */}
+                      <p className="mt-3 text-[14px] tracking-[-0.014em] text-muted lg:hidden" data-testid="cancellation-terms">
+                        {policyLine(artisan.cancelWindowHours, day, slot)}
+                        {artisan.cancelWindowHours > 0 ? ". After that it counts as a late cancellation." : "."}
+                      </p>
+                    </>
                   ) : (
                     <p className="mt-3 text-[14px] tracking-[-0.014em] text-muted">Pick a day to see times.</p>
                   )}

@@ -68,7 +68,7 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (*domain.Escrow, e
 	}
 	fee := in.FeeBps
 	if fee == 0 {
-		fee = 100 // default 1%
+		fee = domain.DefaultFeeBps
 	}
 	rail := in.Rail
 	if rail == "" {
@@ -207,6 +207,11 @@ func (s *Service) Refund(ctx context.Context, id, actorID string, admin bool) (*
 		if err := s.ledger(tx, e, "refund", "escrow", e.BuyerID, e.Amount, "refunded to buyer"); err != nil {
 			return err
 		}
+		if e.Kind == domain.EscrowKindOrder {
+			if err := returnDeliveryFee(tx, e); err != nil {
+				return err
+			}
+		}
 		refunded = e
 		return nil
 	})
@@ -301,11 +306,7 @@ func (s *Service) lockedGet(tx *gorm.DB, id string) (*domain.Escrow, error) {
 // ledger records a money movement. It runs inside the same transaction, and
 // its error must roll that transaction back so balances and ledger can't drift.
 func (s *Service) ledger(tx *gorm.DB, e *domain.Escrow, typ, from, to string, amount int64, memo string) error {
-	entry := &domain.LedgerEntry{EscrowID: e.ID, Type: typ, FromAccount: from, ToAccount: to, Amount: amount, Memo: memo}
-	if err := tx.Create(entry).Error; err != nil {
-		return fmt.Errorf("ledger write: %w", err)
-	}
-	return nil
+	return writeLedger(tx, e.ID, typ, from, to, amount, memo)
 }
 
 // bumpReputation increments the payee's completed-escrow count (jobs_completed

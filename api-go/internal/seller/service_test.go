@@ -18,13 +18,14 @@ func newTestService(t *testing.T) (*Service, *gorm.DB) {
 	if err != nil {
 		t.Fatalf("open sqlite: %v", err)
 	}
-	if err := db.AutoMigrate(&domain.User{}, &domain.Product{}, &domain.Order{}, &domain.OrderItem{}); err != nil {
+	if err := db.AutoMigrate(&domain.User{}, &domain.Product{}, &domain.Order{}, &domain.OrderItem{}, &domain.Escrow{}); err != nil {
 		t.Fatalf("migrate: %v", err)
 	}
 	db.Exec("DELETE FROM products")
 	db.Exec("DELETE FROM orders")
 	db.Exec("DELETE FROM order_items")
 	db.Exec("DELETE FROM users")
+	db.Exec("DELETE FROM escrows")
 	return NewService(NewGormRepository(db), slog.New(slog.NewTextHandler(io.Discard, nil))), db
 }
 

@@ -241,6 +241,9 @@ function useEscrowAction(action: "fund" | "release" | "refund" | "dispute") {
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["me", "escrows"] });
+      qc.invalidateQueries({ queryKey: ["me", "orders"] });
+      qc.invalidateQueries({ queryKey: ["me", "sales"] });
+      qc.invalidateQueries({ queryKey: ["me", "wallet"] });
       qc.invalidateQueries({ queryKey: ["admin", "escrows"] });
     },
   });
@@ -542,6 +545,30 @@ export function useConfirmBooking() {
   });
 }
 
+/* ── Booking lifecycle: cancel (client, artisan or admin), then complete / no-show (artisan) ── */
+function useBookingAction<V extends { id: string }>(request: (v: V) => { path: string; method: "POST" | "PATCH"; body?: unknown }) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: V) => {
+      const r = request(v);
+      return apiFetch(r.path, z.object({ booking: z.unknown() }), { method: r.method, body: r.body });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["me", "bookings"] });
+      qc.invalidateQueries({ queryKey: ["me", "slots"] });
+      qc.invalidateQueries({ queryKey: ["availability"] });
+      qc.invalidateQueries({ queryKey: ["artisans"] });
+    },
+  });
+}
+
+export const useCancelBooking = () =>
+  useBookingAction<{ id: string; reason?: string }>(v => ({ path: `/bookings/${v.id}/cancel`, method: "POST", body: { reason: v.reason ?? "" } }));
+export const useCompleteBooking = () =>
+  useBookingAction<{ id: string }>(v => ({ path: `/bookings/${v.id}/complete`, method: "PATCH" }));
+export const useMarkNoShow = () =>
+  useBookingAction<{ id: string }>(v => ({ path: `/bookings/${v.id}/no-show`, method: "PATCH" }));
+
 /* ── Admin: marketplace records (GET /admin/orders|bookings|products) ── */
 export function useAdminOrders(enabled: boolean) {
   return useQuery({
@@ -653,7 +680,12 @@ export function useMySchedule(enabled: boolean) {
     enabled,
     queryFn: async () => {
       const s = await apiFetch("/me/artisan/schedule", scheduleSchema, {});
-      return { weeklyHours: (s.weekly_hours ?? []) as DayHours[], slotMinutes: s.slot_minutes || 60, daysOff: s.days_off ?? [] };
+      return {
+        weeklyHours: (s.weekly_hours ?? []) as DayHours[],
+        slotMinutes: s.slot_minutes || 60,
+        daysOff: s.days_off ?? [],
+        cancelWindowHours: s.cancel_window_hours ?? 24,
+      };
     },
   });
 }
@@ -661,10 +693,15 @@ export function useMySchedule(enabled: boolean) {
 export function useSaveSchedule() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: { weeklyHours: DayHours[]; slotMinutes: number; daysOff: string[] }) =>
+    mutationFn: (input: { weeklyHours: DayHours[]; slotMinutes: number; daysOff: string[]; cancelWindowHours: number }) =>
       apiFetch("/me/artisan/schedule", z.object({ message: z.string() }), {
         method: "PUT",
-        body: { weekly_hours: input.weeklyHours, slot_minutes: input.slotMinutes, days_off: input.daysOff },
+        body: {
+          weekly_hours: input.weeklyHours,
+          slot_minutes: input.slotMinutes,
+          days_off: input.daysOff,
+          cancel_window_hours: input.cancelWindowHours,
+        },
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["me", "schedule"] });

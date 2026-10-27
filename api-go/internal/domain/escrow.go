@@ -22,7 +22,31 @@ const (
 const (
 	RailWallet = "wallet" // in-app wallet balance (live)
 	RailCNGN   = "cngn"   // cNGN stablecoin on-chain (future)
+	// RailHeld is for money the platform already holds when the escrow is
+	// created (an order paid from the wallet or captured by a payment gateway
+	// at checkout). Holding it is a no-op; release pays the payee's wallet and
+	// refund credits the buyer's wallet.
+	RailHeld = "held"
 )
+
+// DefaultFeeBps is the platform fee on a release, in basis points (100 = 1%).
+const DefaultFeeBps = 100
+
+// OrderReleaseWindow is how long after a seller marks an order delivered the
+// buyer has to confirm or report a problem. If they do neither, the money is
+// released to the seller. A week is the common marketplace claim window.
+const OrderReleaseWindow = 7 * 24 * time.Hour
+
+// OrderHold is the buyer's or seller's view of the escrow holding one
+// seller's share of an order. It carries no account ids or contact details.
+type OrderHold struct {
+	ID                string     `json:"id"`
+	State             string     `json:"state"`
+	Amount            int64      `json:"amount"` // kobo, the seller's items
+	Net               int64      `json:"net"`    // kobo the seller receives after the platform fee
+	Seller            string     `json:"seller"`
+	ReleaseEligibleAt *time.Time `json:"release_eligible_at"`
+}
 
 // Escrow is a single held-funds agreement between a buyer and a payee. Funds are
 // held from funding until the buyer (or an auto-release timer, or an admin)
@@ -36,8 +60,8 @@ type Escrow struct {
 	BuyerName         string     `gorm:"type:varchar(120)" json:"buyer_name"`
 	PayeeID           string     `gorm:"type:uuid;index" json:"payee_id"` // seller/artisan to be paid
 	Title             string     `gorm:"type:varchar(200)" json:"title"`
-	Amount            int64      `gorm:"type:bigint;not null" json:"amount"`           // kobo
-	FeeBps            int        `gorm:"type:integer;default:100" json:"fee_bps"`      // platform fee, basis points (100 = 1%)
+	Amount            int64      `gorm:"type:bigint;not null" json:"amount"`      // kobo
+	FeeBps            int        `gorm:"type:integer;default:100" json:"fee_bps"` // platform fee, basis points (100 = 1%)
 	State             string     `gorm:"type:varchar(20);default:'pending'" json:"state"`
 	SettlementRail    string     `gorm:"type:varchar(20);default:'wallet'" json:"settlement_rail"`
 	DeliveryCity      string     `gorm:"type:varchar(80)" json:"delivery_city"`

@@ -183,6 +183,9 @@ type BookingEmail struct {
 	When      string
 	Where     string
 	Price     string
+	// Policy is the cancellation terms in words, e.g. "Free to cancel until
+	// Mon 2 Nov, 9:00 AM". Shown so the terms are agreed up front.
+	Policy string
 }
 
 func bookingRows(b BookingEmail, withClient bool) []Row {
@@ -192,7 +195,11 @@ func bookingRows(b BookingEmail, withClient bool) []Row {
 	} else {
 		rows = append(rows, Row{"Artisan", b.Artisan})
 	}
-	return append(rows, Row{"When", b.When}, Row{"Where", b.Where}, Row{"Price", b.Price}, Row{"Reference", b.BookingID})
+	rows = append(rows, Row{"When", b.When}, Row{"Where", b.Where}, Row{"Price", b.Price})
+	if b.Policy != "" {
+		rows = append(rows, Row{"Cancellation", b.Policy})
+	}
+	return append(rows, Row{"Reference", b.BookingID})
 }
 
 func bookingText(intro string, rows []Row, link string) string {
@@ -248,7 +255,11 @@ func (m *Mailer) BookingConfirmed(ctx context.Context, to, name string, b Bookin
 // layout (templates/booking.html).
 func (m *Mailer) notice(ctx context.Context, to string, p page, heading, intro string, rows []Row, note string, button Button) error {
 	p.Data = map[string]any{"Heading": heading, "Intro": intro, "Summary": rows, "Note": note, "Button": button}
-	return m.send(ctx, to, "booking", p, bookingText(intro, rows, button.URL))
+	link := button.URL
+	if note != "" {
+		link = note + "\n\n" + button.URL
+	}
+	return m.send(ctx, to, "booking", p, bookingText(intro, rows, link))
 }
 
 // PartnerApproved tells a seller or artisan an admin approved them.
@@ -272,6 +283,9 @@ type FulfilmentEmail struct {
 	Seller  string
 	Items   []string
 	Note    string
+	// ReleaseBy is the date the seller is paid if the buyer does nothing.
+	// Set only when the items were marked delivered.
+	ReleaseBy string
 }
 
 // OrderProgress tells the buyer some of their items shipped or arrived.
@@ -284,11 +298,99 @@ func (m *Mailer) OrderProgress(ctx context.Context, to, name string, f Fulfilmen
 	if f.Note != "" {
 		rows = append(rows, Row{"Tracking", f.Note})
 	}
+	intro = fmt.Sprintf(intro, firstName(name), f.Seller)
+	note, button := "", Button{"View your order", m.appURL + "/dashboard"}
+	if f.Stage == "delivered" && f.ReleaseBy != "" {
+		button.Label = "Confirm or report a problem"
+		rows = append(rows, Row{"Confirm by", f.ReleaseBy})
+		note = "Your payment is held until you confirm delivery. If something is wrong, report it in your account before " +
+			f.ReleaseBy + ". If you do nothing, the payment goes to the seller on that date."
+	}
 	return m.notice(ctx, to, page{
 		Subject:    fmt.Sprintf(subject, f.OrderID),
 		Preheader:  strings.Join(f.Items, ", "),
 		FooterNote: "You received this because you placed an order on LuxeBeau.",
-	}, heading, fmt.Sprintf(intro, firstName(name), f.Seller), rows, "", Button{"View your order", m.appURL + "/dashboard"})
+	}, heading, intro, rows, note, button)
+}
+
+// CancelEmail says who cancelled a booking and why.
+type CancelEmail struct {
+	By     string // buyer, artisan, admin or system
+	Reason string
+	Late   bool // the client cancelled a confirmed booking inside the notice window
+}
+
+// cancelRows is the booking summary for a cancellation email. The cancellation
+// terms are left out (they no longer apply) and so is the reason when the
+// system cancelled, since the heading already says why.
+func cancelRows(b BookingEmail, withClient bool, c CancelEmail) []Row {
+	b.Policy = ""
+	rows := bookingRows(b, withClient)
+	if c.Reason != "" && c.By != "system" {
+		rows = append(rows, Row{"Reason", c.Reason})
+	}
+	return rows
+}
+
+// BookingCancelledForClient tells the client their booking was cancelled,
+// whether they did it, the artisan did, an admin did, or the request expired.
+func (m *Mailer) BookingCancelledForClient(ctx context.Context, to, name string, b BookingEmail, c CancelEmail) error {
+	var heading, intro, note string
+	button := Button{"Find another time", m.appURL + "/services"}
+	switch c.By {
+	case "buyer":
+		heading = "Booking cancelled"
+		intro = fmt.Sprintf("Hi %s, your booking with %s is cancelled and the time is open again.", firstName(name), b.Artisan)
+		button = Button{"View your bookings", m.appURL + "/dashboard"}
+		if c.Late {
+			note = "This was inside the artisan's cancellation notice, so it is recorded as a late cancellation. Nothing was charged."
+		}
+	case "artisan":
+		heading = "Your booking was cancelled"
+		intro = fmt.Sprintf("Hi %s, %s can't make this booking. We're sorry. Nothing was charged.", firstName(name), b.Artisan)
+	case "system":
+		heading = "No answer from the artisan"
+		intro = fmt.Sprintf("Hi %s, %s didn't answer your request in time, so we cancelled it. Nothing was charged.", firstName(name), b.Artisan)
+	default:
+		heading = "Your booking was cancelled"
+		intro = fmt.Sprintf("Hi %s, your booking with %s was cancelled by LuxeBeau. Nothing was charged.", firstName(name), b.Artisan)
+	}
+	rows := cancelRows(b, false, c)
+	return m.notice(ctx, to, page{
+		Subject:    fmt.Sprintf("Cancelled: %s with %s", b.Service, b.Artisan),
+		Preheader:  fmt.Sprintf("%s, %s.", b.Service, b.When),
+		FooterNote: "You received this because you have a booking on LuxeBeau.",
+	}, heading, intro, rows, note, button)
+}
+
+// BookingCancelledForArtisan tells the artisan a booking was cancelled.
+func (m *Mailer) BookingCancelledForArtisan(ctx context.Context, to, name string, b BookingEmail, c CancelEmail) error {
+	intro := fmt.Sprintf("Hi %s, %s cancelled their booking. The time is open again for other clients.", firstName(name), b.Client)
+	note := ""
+	if c.By != "buyer" {
+		intro = fmt.Sprintf("Hi %s, this booking with %s was cancelled. The time is open again for other clients.", firstName(name), b.Client)
+	}
+	if c.Late {
+		note = "The client cancelled inside your notice window; it is recorded as a late cancellation on their account."
+	}
+	rows := cancelRows(b, true, c)
+	return m.notice(ctx, to, page{
+		Subject:    fmt.Sprintf("Cancelled: %s on %s", b.Service, b.When),
+		Preheader:  fmt.Sprintf("%s cancelled. The time is open again.", b.Client),
+		FooterNote: "You received this because you're a LuxeBeau artisan.",
+	}, "Booking cancelled", intro, rows, note, Button{"Open your studio", m.appURL + "/dashboard/artisan"})
+}
+
+// BookingReminder reminds the client about an appointment about a day ahead,
+// with the cancellation terms they agreed to.
+func (m *Mailer) BookingReminder(ctx context.Context, to, name string, b BookingEmail) error {
+	intro := fmt.Sprintf("Hi %s, a reminder that your appointment with %s is coming up.", firstName(name), b.Artisan)
+	return m.notice(ctx, to, page{
+		Subject:    fmt.Sprintf("Reminder: %s with %s, %s", b.Service, b.Artisan, b.When),
+		Preheader:  fmt.Sprintf("%s, %s.", b.When, b.Where),
+		FooterNote: "You received this because you have a booking on LuxeBeau.",
+	}, "See you soon", intro, bookingRows(b, false), "If your plans change, please cancel in your account so the time can go to someone else.",
+		Button{"Manage your booking", m.appURL + "/dashboard"})
 }
 
 func firstName(name string) string {

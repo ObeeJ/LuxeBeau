@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log/slog"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -179,11 +180,22 @@ func (h *Handler) Fulfil(c *gin.Context) {
 	}
 	if h.mailer != nil && f.Notify && f.BuyerMail != "" {
 		info := mail.FulfilmentEmail{OrderID: f.Order.ID, Stage: f.Stage, Seller: sellerName(c), Items: f.Items, Note: req.TrackingNote}
+		if f.ReleaseBy != nil {
+			info.ReleaseBy = f.ReleaseBy.In(lagos).Format("Mon 2 Jan 2006")
+		}
 		to, name := f.BuyerMail, f.BuyerName
 		h.mailer.Go("order_progress", func(ctx context.Context) error { return h.mailer.OrderProgress(ctx, to, name, info) })
 	}
 	response.OK(c, gin.H{"status": f.Stage, "order_status": f.Order.ShippingStatus})
 }
+
+// lagos is the time zone dates in emails use.
+var lagos = func() *time.Location {
+	if loc, err := time.LoadLocation("Africa/Lagos"); err == nil {
+		return loc
+	}
+	return time.FixedZone("WAT", 3600) // Lagos is UTC+1 all year
+}()
 
 func sellerName(c *gin.Context) string {
 	if u, ok := c.Get("user"); ok {

@@ -75,6 +75,11 @@ func TestConcurrentCheckouts(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to connect to testing database: %v", err)
 	}
+	// SQLite locks whole tables, so concurrent writers can fail with
+	// "table is locked" before the stock check even runs. One connection
+	// serialises them, which still proves only one buyer gets the last unit.
+	sqlDB, _ := db.DB()
+	sqlDB.SetMaxOpenConns(1)
 
 	// Auto migrate entities
 	err = db.AutoMigrate(
@@ -83,6 +88,8 @@ func TestConcurrentCheckouts(t *testing.T) {
 		&domain.Product{},
 		&domain.Order{},
 		&domain.OrderItem{},
+		&domain.Escrow{},
+		&domain.LedgerEntry{},
 	)
 	if err != nil {
 		t.Fatalf("failed to migrate models: %v", err)
@@ -174,7 +181,7 @@ func TestCheckout_RejectsUnapprovedSellersAndBadQuantities(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := db.AutoMigrate(&domain.User{}, &domain.Wallet{}, &domain.Product{}, &domain.Order{}, &domain.OrderItem{}); err != nil {
+	if err := db.AutoMigrate(&domain.User{}, &domain.Wallet{}, &domain.Product{}, &domain.Order{}, &domain.OrderItem{}, &domain.Escrow{}, &domain.LedgerEntry{}); err != nil {
 		t.Fatal(err)
 	}
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))

@@ -324,6 +324,7 @@ export const apiArtisanSchema = z.object({
   services: z.array(apiServiceSchema).nullish(),
   service_mode: z.enum(["studio", "home", "both"]).nullish(),
   image_url: z.string().nullish(),
+  cancel_window_hours: z.number().nullish(),
 });
 export type ApiArtisan = z.infer<typeof apiArtisanSchema>;
 
@@ -357,6 +358,8 @@ export interface Artisan {
   serviceMode: "studio" | "home" | "both";
   imageUrl?: string;
   location: string;
+  /** Notice a client must give to cancel a confirmed booking for free; 0 means any time. */
+  cancelWindowHours: number;
 }
 
 export function toArtisan(a: ApiArtisan): Artisan {
@@ -383,6 +386,7 @@ export function toArtisan(a: ApiArtisan): Artisan {
     serviceMode: a.service_mode ?? "studio",
     imageUrl: a.image_url || undefined,
     location: a.location ?? "",
+    cancelWindowHours: a.cancel_window_hours ?? 24,
   };
 }
 
@@ -401,6 +405,18 @@ export const apiOrderSchema = z.object({
   phone: z.string().nullish(),
   created_at: z.string().nullish(),
   buyer: z.object({ name: z.string().nullish() }).nullish(),
+  holds: z
+    .array(
+      z.object({
+        id: z.string(),
+        state: z.string(),
+        amount: z.number(),
+        net: z.number().nullish(),
+        seller: z.string().nullish(),
+        release_eligible_at: z.string().nullish(),
+      }),
+    )
+    .nullish(),
   items: z
     .array(
       z.object({
@@ -432,6 +448,20 @@ export interface MyOrder {
   phone: string;
   /** Latest tracking note any seller left on the order. */
   trackingNote: string;
+  /** Escrows holding the order's money, one per seller. */
+  holds: OrderHold[];
+}
+
+export interface OrderHold {
+  id: string;
+  /** funded (held), released (seller paid), refunded, disputed */
+  state: string;
+  amountNGN: number;
+  /** What the seller receives after the platform fee. */
+  netNGN: number;
+  seller: string;
+  /** When the money releases to the seller if the buyer does nothing. Set once the seller marks the goods delivered. */
+  releaseAt: string | null;
 }
 
 export interface OrderLine {
@@ -464,6 +494,14 @@ export function toMyOrder(o: z.infer<typeof apiOrderSchema>): MyOrder {
     address: [o.address, o.city, o.state].filter(Boolean).join(", "),
     phone: o.phone ?? "",
     trackingNote: items.map(i => i.tracking_note).filter(Boolean).at(-1) ?? "",
+    holds: (o.holds ?? []).map(h => ({
+      id: h.id,
+      state: h.state,
+      amountNGN: koboToNaira(h.amount),
+      netNGN: koboToNaira(h.net ?? h.amount),
+      seller: h.seller ?? "",
+      releaseAt: h.release_eligible_at ?? null,
+    })),
   };
 }
 
@@ -484,6 +522,7 @@ export const scheduleSchema = z.object({
   weekly_hours: z.array(z.object({ weekday: z.number(), start: z.string(), end: z.string() })).nullish(),
   slot_minutes: z.number(),
   days_off: z.array(z.string()).nullish(),
+  cancel_window_hours: z.number().nullish(),
 });
 
 export const slotSchema = z.object({
@@ -519,6 +558,12 @@ export const apiBookingSchema = z.object({
   address: z.string().nullish(),
   amount: z.number().nullish(),
   status: z.string().nullish(),
+  policy_hours: z.number().nullish(),
+  cancelled_by: z.string().nullish(),
+  cancel_reason: z.string().nullish(),
+  late_cancel: z.boolean().nullish(),
+  free_cancel_until: z.string().nullish(),
+  buyer_strikes: z.number().nullish(),
   artisan: z.object({ studio: z.string().nullish(), user: z.object({ name: z.string().nullish() }).nullish() }).nullish(),
   buyer: z.object({ name: z.string().nullish() }).nullish(),
 });
@@ -536,6 +581,15 @@ export interface MyBooking {
   artisan: string;
   serviceType: string;
   address: string;
+  /** Hours of notice the booking was made under; 0 means free to cancel any time. */
+  policyHours: number;
+  /** Until when cancelling is free (only for pending or confirmed bookings). */
+  freeCancelUntil: string | null;
+  cancelledBy: string;
+  cancelReason: string;
+  lateCancel: boolean;
+  /** Late cancellations and no-shows by this client in the last 90 days (artisans only). */
+  buyerStrikes: number;
 }
 
 export function toMyBooking(b: z.infer<typeof apiBookingSchema>): MyBooking {
@@ -551,6 +605,12 @@ export function toMyBooking(b: z.infer<typeof apiBookingSchema>): MyBooking {
     artisan: b.artisan?.user?.name || b.artisan?.studio || "",
     serviceType: b.service_type ?? "",
     address: b.address ?? "",
+    policyHours: b.policy_hours ?? 24,
+    freeCancelUntil: b.free_cancel_until ?? null,
+    cancelledBy: b.cancelled_by ?? "",
+    cancelReason: b.cancel_reason ?? "",
+    lateCancel: b.late_cancel ?? false,
+    buyerStrikes: b.buyer_strikes ?? 0,
   };
 }
 

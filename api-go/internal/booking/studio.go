@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -111,7 +112,13 @@ type ScheduleInput struct {
 	WeeklyHours domain.WeeklyHours `json:"weekly_hours"`
 	SlotMinutes int                `json:"slot_minutes"`
 	DaysOff     []string           `json:"days_off"`
+	// CancelWindowHours is the notice clients must give to cancel for free.
+	// Left out of a save, it keeps its current value.
+	CancelWindowHours *int `json:"cancel_window_hours"`
 }
+
+// ErrInvalidCancelWindow is returned for a notice period outside the choices.
+var ErrInvalidCancelWindow = errors.New("invalid cancellation notice")
 
 func (s *Studio) GetSchedule(ctx context.Context, userID string) (*ScheduleInput, error) {
 	a, err := s.profile(ctx, userID)
@@ -126,7 +133,8 @@ func (s *Studio) GetSchedule(ctx context.Context, userID string) (*ScheduleInput
 	if off == nil {
 		off = []string{}
 	}
-	return &ScheduleInput{WeeklyHours: hours, SlotMinutes: a.SlotMinutes, DaysOff: off}, nil
+	window := a.CancelWindowHours
+	return &ScheduleInput{WeeklyHours: hours, SlotMinutes: a.SlotMinutes, DaysOff: off, CancelWindowHours: &window}, nil
 }
 
 // SetSchedule saves new hours and regenerates future free slots. Booked
@@ -155,8 +163,14 @@ func (s *Studio) SetSchedule(ctx context.Context, userID string, in ScheduleInpu
 	if off == nil {
 		off = domain.StringArray{}
 	}
-	if err := s.db.WithContext(ctx).Model(&domain.Artisan{}).Where("id = ?", a.ID).
-		Updates(map[string]any{"weekly_hours": in.WeeklyHours, "slot_minutes": in.SlotMinutes, "days_off": off}).Error; err != nil {
+	updates := map[string]any{"weekly_hours": in.WeeklyHours, "slot_minutes": in.SlotMinutes, "days_off": off}
+	if in.CancelWindowHours != nil {
+		if !slices.Contains(domain.CancelWindowChoices, *in.CancelWindowHours) {
+			return ErrInvalidCancelWindow
+		}
+		updates["cancel_window_hours"] = *in.CancelWindowHours
+	}
+	if err := s.db.WithContext(ctx).Model(&domain.Artisan{}).Where("id = ?", a.ID).Updates(updates).Error; err != nil {
 		return err
 	}
 	a.WeeklyHours, a.SlotMinutes, a.DaysOff = in.WeeklyHours, in.SlotMinutes, off
@@ -204,6 +218,8 @@ func (s *Studio) fail(c *gin.Context, err error, action string) {
 			msg = msg[i+2:]
 		}
 		response.BadRequest(c, strings.ToUpper(msg[:1])+msg[1:]+".")
+	case errors.Is(err, ErrInvalidCancelWindow):
+		response.BadRequest(c, "Choose a notice period from the list.")
 	case errors.Is(err, ErrSlotLengthLocked):
 		response.Conflict(c, "You can change slot length once your upcoming bookings are done.")
 	case errors.Is(err, schedule.ErrInvalidSlot):

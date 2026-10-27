@@ -29,7 +29,9 @@ type Settlement interface {
 // WalletSettlement is the live rail: it debits/credits the in-app wallet table.
 type WalletSettlement struct{ logger *slog.Logger }
 
-func NewWalletSettlement(logger *slog.Logger) *WalletSettlement { return &WalletSettlement{logger: logger} }
+func NewWalletSettlement(logger *slog.Logger) *WalletSettlement {
+	return &WalletSettlement{logger: logger}
+}
 
 func (w *WalletSettlement) Name() string { return domain.RailWallet }
 
@@ -44,6 +46,17 @@ func adjust(tx *gorm.DB, userID string, delta int64) error {
 		return res.Error
 	}
 	if res.RowsAffected == 0 {
+		// A credit to an account that has no wallet row yet creates it;
+		// a debit that finds too little money is a real shortfall.
+		if delta > 0 {
+			var exists int64
+			if err := tx.Model(&domain.Wallet{}).Where("user_id = ?", userID).Count(&exists).Error; err != nil {
+				return err
+			}
+			if exists == 0 {
+				return tx.Create(&domain.Wallet{UserID: userID, Balance: delta}).Error
+			}
+		}
 		return errors.New("insufficient wallet balance")
 	}
 	return nil
@@ -60,6 +73,25 @@ func (w *WalletSettlement) Release(ctx context.Context, tx *gorm.DB, e *domain.E
 }
 
 func (w *WalletSettlement) Refund(ctx context.Context, tx *gorm.DB, e *domain.Escrow) error {
+	return adjust(tx.WithContext(ctx), e.BuyerID, e.Amount)
+}
+
+// HeldSettlement serves escrows whose money the platform already holds, such
+// as an order paid at checkout. Nothing moves when it is held; release pays the
+// payee's wallet and refund credits the buyer's wallet.
+type HeldSettlement struct{}
+
+func NewHeldSettlement() *HeldSettlement { return &HeldSettlement{} }
+
+func (HeldSettlement) Name() string { return domain.RailHeld }
+
+func (HeldSettlement) Hold(ctx context.Context, tx *gorm.DB, e *domain.Escrow) error { return nil }
+
+func (HeldSettlement) Release(ctx context.Context, tx *gorm.DB, e *domain.Escrow, net, fee int64) error {
+	return adjust(tx.WithContext(ctx), e.PayeeID, net)
+}
+
+func (HeldSettlement) Refund(ctx context.Context, tx *gorm.DB, e *domain.Escrow) error {
 	return adjust(tx.WithContext(ctx), e.BuyerID, e.Amount)
 }
 

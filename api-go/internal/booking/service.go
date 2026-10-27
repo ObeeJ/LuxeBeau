@@ -111,7 +111,12 @@ func (s *bookingService) BookService(ctx context.Context, buyerID string, artisa
 		ServiceType: svcType,
 		Address:     address,
 		Amount:      amount,
-		Status:      "pending",
+		Status:      domain.BookingPending,
+		PolicyHours: artisan.CancelWindowHours,
+	}
+	if start, err := schedule.StartAt(date, slotTime); err == nil {
+		expires := expiryFor(schedule.Now(), start)
+		booking.ExpiresAt = &expires
 	}
 
 	// Reserve every slot the service needs and insert the booking atomically.
@@ -192,21 +197,33 @@ func (s *bookingService) ArtisanUser(ctx context.Context, artisanID uint) (*doma
 	return &u, nil
 }
 
-// ConfirmBooking lets the booked artisan (or an admin) confirm a pending
-// booking and returns it with buyer and artisan loaded for notifications.
+// ConfirmBooking lets the booked artisan (or an admin) confirm a request that
+// is still waiting for an answer, and returns it with the client and artisan
+// loaded for notifications. A cancelled, expired or finished booking can't be
+// confirmed.
 func (s *bookingService) ConfirmBooking(ctx context.Context, bookingID, actorID string, admin bool) (*domain.Booking, error) {
-	var b domain.Booking
-	if err := s.db.WithContext(ctx).Preload("Buyer").Preload("Artisan.User").First(&b, "id = ?", bookingID).Error; err != nil {
-		return nil, ErrBookingNotFound
+	b, err := s.loadFull(ctx, bookingID)
+	if err != nil {
+		return nil, err
 	}
 	if !admin && b.Artisan.UserID != actorID {
 		return nil, ErrNotYourBooking
 	}
-	if err := s.repo.UpdateBookingStatus(ctx, bookingID, "confirmed"); err != nil {
-		return nil, err
+	if start, err := schedule.StartAt(b.BookingDate, b.BookingTime); err != nil || !start.After(schedule.Now()) {
+		return nil, ErrNotPending
 	}
-	b.Status = "confirmed"
-	return &b, nil
+	res := s.db.WithContext(ctx).Model(&domain.Booking{}).
+		Where("id = ? AND status = ?", b.ID, domain.BookingPending).
+		Updates(map[string]any{"status": domain.BookingConfirmed, "expires_at": nil})
+	if res.Error != nil {
+		return nil, res.Error
+	}
+	if res.RowsAffected == 0 {
+		return nil, ErrNotPending
+	}
+	b.Status = domain.BookingConfirmed
+	b.ExpiresAt = nil
+	return b, nil
 }
 
 func (s *bookingService) ListMyBookings(ctx context.Context, userID string) ([]domain.Booking, error) {
@@ -216,12 +233,20 @@ func (s *bookingService) ListMyBookings(ctx context.Context, userID string) ([]d
 	var artisan domain.Artisan
 	err := s.db.WithContext(ctx).Where("user_id = ?", userID).First(&artisan).Error
 	if err == nil {
-		return s.repo.ListBookingsByArtisan(ctx, artisan.ID)
+		list, err := s.repo.ListBookingsByArtisan(ctx, artisan.ID)
+		if err != nil {
+			return nil, err
+		}
+		return list, s.decorate(ctx, list, true)
 	}
 	if !errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, err
 	}
-	return s.repo.ListBookingsByBuyer(ctx, userID)
+	list, err := s.repo.ListBookingsByBuyer(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	return list, s.decorate(ctx, list, false)
 }
 
 func (s *bookingService) OnboardArtisan(ctx context.Context, userID string, artisan *domain.Artisan) (*domain.Artisan, error) {

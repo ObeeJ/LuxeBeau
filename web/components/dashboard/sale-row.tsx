@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { useFulfil } from "@/lib/queries";
 import { type MyOrder } from "@/lib/api";
 import { formatNaira } from "@/lib/format";
+import { formatDay } from "@/components/dashboard/order-row";
 import { getFriendlyErrorMessage } from "@/lib/errors";
 
 /* Stages in order; sellers can only move forward (api-go seller.Fulfil). */
@@ -78,6 +79,20 @@ export function SaleRow({ order }: { order: MyOrder }) {
           <StatusPill status={STAGE_LABEL[stage]} />
         </div>
       </div>
+
+      {order.holds.map(h => (
+        <p key={h.id} className="mt-2 text-[12px] tracking-[-0.017em] text-muted">
+          {h.state === "released"
+            ? `Paid ${formatNaira(h.netNGN)} to your wallet.`
+            : h.state === "refunded"
+              ? "Refunded to the buyer."
+              : h.state === "disputed"
+                ? "The buyer reported a problem. Payment is on hold while we review it."
+                : h.releaseAt
+                  ? `You're paid ${formatNaira(h.netNGN)} on ${formatDay(h.releaseAt)} unless the buyer reports a problem, or sooner if they confirm.`
+                  : `${formatNaira(h.netNGN)} is held for you and paid after delivery is confirmed.`}
+        </p>
+      ))}
 
       {paid && next && (
         <div className="mt-3 flex flex-wrap items-end gap-2">

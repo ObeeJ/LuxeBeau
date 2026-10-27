@@ -67,3 +67,54 @@ func TestDisabledSenderFailsClosed(t *testing.T) {
 		t.Error("unconfigured mailer reported success")
 	}
 }
+
+func TestCancellationEmails(t *testing.T) {
+	s := &memSender{}
+	m := NewWithSender(s, "LuxeBeau <hello@luxebeau.ng>", "https://luxebeau.ng", slog.New(slog.NewTextHandler(io.Discard, nil)))
+	ctx := context.Background()
+	b := BookingEmail{BookingID: "BK-1", Service: "Gele", Artisan: "Tolu", Client: "Ada", When: "Mon 2 Nov at 09:00", Where: "Studio",
+		Price: "from ₦20,000", Policy: "Free to cancel until Sun 1 Nov, 9:00 AM. After that it counts as a late cancellation"}
+
+	send := func(f func(context.Context, string, string, BookingEmail, CancelEmail) error, c CancelEmail) Message {
+		t.Helper()
+		before := len(s.msgs)
+		if err := f(ctx, "x@example.com", "Ada Obi", b, c); err != nil {
+			t.Fatal(err)
+		}
+		if len(s.msgs) != before+1 {
+			t.Fatal("no message sent")
+		}
+		return s.msgs[len(s.msgs)-1]
+	}
+
+	for name, msg := range map[string]Message{
+		"client, by artisan": send(m.BookingCancelledForClient, CancelEmail{By: "artisan", Reason: "Closed for a family event"}),
+		"client, by client":  send(m.BookingCancelledForClient, CancelEmail{By: "buyer", Late: true}),
+		"client, expired":    send(m.BookingCancelledForClient, CancelEmail{By: "system", Reason: "The artisan didn't answer in time"}),
+		"artisan, late":      send(m.BookingCancelledForArtisan, CancelEmail{By: "buyer", Late: true}),
+	} {
+		if strings.Contains(msg.HTML, "Free to cancel") || strings.Contains(msg.Text, "Free to cancel") {
+			t.Errorf("%s: a cancelled booking's email still shows the cancellation terms", name)
+		}
+	}
+	if m := send(m.BookingCancelledForClient, CancelEmail{By: "artisan", Reason: "Closed for a family event"}); !strings.Contains(m.HTML, "Closed for a family event") {
+		t.Error("the artisan's reason is missing from the client's email")
+	}
+	if m := send(m.BookingCancelledForClient, CancelEmail{By: "system", Reason: "The artisan didn't answer in time"}); strings.Contains(m.HTML, ">Reason<") {
+		t.Error("the expiry email repeats its own heading as a reason")
+	}
+	if m := send(m.BookingCancelledForClient, CancelEmail{By: "buyer", Late: true}); !strings.Contains(m.Text, "late cancellation") {
+		t.Error("a late cancellation isn't called out to the client who made it")
+	}
+	if m := send(m.BookingCancelledForArtisan, CancelEmail{By: "buyer", Late: true}); !strings.Contains(m.Text, "late cancellation") {
+		t.Error("a late cancellation isn't called out to the artisan")
+	}
+
+	// The requested and confirmed emails do carry the terms: that is where they're agreed.
+	if err := m.BookingRequested(ctx, "x@example.com", "Ada", b); err != nil {
+		t.Fatal(err)
+	}
+	if last := s.msgs[len(s.msgs)-1]; !strings.Contains(last.HTML, "Free to cancel until Sun 1 Nov") {
+		t.Error("the booking request email doesn't state the cancellation terms")
+	}
+}

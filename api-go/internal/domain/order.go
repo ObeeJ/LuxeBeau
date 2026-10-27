@@ -49,6 +49,9 @@ type Order struct {
 	Phone          string      `gorm:"type:varchar(20);not null" json:"phone"`
 	CreatedAt      time.Time   `json:"created_at"`
 	UpdatedAt      time.Time   `json:"updated_at"`
+	// Holds are the escrows holding this order's money, one per seller. They
+	// are loaded on demand and never stored on the order.
+	Holds []OrderHold `gorm:"-" json:"holds,omitempty"`
 }
 
 type OrderRepository interface {

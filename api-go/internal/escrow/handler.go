@@ -136,7 +136,7 @@ func (h *Handler) Refund(c *gin.Context) {
 }
 
 type disputeRequest struct {
-	Reason string `json:"reason" binding:"required"`
+	Reason string `json:"reason" binding:"required,max=1000"`
 }
 
 func (h *Handler) Dispute(c *gin.Context) {

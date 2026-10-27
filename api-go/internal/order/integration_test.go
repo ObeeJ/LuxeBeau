@@ -62,6 +62,8 @@ func TestE2EPaymentIntegration(t *testing.T) {
 		&domain.Product{},
 		&domain.Order{},
 		&domain.OrderItem{},
+		&domain.Escrow{},
+		&domain.LedgerEntry{},
 		&domain.EmailOTP{},
 	)
 	if err != nil {

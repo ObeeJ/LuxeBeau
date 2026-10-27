@@ -12,6 +12,7 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 	"luxebeau/internal/domain"
+	"luxebeau/internal/escrow"
 )
 
 type orderService struct {
@@ -132,6 +133,16 @@ func (s *orderService) CreateCheckout(ctx context.Context, buyerID string, items
 		return nil, fmt.Errorf("failed to create order: %w", err)
 	}
 
+	// A wallet order is paid at checkout, so its money goes into escrow in the
+	// same transaction. Other payment methods are held when the payment is
+	// confirmed (ConfirmPayment).
+	if order.PaymentStatus == "paid" {
+		if _, err := escrow.HoldOrder(tx, order); err != nil {
+			tx.Rollback()
+			return nil, fmt.Errorf("failed to hold order payment: %w", err)
+		}
+	}
+
 	if err := tx.Commit().Error; err != nil {
 		return nil, fmt.Errorf("failed to commit transaction: %w", err)
 	}
@@ -151,11 +162,60 @@ func newOrderID() (string, error) {
 }
 
 func (s *orderService) GetOrderDetails(ctx context.Context, orderID string) (*domain.Order, error) {
-	return s.orderRepo.GetOrderByID(ctx, orderID)
+	o, err := s.orderRepo.GetOrderByID(ctx, orderID)
+	if err != nil || o == nil {
+		return o, err
+	}
+	list := []domain.Order{*o}
+	if err := s.attachHolds(ctx, list); err != nil {
+		return nil, err
+	}
+	return &list[0], nil
 }
 
 func (s *orderService) ListMyOrders(ctx context.Context, buyerID string) ([]domain.Order, error) {
-	return s.orderRepo.ListOrdersByBuyer(ctx, buyerID)
+	orders, err := s.orderRepo.ListOrdersByBuyer(ctx, buyerID)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.attachHolds(ctx, orders); err != nil {
+		return nil, err
+	}
+	return orders, nil
+}
+
+// attachHolds loads the escrows holding each order's money, one per seller.
+func (s *orderService) attachHolds(ctx context.Context, orders []domain.Order) error {
+	if len(orders) == 0 {
+		return nil
+	}
+	ids := make([]string, len(orders))
+	index := make(map[string]int, len(orders))
+	for i, o := range orders {
+		ids[i] = o.ID
+		index[o.ID] = i
+	}
+	var rows []struct {
+		domain.Escrow
+		SellerName string
+	}
+	if err := s.db.WithContext(ctx).Table("escrows").
+		Select("escrows.*, users.name AS seller_name").
+		Joins("LEFT JOIN users ON CAST(users.id AS TEXT) = CAST(escrows.payee_id AS TEXT)").
+		Where("escrows.kind = ? AND escrows.reference IN ?", domain.EscrowKindOrder, ids).
+		Order("escrows.created_at").
+		Scan(&rows).Error; err != nil {
+		return err
+	}
+	for _, r := range rows {
+		_, net := r.Escrow.Fee()
+		i := index[r.Reference]
+		orders[i].Holds = append(orders[i].Holds, domain.OrderHold{
+			ID: r.ID, State: r.State, Amount: r.Amount, Net: net,
+			Seller: r.SellerName, ReleaseEligibleAt: r.ReleaseEligibleAt,
+		})
+	}
+	return nil
 }
 
 // ConfirmPayment marks an order paid only when the provider reports success
@@ -164,7 +224,7 @@ func (s *orderService) ListMyOrders(ctx context.Context, buyerID string) ([]doma
 // each change is a conditional UPDATE so duplicate deliveries are no-ops.
 func (s *orderService) ConfirmPayment(ctx context.Context, n domain.PaymentNotice) (domain.PaymentOutcome, error) {
 	var order domain.Order
-	err := s.db.WithContext(ctx).Select("id", "total", "payment_status").First(&order, "id = ?", n.Reference).Error
+	err := s.db.WithContext(ctx).First(&order, "id = ?", n.Reference).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return domain.PaymentUnknownOrder, nil
 	}
@@ -191,14 +251,28 @@ func (s *orderService) ConfirmPayment(ctx context.Context, n domain.PaymentNotic
 			slog.Int64("expected", order.Total), slog.Int64("received", n.Amount), slog.String("currency", n.Currency))
 		return domain.PaymentAmountInvalid, nil
 	}
-	res := s.db.WithContext(ctx).Model(&domain.Order{}).
-		Where("id = ? AND payment_status IN ?", order.ID, []string{"pending", "failed"}).
-		Update("payment_status", "paid")
-	if res.Error != nil {
-		return "", res.Error
+
+	// Marking the order paid and holding its money are one transaction: if the
+	// hold fails the order stays unpaid and the provider's retry tries again.
+	outcome := domain.PaymentIgnored
+	err = s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		res := tx.Model(&domain.Order{}).
+			Where("id = ? AND payment_status IN ?", order.ID, []string{"pending", "failed"}).
+			Update("payment_status", "paid")
+		if res.Error != nil {
+			return res.Error
+		}
+		if res.RowsAffected == 0 {
+			return nil // already paid: duplicate notice
+		}
+		if _, err := escrow.HoldOrder(tx, &order); err != nil {
+			return err
+		}
+		outcome = domain.PaymentMarkedPaid
+		return nil
+	})
+	if err != nil {
+		return "", err
 	}
-	if res.RowsAffected == 0 {
-		return domain.PaymentIgnored, nil
-	}
-	return domain.PaymentMarkedPaid, nil
+	return outcome, nil
 }

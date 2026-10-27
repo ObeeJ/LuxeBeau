@@ -1,12 +1,16 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
+	"os/signal"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -19,6 +23,7 @@ import (
 	"luxebeau/internal/catalog"
 	"luxebeau/internal/domain"
 	"luxebeau/internal/escrow"
+	"luxebeau/internal/jobs"
 	"luxebeau/internal/kyc"
 	"luxebeau/internal/mail"
 	"luxebeau/internal/media"
@@ -147,7 +152,7 @@ func main() {
 	sellerHandler := seller.NewHandler(sellerService, images, mailer, logger)
 
 	// Escrow engine (held funds; wallet rail live, cNGN stub; WhatsApp notifier)
-	escrowRails := escrow.NewRegistry(escrow.NewWalletSettlement(logger), escrow.NewCNGNSettlement(logger))
+	escrowRails := escrow.NewRegistry(escrow.NewWalletSettlement(logger), escrow.NewHeldSettlement(), escrow.NewCNGNSettlement(logger))
 	escrowNotifier := escrow.NewWhatsAppNotifier(os.Getenv("WHATSAPP_TOKEN"), os.Getenv("WHATSAPP_PHONE_ID"), logger)
 	escrowService := escrow.NewService(escrow.NewGormRepository(db), escrowRails, escrowNotifier, logger)
 	escrowHandler := escrow.NewHandler(escrowService, logger)
@@ -227,6 +232,9 @@ func main() {
 		// Bookings (Rate Limited to 2 req/sec burst 5 to protect scheduler state)
 		protected.POST("/bookings", middleware.RateLimiter(2, 5), bookingHandler.CreateBooking)
 		protected.PATCH("/bookings/:id/confirm", bookingHandler.ConfirmBooking)
+		protected.POST("/bookings/:id/cancel", middleware.RateLimiter(2, 10), bookingHandler.CancelBooking)
+		protected.PATCH("/bookings/:id/complete", auth.RequireRole("artisan", "admin"), bookingHandler.CompleteBooking)
+		protected.PATCH("/bookings/:id/no-show", auth.RequireRole("artisan", "admin"), bookingHandler.MarkNoShow)
 
 		// Orders
 		protected.POST("/orders", orderHandler.CreateOrder)
@@ -300,6 +308,16 @@ func main() {
 		protected.GET("/wallets/me", authHandler.GetWallet)
 	}
 
+	// ── Background work ─────────────────────────────────────
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	bookingJobs := booking.NewMaintenance(db, mailer, logger)
+	go jobs.Run(ctx, 5*time.Minute, logger,
+		jobs.Task{Name: "escrow auto-release", Run: escrowService.SweepAutoReleases},
+		jobs.Task{Name: "expire unanswered bookings", Run: bookingJobs.ExpireStale},
+		jobs.Task{Name: "booking reminders", Run: bookingJobs.SendReminders},
+	)
+
 	// ── Start Server ────────────────────────────────────────
 	addr := fmt.Sprintf(":%s", port)
 	logger.Info("LuxeBeau API listening", slog.String("addr", addr))
@@ -311,10 +329,24 @@ func main() {
 		WriteTimeout:      30 * time.Second,
 		IdleTimeout:       120 * time.Second,
 	}
-	if err := srv.ListenAndServe(); err != nil {
+	// On SIGTERM (a deploy or restart) stop taking new requests and let the
+	// ones in flight finish, instead of cutting them off mid-payment.
+	shutdownDone := make(chan struct{})
+	go func() {
+		defer close(shutdownDone)
+		<-ctx.Done()
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+		defer cancel()
+		if err := srv.Shutdown(shutdownCtx); err != nil {
+			logger.Error("Graceful shutdown failed", slog.Any("error", err))
+		}
+	}()
+	if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		logger.Error("Server failed", slog.Any("error", err))
 		os.Exit(1)
 	}
+	<-shutdownDone
+	logger.Info("LuxeBeau API stopped")
 }
 
 func splitList(v string) []string {

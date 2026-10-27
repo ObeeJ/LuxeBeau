@@ -13,6 +13,7 @@ import (
 	"luxebeau/internal/mail"
 	"luxebeau/internal/media"
 	"luxebeau/internal/response"
+	"luxebeau/internal/schedule"
 )
 
 type BookingHandler struct {
@@ -44,6 +45,19 @@ func naira(kobo int64) string {
 	return "₦" + s
 }
 
+// policyText states the cancellation terms in words for emails and screens.
+func policyText(b *domain.Booking) string {
+	if b.PolicyHours <= 0 {
+		return "Free to cancel any time before the appointment"
+	}
+	start, err := schedule.StartAt(b.BookingDate, b.BookingTime)
+	if err != nil {
+		return ""
+	}
+	until := start.Add(-time.Duration(b.PolicyHours) * time.Hour)
+	return fmt.Sprintf("Free to cancel until %s. After that it counts as a late cancellation", until.Format("Mon 2 Jan, 3:04 PM"))
+}
+
 func bookingEmail(b *domain.Booking, artisan *domain.Artisan, clientName string) mail.BookingEmail {
 	where := artisan.Studio
 	if artisan.Area != "" {
@@ -60,6 +74,7 @@ func bookingEmail(b *domain.Booking, artisan *domain.Artisan, clientName string)
 		When:      fmt.Sprintf("%s at %s", b.BookingDate.Format("Mon 2 Jan 2006"), b.BookingTime),
 		Where:     where,
 		Price:     "from " + naira(b.Amount),
+		Policy:    policyText(b),
 	}
 }
 
@@ -205,6 +220,9 @@ func (h *BookingHandler) ConfirmBooking(c *gin.Context) {
 	case errors.Is(err, ErrBookingNotFound), errors.Is(err, ErrNotYourBooking):
 		response.NotFound(c, "Booking not found")
 		return
+	case errors.Is(err, ErrNotPending):
+		response.Conflict(c, "This request was already answered, cancelled or has expired.")
+		return
 	case err != nil:
 		h.logger.Error("confirm booking failed", slog.Any("error", err))
 		response.InternalError(c, "Failed to confirm booking")
@@ -315,4 +333,91 @@ func (h *BookingHandler) GetMyArtisanProfile(c *gin.Context) {
 		return
 	}
 	response.OK(c, gin.H{"artisan": artisan})
+}
+
+type cancelRequest struct {
+	Reason string `json:"reason" binding:"max=300"`
+}
+
+// CancelBooking: the client, the booked artisan or an admin cancels a pending
+// or confirmed booking before it starts. The other side is emailed.
+func (h *BookingHandler) CancelBooking(c *gin.Context) {
+	var req cancelRequest
+	if c.Request.ContentLength > 0 {
+		if err := c.ShouldBindJSON(&req); err != nil {
+			response.BadRequest(c, "Keep the reason under 300 characters.")
+			return
+		}
+	}
+	actorID := c.GetString("userID")
+	b, err := h.service.CancelBooking(c.Request.Context(), c.Param("id"), actorID, c.GetString("userRole") == "admin", req.Reason)
+	switch {
+	case errors.Is(err, ErrBookingNotFound):
+		response.NotFound(c, "Booking not found")
+		return
+	case errors.Is(err, ErrAlreadyStarted):
+		response.Conflict(c, "This appointment has already started, so it can't be cancelled.")
+		return
+	case errors.Is(err, ErrNotCancellable):
+		response.Conflict(c, "This booking was already cancelled or finished.")
+		return
+	case err != nil:
+		h.logger.Error("cancel booking failed", slog.Any("error", err))
+		response.InternalError(c, "We couldn't cancel this booking. Please try again.")
+		return
+	}
+	h.notifyCancelled(b, mail.CancelEmail{By: b.CancelledBy, Reason: b.CancelReason, Late: b.LateCancel})
+	response.OK(c, gin.H{"booking": b})
+}
+
+// notifyCancelled emails whoever didn't cancel, plus a receipt to the client
+// when they were the one who did.
+func (h *BookingHandler) notifyCancelled(b *domain.Booking, c mail.CancelEmail) {
+	if h.mailer == nil {
+		return
+	}
+	info := bookingEmail(b, &b.Artisan, b.Buyer.Name)
+	if b.Buyer.Email != "" {
+		to, name := b.Buyer.Email, b.Buyer.Name
+		h.mailer.Go("booking_cancelled_client", func(ctx context.Context) error {
+			return h.mailer.BookingCancelledForClient(ctx, to, name, info, c)
+		})
+	}
+	if c.By != "artisan" && b.Artisan.User.Email != "" {
+		to, name := b.Artisan.User.Email, b.Artisan.User.Name
+		h.mailer.Go("booking_cancelled_artisan", func(ctx context.Context) error {
+			return h.mailer.BookingCancelledForArtisan(ctx, to, name, info, c)
+		})
+	}
+}
+
+func (h *BookingHandler) closeBooking(c *gin.Context, finish func(ctx context.Context, id, actor string, admin bool) (*domain.Booking, error), done string) {
+	b, err := finish(c.Request.Context(), c.Param("id"), c.GetString("userID"), c.GetString("userRole") == "admin")
+	switch {
+	case errors.Is(err, ErrBookingNotFound):
+		response.NotFound(c, "Booking not found")
+		return
+	case errors.Is(err, ErrNotConfirmed):
+		response.Conflict(c, "Only a confirmed booking can be marked "+done+".")
+		return
+	case errors.Is(err, ErrNotStartedYet):
+		response.Conflict(c, "You can do this once the appointment time has passed.")
+		return
+	case err != nil:
+		h.logger.Error("close booking failed", slog.Any("error", err))
+		response.InternalError(c, "We couldn't update this booking. Please try again.")
+		return
+	}
+	response.OK(c, gin.H{"booking": b})
+}
+
+// CompleteBooking: the artisan marks a finished appointment as completed.
+func (h *BookingHandler) CompleteBooking(c *gin.Context) {
+	h.closeBooking(c, h.service.CompleteBooking, "completed")
+}
+
+// MarkNoShow: the artisan records that the client didn't turn up. It counts
+// against the client's record for 90 days.
+func (h *BookingHandler) MarkNoShow(c *gin.Context) {
+	h.closeBooking(c, h.service.MarkNoShow, "a no-show")
 }

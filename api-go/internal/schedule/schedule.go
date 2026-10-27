@@ -238,12 +238,24 @@ func required(start string, durationMins, slotMins int) ([]string, error) {
 	return out, nil
 }
 
+// StartAt is the moment an appointment on date at the "HH:MM" clock time
+// begins, in Lagos time.
+func StartAt(date time.Time, clockTime string) (time.Time, error) {
+	mins, err := parseClock(clockTime)
+	if err != nil {
+		return time.Time{}, err
+	}
+	return time.Date(date.Year(), date.Month(), date.Day(), mins/60, mins%60, 0, 0, lagos), nil
+}
+
+// Now is the current time; tests in this package replace it.
+func Now() time.Time { return now() }
+
 func startsInFuture(date time.Time, start string) bool {
-	mins, err := parseClock(start)
+	at, err := StartAt(date, start)
 	if err != nil {
 		return false
 	}
-	at := time.Date(date.Year(), date.Month(), date.Day(), mins/60, mins%60, 0, 0, lagos)
 	return at.After(now().Add(LeadTime))
 }
 

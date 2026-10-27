@@ -23,17 +23,24 @@ func newSecurityDB(t *testing.T, name string) (*gorm.DB, domain.OrderService) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := db.AutoMigrate(&domain.User{}, &domain.Wallet{}, &domain.Product{}, &domain.Order{}, &domain.OrderItem{}); err != nil {
+	if err := db.AutoMigrate(&domain.User{}, &domain.Wallet{}, &domain.Product{}, &domain.Order{}, &domain.OrderItem{}, &domain.Escrow{}, &domain.LedgerEntry{}); err != nil {
 		t.Fatal(err)
 	}
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	return db, NewOrderService(&mockOrderRepo{db: db}, &mockProductRepo{db: db}, db, logger)
 }
 
+// seedOrder creates an order of one product from one seller whose price equals
+// total, so its subtotal matches its items (an order with no items can't be held).
 func seedOrder(t *testing.T, db *gorm.DB, id, buyer, status string, total int64) {
 	t.Helper()
+	p := domain.Product{SellerID: "seller-x", Name: "Item " + id, Brand: "B", Price: total, Category: "Body", Stock: 5}
+	if err := db.Create(&p).Error; err != nil {
+		t.Fatal(err)
+	}
 	o := domain.Order{ID: id, BuyerID: buyer, Subtotal: total, Total: total, PaymentMethod: "card", PaymentStatus: status,
-		Address: "1 Road", City: "Lagos", State: "Lagos", Phone: "0800"}
+		Address: "1 Road", City: "Lagos", State: "Lagos", Phone: "0800",
+		Items: []domain.OrderItem{{ProductID: p.ID, Qty: 1, Price: total}}}
 	if err := db.Create(&o).Error; err != nil {
 		t.Fatal(err)
 	}
@@ -126,5 +133,65 @@ func TestGetOrder_OnlyBuyerOrAdmin(t *testing.T) {
 	}
 	if code := get("admin-1", "admin"); code != http.StatusOK {
 		t.Errorf("admin got %d", code)
+	}
+}
+
+func countRows(db *gorm.DB, model any, where string, args ...any) int64 {
+	var n int64
+	db.Model(model).Where(where, args...).Count(&n)
+	return n
+}
+
+func TestConfirmPayment_HoldsMoneyOnceFromGateway(t *testing.T) {
+	db, svc := newSecurityDB(t, "confirm_holds")
+	ctx := context.Background()
+	seedOrder(t, db, "LB-G", "buyer", "pending", 1500000)
+	db.Create(&domain.Wallet{UserID: "buyer", Balance: 777})
+
+	notice := domain.PaymentNotice{Provider: "paystack", Reference: "LB-G", Succeeded: true, Amount: 1500000, Currency: "NGN"}
+	if got, err := svc.ConfirmPayment(ctx, notice); err != nil || got != domain.PaymentMarkedPaid {
+		t.Fatalf("first notice: %s, %v", got, err)
+	}
+	if n := countRows(db, &domain.Escrow{}, "kind = ? AND reference = ? AND state = ? AND amount = ?", domain.EscrowKindOrder, "LB-G", domain.EscrowFunded, 1500000); n != 1 {
+		t.Fatalf("held escrows = %d, want 1", n)
+	}
+	// Card money never touches the wallet, and the ledger says it came from the gateway.
+	var w domain.Wallet
+	db.First(&w, "user_id = ?", "buyer")
+	if w.Balance != 777 {
+		t.Errorf("a card payment changed the wallet: %d", w.Balance)
+	}
+	if n := countRows(db, &domain.LedgerEntry{}, "type = ? AND from_account = ?", "fund", "gateway"); n != 1 {
+		t.Errorf("gateway ledger entries = %d, want 1", n)
+	}
+
+	// The provider retries: nothing more is held.
+	if got, _ := svc.ConfirmPayment(ctx, notice); got != domain.PaymentIgnored {
+		t.Errorf("duplicate notice: %s", got)
+	}
+	if n := countRows(db, &domain.Escrow{}, "reference = ?", "LB-G"); n != 1 {
+		t.Errorf("escrows after duplicate = %d, want 1", n)
+	}
+	if n := countRows(db, &domain.LedgerEntry{}, "1 = 1"); n != 1 {
+		t.Errorf("ledger entries after duplicate = %d, want 1", n)
+	}
+}
+
+func TestConfirmPayment_FailedHoldLeavesOrderUnpaid(t *testing.T) {
+	db, svc := newSecurityDB(t, "confirm_hold_fails")
+	ctx := context.Background()
+	seedOrder(t, db, "LB-X", "buyer", "pending", 900000)
+	// A product with no seller can't be paid out, so the money can't be held.
+	db.Model(&domain.Product{}).Where("1 = 1").Update("seller_id", "")
+
+	got, err := svc.ConfirmPayment(ctx, domain.PaymentNotice{Reference: "LB-X", Succeeded: true, Amount: 900000, Currency: "NGN"})
+	if err == nil {
+		t.Fatalf("confirm succeeded (%s) though the money could not be held", got)
+	}
+	if s := paymentStatus(db, "LB-X"); s != "pending" {
+		t.Errorf("order is %q after a failed hold, want pending so the provider's retry can complete it", s)
+	}
+	if n := countRows(db, &domain.Escrow{}, "reference = ?", "LB-X"); n != 0 {
+		t.Errorf("%d escrows left behind", n)
 	}
 }

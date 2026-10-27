@@ -4,20 +4,20 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { BadgeCheck } from "lucide-react";
-import { Figures, PageHeader, Panel, RecordList, RecordRow, StatusPill, Tabs } from "@/components/dashboard/widgets";
+import { Figures, PageHeader, Panel, RecordList, Tabs } from "@/components/dashboard/widgets";
+import { BookingRow } from "@/components/dashboard/booking-row";
 import { IdentityPanel } from "@/components/dashboard/identity";
 import { ServicesEditor } from "@/components/dashboard/services-editor";
 import { AvailabilityEditor } from "@/components/dashboard/availability-editor";
 import { PendingApproval } from "@/components/dashboard/pending-approval";
 import { Avatar, visitLabel } from "@/components/site/catalog";
-import { EmptyState, FieldError, LoadError } from "@/components/site/states";
+import { EmptyState, LoadError } from "@/components/site/states";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/store";
-import { useConfirmBooking, useMyArtisanProfile, useMyBookings, useWallet } from "@/lib/queries";
-import { type MyBooking } from "@/lib/api";
-import { formatNaira } from "@/lib/format";
-import { getFriendlyErrorMessage } from "@/lib/errors";
+import { useMyArtisanProfile, useMyBookings, useWallet } from "@/lib/queries";
+import { bookingStart, formatNaira } from "@/lib/format";
+import { useNow } from "@/lib/use-now";
 
 type Tab = "bookings" | "services" | "availability" | "verification";
 
@@ -31,9 +31,8 @@ export default function ArtisanDashboard() {
   const profile = useMyArtisanProfile(enabled);
   const bookings = useMyBookings(enabled);
   const wallet = useWallet(enabled);
-  const confirm = useConfirmBooking();
+  const now = useNow();
   const [tab, setTab] = useState<Tab>("bookings");
-  const [error, setError] = useState("");
 
   /* Non-artisans are sent to onboarding. */
   useEffect(() => {
@@ -55,24 +54,10 @@ export default function ArtisanDashboard() {
   const artisan = profile.data;
   const list = bookings.data ?? [];
   const pending = list.filter(b => b.status === "pending");
-  const today = new Date().toISOString().slice(0, 10);
-  const upcoming = list.filter(b => b.status !== "pending" && b.date >= today);
-  const past = list.filter(b => b.status !== "pending" && b.date < today);
-
-  const confirmBooking = (id: string) => {
-    setError("");
-    confirm.mutate(id, { onError: err => setError(getFriendlyErrorMessage(err, "We couldn't confirm this booking.")) });
-  };
-
-  const bookingRow = (b: MyBooking, withConfirm = false) => (
-    <RecordRow
-      key={b.id}
-      title={`${b.service}${b.client ? ` · ${b.client}` : ""}`}
-      meta={`${b.date} at ${b.time} · ${b.serviceType === "home" ? `Home visit: ${b.address || "address pending"}` : "At the studio"} · ${b.id}`}
-      status={withConfirm ? undefined : <StatusPill status={b.status} />}
-      actions={withConfirm ? <Button size="sm" onClick={() => confirmBooking(b.id)} disabled={confirm.isPending}>Confirm</Button> : undefined}
-    />
-  );
+  // Confirmed appointments whose time has passed still need marking done or no-show.
+  const toClose = list.filter(b => b.status === "confirmed" && bookingStart(b.date, b.time).getTime() <= now);
+  const upcoming = list.filter(b => b.status === "confirmed" && bookingStart(b.date, b.time).getTime() > now);
+  const past = list.filter(b => !pending.includes(b) && !toClose.includes(b) && !upcoming.includes(b));
 
   return (
     <div className="space-y-5">
@@ -131,12 +116,16 @@ export default function ArtisanDashboard() {
             <>
               {pending.length > 0 && (
                 <Panel title="Waiting for you to confirm">
-                  <RecordList>{pending.map(b => bookingRow(b, true))}</RecordList>
-                  <FieldError>{error}</FieldError>
+                  <RecordList>{pending.map(b => <BookingRow key={b.id} booking={b} viewer="artisan" />)}</RecordList>
                 </Panel>
               )}
-              {upcoming.length > 0 && <Panel title="Upcoming"><RecordList>{upcoming.map(b => bookingRow(b))}</RecordList></Panel>}
-              {past.length > 0 && <Panel title="Past"><RecordList>{past.map(b => bookingRow(b))}</RecordList></Panel>}
+              {toClose.length > 0 && (
+                <Panel title="Mark as done">
+                  <RecordList>{toClose.map(b => <BookingRow key={b.id} booking={b} viewer="artisan" />)}</RecordList>
+                </Panel>
+              )}
+              {upcoming.length > 0 && <Panel title="Upcoming"><RecordList>{upcoming.map(b => <BookingRow key={b.id} booking={b} viewer="artisan" />)}</RecordList></Panel>}
+              {past.length > 0 && <Panel title="Past"><RecordList>{past.map(b => <BookingRow key={b.id} booking={b} viewer="artisan" />)}</RecordList></Panel>}
             </>
           )}
         </div>

@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { useAddSlot, useMySchedule, useMySlots, useRemoveSlot, useSaveSchedule } from "@/lib/queries";
 import { type DayHours, type Slot } from "@/lib/api";
 import { getFriendlyErrorMessage } from "@/lib/errors";
+import { lagosToday } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 /* Week starts Monday for display; values follow the API (0 = Sunday). */
@@ -24,15 +25,18 @@ const WEEK = [
   { day: 0, label: "Sunday" },
 ];
 const SLOT_LENGTHS = [15, 30, 45, 60, 90, 120];
+/* Notice choices mirror api-go domain.CancelWindowChoices. */
+const NOTICE_CHOICES: [number, string][] = [
+  [0, "Free to cancel any time"],
+  [12, "12 hours"],
+  [24, "24 hours"],
+  [48, "48 hours"],
+  [72, "72 hours"],
+];
 const CLOCK = Array.from({ length: 38 }, (_, i) => {
   const mins = 5 * 60 + i * 30; // 05:00 to 23:30
   return `${String(Math.floor(mins / 60)).padStart(2, "0")}:${String(mins % 60).padStart(2, "0")}`;
 });
-
-/* Bookings run on Lagos time whatever the artisan's device says. */
-function lagosToday() {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Lagos" }).format(new Date());
-}
 
 const dateFmt = new Intl.DateTimeFormat("en-NG", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
 const formatDate = (iso: string) => dateFmt.format(new Date(`${iso.slice(0, 10)}T00:00:00Z`));
@@ -51,10 +55,11 @@ function toWeek(hours: DayHours[]): Week {
   return w;
 }
 
-function HoursForm({ initial }: { initial: { weeklyHours: DayHours[]; slotMinutes: number; daysOff: string[] } }) {
+function HoursForm({ initial }: { initial: { weeklyHours: DayHours[]; slotMinutes: number; daysOff: string[]; cancelWindowHours: number } }) {
   const [week, setWeek] = useState<Week>(() => toWeek(initial.weeklyHours));
   const [slotMinutes, setSlotMinutes] = useState(initial.slotMinutes);
   const [daysOff, setDaysOff] = useState<string[]>(initial.daysOff);
+  const [notice, setNotice] = useState(initial.cancelWindowHours);
   const [newOff, setNewOff] = useState("");
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
@@ -74,7 +79,7 @@ function HoursForm({ initial }: { initial: { weeklyHours: DayHours[]; slotMinute
     setError("");
     const hours: DayHours[] = open.map(({ day }) => ({ weekday: day, start: week[day].start, end: week[day].end }));
     save.mutate(
-      { weeklyHours: hours, slotMinutes, daysOff },
+      { weeklyHours: hours, slotMinutes, daysOff, cancelWindowHours: notice },
       { onSuccess: () => setSaved(true), onError: err => setError(getFriendlyErrorMessage(err, "We couldn't save your hours.")) },
     );
   };
@@ -142,6 +147,16 @@ function HoursForm({ initial }: { initial: { weeklyHours: DayHours[]; slotMinute
             </ul>
           )}
         </div>
+      </div>
+
+      <div className="mt-5 max-w-sm">
+        <Label htmlFor="cancel-notice">Notice for free cancellation</Label>
+        <select id="cancel-notice" value={notice} onChange={e => { setSaved(false); setNotice(Number(e.target.value)); }} className="lb-input mt-1.5 h-11 w-full">
+          {NOTICE_CHOICES.map(([h, label]) => <option key={h} value={h}>{label}</option>)}
+        </select>
+        <p className="mt-1.5 text-[12px] tracking-[-0.017em] text-muted">
+          Clients see this before they book. If they cancel a confirmed booking later than this it is marked as a late cancellation on their record, which you can see. Most salons use 24 to 48 hours. Nothing is charged online.
+        </p>
       </div>
 
       <div className="mt-5 flex flex-wrap items-center gap-3">

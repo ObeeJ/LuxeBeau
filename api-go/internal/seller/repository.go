@@ -93,8 +93,22 @@ func (r *gormRepository) ListSales(ctx context.Context, sellerID string) ([]doma
 		Find(&orders).Error; err != nil {
 		return nil, err
 	}
+	var holds []domain.Escrow
+	if err := r.db.WithContext(ctx).
+		Where("kind = ? AND payee_id = ? AND reference IN ?", domain.EscrowKindOrder, sellerID, ids).
+		Find(&holds).Error; err != nil {
+		return nil, err
+	}
+	holdsByOrder := make(map[string][]domain.OrderHold, len(holds))
+	for _, h := range holds {
+		_, net := h.Fee()
+		holdsByOrder[h.Reference] = append(holdsByOrder[h.Reference], domain.OrderHold{
+			ID: h.ID, State: h.State, Amount: h.Amount, Net: net, ReleaseEligibleAt: h.ReleaseEligibleAt,
+		})
+	}
 	for i := range orders {
 		o := &orders[i]
+		o.Holds = holdsByOrder[o.ID]
 		// Other sellers' share of the order is not this seller's business.
 		var sub int64
 		for _, it := range o.Items {
@@ -113,8 +127,9 @@ type Fulfilment struct {
 	Order     domain.Order
 	Items     []string
 	Stage     string
-	Advanced  bool // at least one item moved to Stage
-	Notify    bool // Stage is shipped or delivered and something advanced
+	ReleaseBy *time.Time // when this seller's payment releases if the buyer does nothing (delivered only)
+	Advanced  bool       // at least one item moved to Stage
+	Notify    bool       // Stage is shipped or delivered and something advanced
 	BuyerName string
 	BuyerMail string
 }
@@ -185,6 +200,22 @@ func (r *gormRepository) Fulfil(ctx context.Context, sellerID, orderID, stage, n
 				}
 			}
 			out.Items = append(out.Items, it.Product.Name)
+		}
+
+		// Delivered starts the buyer's confirmation window on this seller's
+		// escrow. Marking delivered again never extends it.
+		if stage == "delivered" {
+			releaseBy := at.Add(domain.OrderReleaseWindow)
+			res := tx.Model(&domain.Escrow{}).
+				Where("kind = ? AND reference = ? AND payee_id = ? AND state = ? AND release_eligible_at IS NULL",
+					domain.EscrowKindOrder, orderID, sellerID, domain.EscrowFunded).
+				Update("release_eligible_at", releaseBy)
+			if res.Error != nil {
+				return res.Error
+			}
+			if res.RowsAffected > 0 {
+				out.ReleaseBy = &releaseBy
+			}
 		}
 
 		// The order as a whole is only as far along as its slowest item.
