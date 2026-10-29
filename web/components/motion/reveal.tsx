@@ -2,9 +2,10 @@
 
 import { motion, type Variants } from "framer-motion";
 import type { ReactNode } from "react";
+import { EASE as MOTION_EASE } from "@/lib/motion";
 
 /* Shared easing so every entrance across the app feels like one hand drew it. */
-const EASE = [0.22, 1, 0.36, 1] as const;
+const EASE = MOTION_EASE.out;
 
 export const fadeUp: Variants = {
   hidden: { opacity: 0, y: 24 },
