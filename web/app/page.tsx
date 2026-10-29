@@ -20,6 +20,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Cascade } from "@/components/motion/cascade";
 import { useArtisans, useProducts } from "@/lib/queries";
 import { categoryTint } from "@/lib/category-tint";
+import { brandSlug } from "@/lib/slug";
 import { ARTISAN_COVER } from "@/lib/photos";
 import { type Product } from "@/lib/api";
 import { useCart } from "@/lib/cart";
@@ -180,7 +181,7 @@ export default function Home() {
                     logoUrl={s.logoUrl}
                     coverUrl={s.coverUrl}
                     products={s.products}
-                    href={`/shop?q=${encodeURIComponent(s.name)}`}
+                    href={`/store/${brandSlug(s.name)}`}
                   />
                 </Cascade>
                 </div>

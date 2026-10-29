@@ -45,8 +45,8 @@ function ServicesContent() {
         <SearchBar key={q} defaultValue={searchParams.get("q") ?? ""} action="/services" placeholder="Braids, gele, makeup, nails…" />
       </div>
 
-      <div className="mt-5 grid gap-4 lg:grid-cols-[auto_1fr] lg:items-start lg:gap-8">
-        <FilterGroup label="Where">
+      <div className="mt-5 flex flex-wrap items-start gap-x-8 gap-y-4">
+        <FilterGroup label="Where" className="max-w-full">
           <Segmented<Visit>
             value={visit}
             onChange={setVisit}
@@ -57,7 +57,7 @@ function ServicesContent() {
             ]}
           />
         </FilterGroup>
-        <FilterGroup label="City">
+        <FilterGroup label="City" className="max-w-full">
           <ChipRow<string>
             value={city}
             onChange={setCity}
