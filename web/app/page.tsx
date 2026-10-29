@@ -70,9 +70,14 @@ export default function Home() {
       if (!map.has(p.brand)) map.set(p.brand, []);
       map.get(p.brand)!.push(p);
     }
-    return [...map.entries()].slice(0, 3).map(([brand, prods]) => ({
+    // Ranked by total reviews across the brand's products, a real signal.
+    const reviews = (prods: Product[]) => prods.reduce((sum, p) => sum + p.reviews, 0);
+    return [...map.entries()]
+      .sort((a, b) => reviews(b[1]) - reviews(a[1]))
+      .slice(0, 3)
+      .map(([brand, prods]) => ({
       name: brand,
-      subtitle: `${prods[0].category} · Verified seller`,
+      subtitle: `${prods[0].category} · ${prods.length} ${prods.length === 1 ? "product" : "products"}`,
       logoUrl: prods[0].imageUrl,
       coverUrl: prods[0].imageUrl,
       products: prods,
@@ -163,8 +168,8 @@ export default function Home() {
         </section>
 
         {stores.length > 0 && (
-          <section aria-label="Trending stores">
-            <SectionHeader title="Trending stores" href="/shop" />
+          <section aria-label="Popular stores">
+            <SectionHeader title="Popular stores" href="/shop" />
             <div className="no-scrollbar -mx-4 flex snap-x snap-mandatory gap-3.5 overflow-x-auto px-4 pb-2 md:mx-0 md:grid md:grid-cols-3 md:overflow-visible md:px-0 md:pb-0">
               {stores.map((s, idx) => (
                 <div key={s.name} className="w-[82%] shrink-0 snap-start md:w-auto">

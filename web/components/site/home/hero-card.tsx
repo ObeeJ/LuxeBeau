@@ -25,11 +25,11 @@ export function HeroCard() {
           Beauty is all about
           <RotatingWord
             words={["you", "her", "him", "us"]}
-            className="block w-full pr-[0.14em] text-center text-[1.28em] font-black italic leading-[1.02] tracking-[-0.06em] text-[#d9c2ff]"
+            className="block w-full pr-[0.14em] text-center font-extrabold italic leading-[1.02] tracking-[-0.05em] text-[#d9c2ff]"
           />
         </h1>
         <p className="mt-4 max-w-[520px] text-[16px] leading-snug tracking-[-0.02em] text-surface/90 sm:text-[17px]">
-          All the brands you love, for her, him and everyone. Verified sellers. Your money held safe till it arrives.
+          Shop beauty for her, him and everyone, or book an artisan, with every payment held in escrow until you confirm.
         </p>
         <div className="mt-6 flex flex-wrap items-center justify-center gap-2.5">
           <Link

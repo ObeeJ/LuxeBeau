@@ -3,7 +3,9 @@
 import { Suspense, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import SiteShell, { Container } from "@/components/site/shell";
-import { ArtisanCard, CategoryPill, SearchBar } from "@/components/site/catalog";
+import { ArtisanCard, SearchBar } from "@/components/site/catalog";
+import { ChipRow, FilterGroup, Segmented } from "@/components/site/filters";
+import { Home, LayoutGrid, MapPin, Store } from "@/components/icons";
 import { EmptyState, LoadError } from "@/components/site/states";
 import { PageHeader } from "@/components/dashboard/widgets";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -43,17 +45,25 @@ function ServicesContent() {
         <SearchBar key={q} defaultValue={searchParams.get("q") ?? ""} action="/services" placeholder="Braids, gele, makeup, nails…" />
       </div>
 
-      <div className="no-scrollbar -mx-4 mt-4 flex gap-2 overflow-x-auto px-4 pb-2 sm:mx-0 sm:flex-wrap sm:px-0">
-        <div role="group" aria-label="Where" className="flex gap-2">
-          <CategoryPill label="Anywhere" active={visit === "any"} onClick={() => setVisit("any")} />
-          <CategoryPill label="Comes to me" active={visit === "home"} onClick={() => setVisit("home")} />
-          <CategoryPill label="In studio" active={visit === "studio"} onClick={() => setVisit("studio")} />
-        </div>
-        <span className="mx-1 hidden w-px self-stretch bg-hairline sm:block" aria-hidden />
-        <div role="group" aria-label="City" className="flex gap-2">
-          <CategoryPill label="All cities" active={!city} onClick={() => setCity("")} />
-          {cities.map(c => <CategoryPill key={c} label={c} active={city === c} onClick={() => setCity(c)} />)}
-        </div>
+      <div className="mt-5 grid gap-4 lg:grid-cols-[auto_1fr] lg:items-start lg:gap-8">
+        <FilterGroup label="Where">
+          <Segmented<Visit>
+            value={visit}
+            onChange={setVisit}
+            options={[
+              { value: "any", label: "Anywhere", icon: LayoutGrid },
+              { value: "home", label: "Comes to me", icon: Home },
+              { value: "studio", label: "In studio", icon: Store },
+            ]}
+          />
+        </FilterGroup>
+        <FilterGroup label="City">
+          <ChipRow<string>
+            value={city}
+            onChange={setCity}
+            options={[{ value: "", label: "All cities" }, ...cities.map(c => ({ value: c, label: c, icon: MapPin }))]}
+          />
+        </FilterGroup>
       </div>
 
       <div className="mt-6">

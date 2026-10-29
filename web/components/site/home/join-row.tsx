@@ -11,7 +11,7 @@ const CARDS = [
     href: "/partnership/seller",
     icon: ShoppingBag,
     photo: "/images/photos/hair-products.webp",
-    shade: "from-brand-deep/95 via-brand/60 to-brand/25",
+    shade: "from-brand-deep/85 via-brand/35 to-transparent",
     title: "Sell on LuxeBeau",
     text: "Open a shop in minutes. Paid as soon as buyers confirm delivery.",
     cta: "Start selling",
@@ -20,7 +20,7 @@ const CARDS = [
     href: "/partnership/artisan",
     icon: CalendarDays,
     photo: "/images/photos/braids-box.webp",
-    shade: "from-ink/90 via-ink/50 to-ink/15",
+    shade: "from-ink/85 via-ink/30 to-transparent",
     title: "Fill your calendar",
     text: "Braiders, barbers, MUAs: guaranteed appointments with protected deposits.",
     cta: "Join as an artisan",
@@ -29,7 +29,7 @@ const CARDS = [
     href: "/partnership/seller#brands",
     icon: BadgeCheck,
     photo: "/images/photos/fragrance-black-iris.webp",
-    shade: "from-[#4b1466]/95 via-brand-deep/55 to-transparent",
+    shade: "from-[#4b1466]/85 via-brand-deep/30 to-transparent",
     title: "Brand partnerships",
     text: "Launches and creator campaigns with a community that proudly reps you.",
     cta: "Partner with us",
@@ -37,7 +37,8 @@ const CARDS = [
 ];
 
 /* Sell, fill a calendar, partner: three photo cards, each with its own duotone
-   icon, a tinted overlay for readable text, and an arrow that lifts on hover. */
+   icon, a large see-through copy of it on one side, a light tinted overlay for
+   readable text, and an arrow that lifts on hover. */
 export function JoinRow() {
   return (
     <div className="grid grid-cols-1 gap-3.5 md:grid-cols-3">
@@ -46,6 +47,7 @@ export function JoinRow() {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={photo} alt="" loading="lazy" decoding="async" className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
           <div className={`absolute inset-0 bg-gradient-to-t ${shade}`} />
+          <Icon aria-hidden className="pointer-events-none absolute -bottom-10 -right-8 h-52 w-52 text-surface opacity-30 [--lb-icon-2:#fff]" />
           <div className="relative flex items-start justify-between">
             <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-surface/20 backdrop-blur-sm">
               <Icon className="h-6 w-6" aria-hidden />

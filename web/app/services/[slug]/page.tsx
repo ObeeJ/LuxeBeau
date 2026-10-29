@@ -3,9 +3,10 @@
 import { use, useMemo, useState } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { BadgeCheck, CheckCircle2, ChevronLeft, Loader2, MapPin } from "@/components/icons";
+import { BadgeCheck, CalendarDays, CheckCircle2, ChevronLeft, Home, Loader2, MapPin, Star, Store } from "@/components/icons";
 import SiteShell, { Container } from "@/components/site/shell";
-import { Avatar, Rating, visitLabel } from "@/components/site/catalog";
+import { visitLabel } from "@/components/site/catalog";
+import { Segmented } from "@/components/site/filters";
 import { FieldError, LoadError } from "@/components/site/states";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -219,7 +220,7 @@ export default function ArtisanPage({ params }: { params: Promise<{ slug: string
       </dl>
       <div className="mt-3 flex items-baseline justify-between">
         <span className="text-[14px] text-muted">Price</span>
-        <span className="text-[20px] tracking-[-0.05em]">{service ? formatNaira(service.priceNGN) : `From ${formatNaira(artisan.fromNGN)}`}</span>
+        <span className="text-[26px] font-extrabold tracking-[-0.05em] text-brand-deep">{service ? formatNaira(service.priceNGN) : `From ${formatNaira(artisan.fromNGN)}`}</span>
       </div>
     </>
   );
@@ -234,21 +235,30 @@ export default function ArtisanPage({ params }: { params: Promise<{ slug: string
 
         <div className="mt-4 grid gap-8 lg:grid-cols-[1.4fr_1fr] lg:gap-12">
           <div className="min-w-0">
-            {/* Profile */}
-            <div className="flex items-start gap-4">
-              <Avatar src={artisan.imageUrl} name={artisan.name} className="h-20 w-20 text-[52px] sm:h-24 sm:w-24 sm:text-[60px]" />
-              <div className="min-w-0">
-                <h1 className="t-display flex items-center gap-1.5">
+            {/* Profile: cover photo with the artisan's details over it */}
+            <div className={cn("relative overflow-hidden rounded-[32px] text-surface", !artisan.imageUrl && "bg-gradient-to-br from-brand-deep to-brand")}>
+              {artisan.imageUrl && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={artisan.imageUrl} alt="" decoding="async" className="absolute inset-0 h-full w-full object-cover object-[50%_30%]" />
+              )}
+              <div className="absolute inset-0 bg-gradient-to-t from-ink/90 via-ink/40 to-ink/5" />
+              <div className="relative flex min-h-[280px] flex-col justify-end p-5 sm:min-h-[340px] sm:p-7">
+                <h1 className="flex items-center gap-2 text-[32px] font-extrabold leading-[1.02] tracking-[-0.045em] sm:text-[44px]">
                   {artisan.name}
-                  {artisan.verified && <BadgeCheck className="h-4 w-4 shrink-0" aria-label="Verified" />}
+                  {artisan.verified && <BadgeCheck className="h-6 w-6 shrink-0 sm:h-7 sm:w-7" aria-label="Verified" />}
                 </h1>
-                <p className="text-[14px] tracking-[-0.014em] text-muted">{artisan.craft} · {artisan.studio}</p>
-                <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
-                  <Rating rating={artisan.rating} count={artisan.bookings} />
-                  <span className="inline-flex items-center gap-1 text-[12px] tracking-[-0.017em] text-muted">
-                    <MapPin className="h-3 w-3" aria-hidden /> {[artisan.area, artisan.city].filter(Boolean).join(", ")}
+                <p className="mt-1 text-[15px] tracking-[-0.014em] opacity-90">{artisan.craft} · {artisan.studio}</p>
+                <div className="mt-3.5 flex flex-wrap gap-2">
+                  {artisan.rating > 0 && (
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-surface/20 px-3 py-1.5 text-[13px] font-medium backdrop-blur-sm" aria-label={`Rated ${artisan.rating.toFixed(1)} out of 5`}>
+                      <Star className="h-3.5 w-3.5 fill-current" strokeWidth={0} aria-hidden /> {artisan.rating.toFixed(1)}
+                      {artisan.bookings > 0 && <span className="opacity-80">({artisan.bookings.toLocaleString("en-NG")})</span>}
+                    </span>
+                  )}
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-surface/20 px-3 py-1.5 text-[13px] font-medium backdrop-blur-sm">
+                    <MapPin className="h-3.5 w-3.5" aria-hidden /> {[artisan.area, artisan.city].filter(Boolean).join(", ")}
                   </span>
-                  <span className="text-[12px] tracking-[-0.017em] text-muted">{visitLabel(artisan.serviceMode)}</span>
+                  <span className="inline-flex items-center rounded-full bg-surface/20 px-3 py-1.5 text-[13px] font-medium backdrop-blur-sm">{visitLabel(artisan.serviceMode)}</span>
                 </div>
               </div>
             </div>
@@ -260,8 +270,8 @@ export default function ArtisanPage({ params }: { params: Promise<{ slug: string
               {artisan.services.length === 0 ? (
                 <p className="mt-2 text-[14px] text-muted">No services published yet.</p>
               ) : (
-                <div className="mt-3 overflow-hidden rounded-[20px] bg-surface shadow-card" role="radiogroup" aria-label="Service">
-                  {artisan.services.map((s, i) => {
+                <div className="mt-3 grid gap-2.5" role="radiogroup" aria-label="Service">
+                  {artisan.services.map(s => {
                     const selected = service?.name === s.name;
                     return (
                       <button
@@ -270,15 +280,15 @@ export default function ArtisanPage({ params }: { params: Promise<{ slug: string
                         role="radio"
                         aria-checked={selected}
                         onClick={() => pickService(s)}
-                        className={cn("flex w-full items-start gap-3 px-4 py-3.5 text-left transition-colors duration-150 hover:bg-canvas", i > 0 && "border-t border-hairline")}
+                        className={cn("flex w-full items-start gap-3 rounded-[22px] px-4 py-3.5 text-left shadow-pill transition-all duration-200", selected ? "bg-brand-wash ring-2 ring-brand" : "bg-surface ring-1 ring-hairline hover:ring-brand/40")}
                       >
-                        <span className={cn("mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border", selected ? "border-ink" : "border-stone")} aria-hidden>
-                          {selected && <span className="h-2.5 w-2.5 rounded-full bg-ink" />}
+                        <span className={cn("mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border", selected ? "border-brand" : "border-stone")} aria-hidden>
+                          {selected && <span className="h-2.5 w-2.5 rounded-full bg-brand" />}
                         </span>
                         <span className="min-w-0 flex-1">
                           <span className="flex items-baseline justify-between gap-3">
-                            <span className="text-[16px] tracking-[-0.031em]">{s.name}</span>
-                            <span className="shrink-0 text-[14px] tracking-[-0.014em]">{formatNaira(s.priceNGN)}</span>
+                            <span className="text-[16px] font-semibold tracking-[-0.03em]">{s.name}</span>
+                            <span className="shrink-0 text-[15px] font-bold tracking-[-0.02em] text-brand-deep">{formatNaira(s.priceNGN)}</span>
                           </span>
                           <span className="mt-0.5 block text-[14px] tracking-[-0.014em] text-muted">
                             {[duration(s.durationMins), s.description].filter(Boolean).join(" · ")}
@@ -295,9 +305,15 @@ export default function ArtisanPage({ params }: { params: Promise<{ slug: string
             <section className="mt-8" aria-label="Where">
               <h2 className="t-sub">Where</h2>
               {offersStudio && offersHome ? (
-                <div className="mt-3 flex flex-wrap gap-2" role="radiogroup" aria-label="Where">
-                  <Chip selected={chosenVisit === "studio"} onClick={() => setVisit("studio")} className="h-10">At the studio</Chip>
-                  <Chip selected={chosenVisit === "home"} onClick={() => setVisit("home")} className="h-10">At my place</Chip>
+                <div className="mt-3">
+                  <Segmented<"studio" | "home">
+                    value={(chosenVisit ?? "") as "studio" | "home"}
+                    onChange={setVisit}
+                    options={[
+                      { value: "studio", label: "At the studio", icon: Store },
+                      { value: "home", label: "At my place", icon: Home },
+                    ]}
+                  />
                 </div>
               ) : (
                 <p className="mt-2 text-[14px] tracking-[-0.014em] text-muted">
@@ -373,8 +389,11 @@ export default function ArtisanPage({ params }: { params: Promise<{ slug: string
           </div>
 
           {/* Desktop summary */}
-          <aside className="hidden h-fit rounded-[28px] bg-surface p-6 shadow-card lg:sticky lg:top-8 lg:block" aria-label="Booking summary">
-            <h2 className="t-display mb-3">Your booking</h2>
+          <aside className="hidden h-fit rounded-[32px] bg-surface p-6 shadow-float ring-1 ring-brand/10 lg:sticky lg:top-8 lg:block" aria-label="Booking summary">
+            <h2 className="t-display mb-3 flex items-center gap-2.5">
+              <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-brand-wash text-brand"><CalendarDays className="h-5 w-5" aria-hidden /></span>
+              Your booking
+            </h2>
             {summary}
             <Button onClick={request} disabled={!ready || createBooking.isPending} size="lg" className="mt-5 w-full">
               {createBooking.isPending && <Loader2 className="animate-spin" aria-hidden />}

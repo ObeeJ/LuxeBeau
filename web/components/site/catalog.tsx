@@ -325,7 +325,7 @@ export function StoreCard({
         <div className="absolute bottom-3 left-4 right-4 flex items-center gap-3 text-surface">
           <Avatar src={logoUrl} name={name} className="h-10 w-10 ring-2 ring-surface" />
           <div className="min-w-0">
-            <h4 className="truncate text-[16px] font-bold leading-tight">{name} ✓</h4>
+            <h4 className="truncate text-[16px] font-bold leading-tight">{name}</h4>
             <p className="truncate text-[12px] opacity-85">{subtitle}</p>
           </div>
         </div>

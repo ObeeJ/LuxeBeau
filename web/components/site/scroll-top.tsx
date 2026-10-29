@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { usePrefersReducedMotion } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
@@ -12,6 +13,8 @@ const CIRC = 2 * Math.PI * R;
    while the page glides to the top. Appears after 400px of scrolling. */
 export function ScrollTop() {
   const reduced = usePrefersReducedMotion();
+  // The artisan booking page has its own sticky bar on phones; sit above it.
+  const hasStickyBar = /^\/services\/[^/]+/.test(usePathname() ?? "");
   const [progress, setProgress] = useState(0);
   const [visible, setVisible] = useState(false);
   const [launching, setLaunching] = useState(false);
@@ -52,7 +55,8 @@ export function ScrollTop() {
       aria-label="Back to top"
       tabIndex={visible ? 0 : -1}
       className={cn(
-        "group fixed bottom-[88px] right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-surface shadow-float transition-[opacity,transform] duration-300 ease-[cubic-bezier(.34,1.56,.64,1)] hover:-translate-y-1 active:scale-90 md:bottom-8 md:right-8",
+        "group fixed right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-surface shadow-float transition-[opacity,transform] duration-300 ease-[cubic-bezier(.34,1.56,.64,1)] hover:-translate-y-1 active:scale-90 md:bottom-8 md:right-8",
+        hasStickyBar ? "bottom-[156px]" : "bottom-[88px]",
         visible ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-6 opacity-0",
       )}
     >
