@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 export function FilterGroup({ label, children, className }: { label: string; children: React.ReactNode; className?: string }) {
   return (
     <div role="group" aria-label={label} className={cn("min-w-0", className)}>
-      <p className="mb-1.5 px-1 text-[11px] font-bold uppercase tracking-[0.08em] text-muted">{label}</p>
+      <p className="mb-1.5 px-1 text-center text-[11px] font-bold uppercase tracking-[0.08em] text-muted max-sm:text-left">{label}</p>
       {children}
     </div>
   );
@@ -29,7 +29,7 @@ export function Segmented<T extends string>({
   onChange: (v: T) => void;
 }) {
   return (
-    <div className="no-scrollbar flex max-w-full overflow-x-auto rounded-full bg-surface p-1 shadow-soft">
+    <div className="no-scrollbar mx-auto flex w-fit max-w-full overflow-x-auto rounded-full bg-surface p-1 shadow-soft max-sm:mx-0">
       {options.map(({ value: v, label, icon: Icon }) => {
         const on = v === value;
         return (
@@ -63,7 +63,7 @@ export function ChipRow<T extends string>({
   onChange: (v: T) => void;
 }) {
   return (
-    <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0">
+    <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:justify-center sm:px-0">
       {options.map(({ value: v, label, icon: Icon }) => {
         const on = v === value;
         return (

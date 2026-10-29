@@ -72,7 +72,7 @@ export default function SiteFooter() {
       </div>
 
       <div className="mx-auto flex max-w-[1200px] flex-col items-center justify-between gap-4 px-4 pb-6 text-[12px] text-muted sm:flex-row sm:px-6 lg:px-8">
-        <span>Curated for her, him and everyone across Nigeria.</span>
+        <span>Curated for her, him and everyone.</span>
         <span>Payments held in escrow until delivery</span>
       </div>
 

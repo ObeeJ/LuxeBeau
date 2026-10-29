@@ -1,5 +1,7 @@
 "use client";
 
+import { Dropdown } from "@/components/site/dropdown";
+import { ArrowUpDown } from "@/components/icons";
 import { Suspense, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import SiteShell, { Container } from "@/components/site/shell";
@@ -76,19 +78,20 @@ function ShopContent() {
           className="md:max-w-[480px]"
         />
 
-        <label className="flex items-center gap-2 md:ml-auto">
-          <span className="t-meta shrink-0 text-muted">Sort</span>
-          <select
+        <div className="md:ml-auto">
+          <Dropdown<Sort>
+            label="Sort"
+            icon={ArrowUpDown}
             value={sort}
-            onChange={(e) => setSort(e.target.value as Sort)}
-            className="lb-input h-11 md:w-52"
-          >
-            <option value="featured">Featured</option>
-            <option value="rating">Top rated</option>
-            <option value="price-asc">Price: low to high</option>
-            <option value="price-desc">Price: high to low</option>
-          </select>
-        </label>
+            onChange={setSort}
+            options={[
+              { value: "featured", label: "Featured" },
+              { value: "rating", label: "Top rated" },
+              { value: "price-asc", label: "Price: low to high" },
+              { value: "price-desc", label: "Price: high to low" },
+            ]}
+          />
+        </div>
       </div>
 
       {/* Audience selector: Her / Him / Everyone */}

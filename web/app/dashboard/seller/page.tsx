@@ -1,5 +1,7 @@
 "use client";
 
+import { BusinessProfile } from "@/components/dashboard/business-profile";
+import { brandSlug } from "@/lib/slug";
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Plus, X } from "@/components/icons";
@@ -29,7 +31,7 @@ import { getFriendlyErrorMessage } from "@/lib/errors";
 const CATEGORIES = ["Skincare", "Haircare", "Makeup", "Fragrance", "Body"] as const;
 
 type Editing = { mode: "new" } | { mode: "edit"; product: ApiProduct } | null;
-type Tab = "products" | "orders" | "verification";
+type Tab = "products" | "orders" | "profile" | "verification";
 
 export default function SellerDashboard() {
   const user = useAuth(s => s.user);
@@ -111,9 +113,24 @@ export default function SellerDashboard() {
         tabs={[
           { id: "products", label: "Products", count: products.length },
           { id: "orders", label: "Orders", count: sales.length },
+          { id: "profile", label: "Profile" },
           { id: "verification", label: "Verification" },
         ]}
       />
+
+      {tab === "profile" && (
+        <BusinessProfile
+          user={user}
+          title={products[0]?.brand || user.name}
+          publicHref={products[0] ? `/store/${brandSlug(products[0].brand)}` : undefined}
+          editHref="/partnership/seller"
+          stats={[
+            { label: "Products", value: String(products.length) },
+            { label: "Orders", value: String(sales.length) },
+            { label: "Units in stock", value: unitsInStock.toLocaleString("en-NG") },
+          ]}
+        />
+      )}
 
       {tab === "products" && (
         <Panel aria-label="Products">

@@ -45,7 +45,7 @@ function ServicesContent() {
         <SearchBar key={q} defaultValue={searchParams.get("q") ?? ""} action="/services" placeholder="Braids, gele, makeup, nails…" />
       </div>
 
-      <div className="mt-5 flex flex-wrap items-start gap-x-8 gap-y-4">
+      <div className="mt-5 flex flex-wrap items-start justify-center gap-x-8 gap-y-4">
         <FilterGroup label="Where" className="max-w-full">
           <Segmented<Visit>
             value={visit}
