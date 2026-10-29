@@ -1,28 +1,32 @@
 @import "tailwindcss";
 
 /* ───────────────────────────────────────────────
-   LuxeBeau, "Floating constellation on white marble"
-   Light, achromatic UI with one violet accent. Products carry the colour;
-   the interface stays white, ink and hairline grey.
+   LuxeBeau design system
+   Light UI with one brand purple. Products carry the colour; the interface
+   stays white, ink and hairline grey, with a fine global grain.
+   Spec: docs/superpowers/specs/2026-10-29-design-system-redesign-design.md
    ─────────────────────────────────────────────── */
 
 :root {
   /* Colors */
-  --color-canvas-mist: #f2f4f5;
+  --color-canvas-mist: #fafafa;
   --color-pure-white: #ffffff;
   --color-ink-black: #000000;
   --color-faint-border: #ebebeb;
-  --color-muted-gray: #787574;
+  --color-muted-gray: #6b6b6b;
   --color-cool-stone: #cccccc;
   --color-warm-fog: #acb0aa;
-  --color-shop-violet: #5433eb;
-  --color-violet-wash: #c0b5f3;
+  /* Brand purple (the old blue-violet is retired) */
+  --color-brand-purple: #8a1fc7;
+  --color-brand-purple-deep: #6f16a3;
+  --color-brand-purple-wash: #f3e6fb;
+  --glow: rgba(138, 31, 199, 0.38);
   --color-slate-ink: #332f2d;
   --color-ash-veil: #665a54;
 
-  /* Typography, font families (Inter substitutes GT Standard / Shopify Sans) */
-  --font-gt-standard: var(--font-inter), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --font-shopify-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  /* Typography, font families (Geist everywhere) */
+  --font-gt-standard: var(--font-geist), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-shopify-sans: var(--font-geist), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 
   /* Typography, scale */
   --text-caption: 11px;
@@ -63,7 +67,8 @@
   --shadow-sm: rgba(0, 0, 0, 0.06) 0px 2px 8px 0px;
   --shadow-sm-2: rgba(0, 0, 0, 0.1) 0px 4px 6px -1px, rgba(0, 0, 0, 0.1) 0px 2px 4px -2px;
   --shadow-lg: rgba(0, 0, 0, 0.12) 0px 4px 24px 0px;
-  --shadow-lg-2: rgba(69, 36, 219, 0.34) 0px 4px 24px 0px;
+  --shadow-lg-2: var(--glow) 0px 8px 24px -6px;
+  --shadow-soft-base: rgba(0, 0, 0, 0.06) 0px 4px 24px 0px;
 }
 
 @theme inline {
@@ -74,8 +79,12 @@
   --color-muted: var(--color-muted-gray);
   --color-stone: var(--color-cool-stone);
   --color-fog: var(--color-warm-fog);
-  --color-violet: var(--color-shop-violet);
-  --color-violet-wash: var(--color-violet-wash);
+  --color-brand: var(--color-brand-purple);
+  --color-brand-deep: var(--color-brand-purple-deep);
+  --color-brand-wash: var(--color-brand-purple-wash);
+  /* Legacy aliases so older `violet` utilities resolve to the brand purple. */
+  --color-violet: var(--color-brand-purple);
+  --color-violet-wash: var(--color-brand-purple-wash);
   --color-slate: var(--color-slate-ink);
   --color-ash: var(--color-ash-veil);
 
@@ -106,6 +115,8 @@
   --shadow-card: var(--shadow-sm-2);
   --shadow-float: var(--shadow-lg);
   --shadow-violet: var(--shadow-lg-2);
+  --shadow-glow: var(--shadow-lg-2);
+  --shadow-soft: var(--shadow-soft-base);
 
   --font-sans: var(--font-gt-standard);
   --font-system: var(--font-shopify-sans);
@@ -130,8 +141,22 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* Global grain: fine SVG noise over everything, never interactive.
+   Sits above page content and fixed bars (z 40) but below dialogs (z 50). */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  pointer-events: none;
+  opacity: 0.07;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 160px 160px;
+}
+
 ::selection {
-  background: var(--color-violet-wash);
+  background: var(--color-brand-purple-wash);
   color: var(--color-ink-black);
 }
 
@@ -144,18 +169,25 @@ summary {
 }
 
 :focus-visible {
-  outline: 2px solid var(--color-ink-black);
+  outline: 2px solid var(--color-brand-purple);
   outline-offset: 2px;
 }
 
 @layer components {
-/* ─── Type grades: hierarchy through tracking, never weight contrast ─── */
+/* ─── Type grades: Geist; headlines 800 with tight tracking ─── */
+
+.t-hero {
+  font-size: clamp(34px, 6vw, 64px);
+  line-height: 0.98;
+  letter-spacing: -0.045em;
+  font-weight: 800;
+}
 
 .t-display {
   font-size: 20px;
   line-height: 1.1;
-  letter-spacing: -0.05em;
-  font-weight: 500;
+  letter-spacing: -0.045em;
+  font-weight: 800;
 }
 
 .t-body {

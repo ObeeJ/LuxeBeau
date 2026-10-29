@@ -1,19 +1,23 @@
-import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import type { Metadata, Viewport } from "next";
+import { Geist } from "next/font/google";
 import "./globals.css";
 import Providers from "./providers";
 
-/* Inter stands in for GT Standard (the design system's named substitute). */
-const inter = Inter({
-  variable: "--font-inter",
+/* Geist is the single typeface: 800 for headlines, 900 for the wordmark. */
+const geist = Geist({
+  variable: "--font-geist",
   subsets: ["latin"],
-  weight: ["400", "500"],
+  weight: ["400", "500", "600", "700", "800", "900"],
 });
+
+export const viewport: Viewport = {
+  themeColor: "#8a1fc7",
+};
 
 export const metadata: Metadata = {
   title: "LuxeBeau, Nigeria's Luxury Beauty Marketplace",
   description:
-    "Shop curated beauty crafted for melanin-rich skin and book vetted artisans across Lagos, Abuja and Port Harcourt.",
+    "Shop skincare, hair, grooming, fragrance and makeup for everyone, and book vetted beauty artisans. Your money is held in escrow until your order arrives.",
 };
 
 export default function RootLayout({
@@ -22,7 +26,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en-NG" className={inter.variable}>
+    <html lang="en-NG" className={geist.variable}>
       <body>
         <Providers>{children}</Providers>
       </body>
