@@ -36,15 +36,9 @@ type Artisan struct {
 	SlotsThrough *time.Time  `gorm:"type:date" json:"-"` // weekly slots exist up to this date
 	// CancelWindowHours is how much notice a client must give to cancel a
 	// confirmed booking for free. A later cancellation is recorded as late.
-	CancelWindowHours int `gorm:"type:integer;not null;default:24" json:"cancel_window_hours"`
-	// NoShowFeeBps is the percentage of the booking amount the artisan keeps
-	// when a confirmed client doesn't show up. 0 = no charge, 5000 = 50%.
-	NoShowFeeBps int `gorm:"type:integer;not null;default:0" json:"no_show_fee_bps"`
-	// StorefrontSlug is the artisan's unique brand handle for their shareable
-	// storefront URL, e.g. "arike-spa" → arike-spa.luxebeau.com
-	StorefrontSlug *string   `gorm:"type:varchar(80);uniqueIndex" json:"storefront_slug,omitempty"`
-	CreatedAt      time.Time `json:"created_at"`
-	UpdatedAt      time.Time `json:"updated_at"`
+	CancelWindowHours int       `gorm:"type:integer;not null;default:24" json:"cancel_window_hours"`
+	CreatedAt         time.Time `json:"created_at"`
+	UpdatedAt         time.Time `json:"updated_at"`
 }
 
 // Artisan service modes: where an artisan is willing to work.
@@ -118,12 +112,6 @@ type Booking struct {
 	// was booked. It is copied here so later changes to the artisan's policy
 	// never change the terms the client agreed to.
 	PolicyHours int `gorm:"type:integer;not null;default:24" json:"policy_hours"`
-	// NoShowFeeBps is the percentage of the booking amount the artisan keeps
-	// when a client no-shows, copied from the artisan's setting at booking time.
-	NoShowFeeBps int `gorm:"type:integer;not null;default:0" json:"no_show_fee_bps"`
-	// EscrowID links to the escrow holding this booking's payment. Empty until
-	// the artisan confirms and the client pays.
-	EscrowID string `gorm:"type:varchar(40);index" json:"escrow_id,omitempty"`
 	// ExpiresAt is when an unanswered request is cancelled automatically.
 	ExpiresAt      *time.Time `json:"expires_at,omitempty"`
 	CancelledAt    *time.Time `json:"cancelled_at,omitempty"`

@@ -100,7 +100,7 @@ func newTestService(t *testing.T, name string) (*gorm.DB, domain.BookingService)
 	}
 	sqlDB, _ := db.DB()
 	sqlDB.SetMaxOpenConns(1) // SQLite: serialise writers instead of "table is locked"
-	if err := db.AutoMigrate(&domain.User{}, &domain.Artisan{}, &domain.BookingSlot{}, &domain.Booking{}, &domain.Wallet{}, &domain.Escrow{}, &domain.LedgerEntry{}, &domain.InfluencerReferral{}, &domain.InfluencerCommission{}, &domain.InfluencerPackage{}); err != nil {
+	if err := db.AutoMigrate(&domain.User{}, &domain.Artisan{}, &domain.BookingSlot{}, &domain.Booking{}); err != nil {
 		t.Fatalf("failed to migrate db: %v", err)
 	}
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
@@ -123,8 +123,6 @@ func seedArtisan(t *testing.T, db *gorm.DB, email, mode string, approved bool) d
 	if err := db.Create(&user).Error; err != nil {
 		t.Fatalf("seed user: %v", err)
 	}
-	// Seed a wallet so escrow release can credit the artisan.
-	db.Create(&domain.Wallet{UserID: user.ID, Balance: 0})
 	a := domain.Artisan{
 		UserID: user.ID, Specialty: "Hair Stylist", Location: "Lagos", PriceFrom: 1000000,
 		ServiceMode: mode, Available: true, SlotMinutes: 60, WeeklyHours: everyDay(),
@@ -280,8 +278,6 @@ func TestBookService_VisitTypeAndConfirmOwnership(t *testing.T) {
 	db, service := newTestService(t, "visit_rules")
 	ctx := context.Background()
 	studioOnly := seedArtisan(t, db, "owner@luxe.com", domain.ServiceStudio, true)
-	// Seed a wallet for the test buyer so HoldBooking can debit it on confirm.
-	db.Create(&domain.Wallet{UserID: "buyer-1", Balance: 10_000_000})
 	day := tomorrow()
 
 	if _, err := service.BookService(ctx, "buyer-1", studioOnly.ID, "Trim", day, "09:00", "home", addr); err != ErrVisitUnavailable {

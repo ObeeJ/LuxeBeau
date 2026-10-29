@@ -8,22 +8,17 @@ import (
 	"strings"
 	"time"
 
-	"gorm.io/gorm"
-
 	"luxebeau/internal/domain"
 )
 
 type Service struct {
 	repo   Repository
-	db     *gorm.DB
 	logger *slog.Logger
 }
 
 func NewService(repo Repository, logger *slog.Logger) *Service {
 	return &Service{repo: repo, logger: logger}
 }
-
-func (s *Service) DB() *gorm.DB { return s.repo.(*gormRepository).db }
 
 var slugNonWord = regexp.MustCompile(`[^a-z0-9]+`)
 

@@ -20,16 +20,14 @@ func newTestService(t *testing.T) (*Service, *gorm.DB) {
 	if err != nil {
 		t.Fatalf("open sqlite: %v", err)
 	}
-	if err := db.AutoMigrate(&domain.Wallet{}, &domain.Escrow{}, &domain.LedgerEntry{}, &domain.Artisan{}, &domain.InfluencerReferral{}, &domain.InfluencerCommission{}, &domain.InfluencerPackage{}); err != nil {
+	if err := db.AutoMigrate(&domain.Wallet{}, &domain.Escrow{}, &domain.LedgerEntry{}, &domain.Artisan{}); err != nil {
 		t.Fatalf("migrate: %v", err)
 	}
 	db.Exec("DELETE FROM wallets")
 	db.Exec("DELETE FROM escrows")
 	db.Exec("DELETE FROM ledger_entries")
-	db.Exec("DELETE FROM influencer_commissions")
-	db.Exec("DELETE FROM influencer_referrals")
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	rails := NewRegistry(NewWalletSettlement(logger), NewHeldSettlement(), NewCNGNSettlement(logger))
+	rails := NewRegistry(NewWalletSettlement(logger), NewCNGNSettlement(logger))
 	return NewService(NewGormRepository(db), rails, NewLogNotifier(logger), logger), db
 }
 
@@ -76,11 +74,11 @@ func TestHappyPath_FundThenRelease(t *testing.T) {
 	if released.State != domain.EscrowReleased {
 		t.Fatalf("state = %s", released.State)
 	}
-	// Payee paid net of 2.5% fee: 4,000,000 - 100,000 = 3,900,000.
+	// Payee paid net of 1% fee: 4,000,000 - 40,000 = 3,960,000.
 	var pw domain.Wallet
 	db.First(&pw, "user_id = ?", payee)
-	if pw.Balance != 3900000 {
-		t.Fatalf("payee balance = %d, want 3900000", pw.Balance)
+	if pw.Balance != 3960000 {
+		t.Fatalf("payee balance = %d, want 3960000", pw.Balance)
 	}
 	// Ledger has fund, release, fee.
 	var entries int64

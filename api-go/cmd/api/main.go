@@ -23,7 +23,6 @@ import (
 	"luxebeau/internal/catalog"
 	"luxebeau/internal/domain"
 	"luxebeau/internal/escrow"
-	"luxebeau/internal/influencer"
 	"luxebeau/internal/jobs"
 	"luxebeau/internal/kyc"
 	"luxebeau/internal/mail"
@@ -32,7 +31,6 @@ import (
 	"luxebeau/internal/order"
 	"luxebeau/internal/seed"
 	"luxebeau/internal/seller"
-	"luxebeau/internal/withdrawal"
 )
 
 func main() {
@@ -78,11 +76,6 @@ func main() {
 		&domain.LedgerEntry{},
 		&domain.EmailOTP{},
 		&domain.RefreshToken{},
-		&domain.Withdrawal{},
-		&domain.DeliveryZone{},
-		&domain.InfluencerPackage{},
-		&domain.InfluencerReferral{},
-		&domain.InfluencerCommission{},
 	); err != nil {
 		logger.Error("Auto-migration failed", slog.Any("error", err))
 		os.Exit(1)
@@ -164,14 +157,6 @@ func main() {
 	escrowService := escrow.NewService(escrow.NewGormRepository(db), escrowRails, escrowNotifier, logger)
 	escrowHandler := escrow.NewHandler(escrowService, logger)
 
-	// Withdrawals (Paystack bank transfers)
-	withdrawalService := withdrawal.NewService(db, os.Getenv("PAYSTACK_SECRET_KEY"), logger)
-	withdrawalHandler := withdrawal.NewHandler(withdrawalService, logger)
-
-	// Influencer affiliate program
-	influencerService := influencer.NewService(db, logger)
-	influencerHandler := influencer.NewHandler(influencerService, logger)
-
 	// ── Router ──────────────────────────────────────────────
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
@@ -201,8 +186,7 @@ func main() {
 	{
 		hooks.POST("/paystack",
 			middleware.RequireHMACSignature(os.Getenv("PAYSTACK_SECRET_KEY"), "x-paystack-signature"),
-			orderHandler.PaystackWebhook,
-			withdrawalHandler.Webhook)
+			orderHandler.PaystackWebhook)
 		hooks.POST("/flutterwave",
 			middleware.RequireSharedSecret(os.Getenv("FLUTTERWAVE_SECRET_HASH"), "verif-hash"),
 			orderHandler.FlutterwaveWebhook)
@@ -302,17 +286,6 @@ func main() {
 			sellerGroup.PATCH("/sales/:orderId", sellerHandler.Fulfil)
 		}
 
-		// Influencer packages (sellers and artisans manage their own)
-		influencerGroup := protected.Group("/me/influencer-packages")
-		influencerGroup.Use(auth.RequireRole("seller", "artisan", "admin"))
-		{
-			influencerGroup.GET("", influencerHandler.List)
-			influencerGroup.POST("", influencerHandler.Create)
-			influencerGroup.GET("/:id", influencerHandler.Get)
-			influencerGroup.PATCH("/:id", influencerHandler.Update)
-			influencerGroup.PATCH("/:id/state", influencerHandler.SetState)
-		}
-
 		// ── Admin console (internal only) ────────────────────
 		adminGroup := protected.Group("/admin")
 		adminGroup.Use(auth.RequireRole("admin"))
@@ -329,31 +302,11 @@ func main() {
 			adminGroup.GET("/bookings", adminHandler.ListBookings)
 			adminGroup.GET("/escrows", escrowHandler.AdminList)
 			adminGroup.POST("/escrows/:id/resolve", escrowHandler.AdminResolve)
-			adminGroup.GET("/influencer-packages", influencerHandler.AdminList)
-			adminGroup.GET("/influencer-commissions", influencerHandler.AdminCommissions)
 		}
 
-		// Wallets + withdrawals
+		// Wallets
 		protected.GET("/wallets/me", authHandler.GetWallet)
-		protected.POST("/me/wallet/withdraw", auth.RequireRole("seller", "artisan"), withdrawalHandler.Initiate)
-		protected.GET("/me/wallet/withdrawals", auth.RequireRole("seller", "artisan"), withdrawalHandler.List)
-
-		// Storefront slug (sellers and artisans claim their brand handle)
-		protected.PUT("/me/storefront-slug", auth.RequireRole("seller", "artisan"), sellerHandler.SetStorefrontSlug)
-
-		// Delivery zones (sellers set per-city fees)
-		protected.GET("/me/delivery-zones", auth.RequireRole("seller", "admin"), sellerHandler.ListDeliveryZones)
-		protected.PUT("/me/delivery-zones", auth.RequireRole("seller", "admin"), sellerHandler.UpsertDeliveryZones)
 	}
-
-	// Public storefront lookup (for shareable links: arike-spa.luxebeau.com/bantu-knot-braid)
-	v1.GET("/storefront/:slug", sellerHandler.GetStorefront)
-	v1.GET("/storefront/:slug/products", sellerHandler.GetStorefrontProducts)
-	v1.GET("/storefront/:slug/services", sellerHandler.GetStorefrontServices)
-
-	// Influencer tracking links: /ref/{owner-storefront-slug}/{influencer-slug}
-	// e.g. /ref/arike-spa/chioma-beauty
-	v1.GET("/ref/:ownerSlug/:influencerSlug", influencerHandler.Track)
 
 	// ── Background work ─────────────────────────────────────
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -363,7 +316,6 @@ func main() {
 		jobs.Task{Name: "escrow auto-release", Run: escrowService.SweepAutoReleases},
 		jobs.Task{Name: "expire unanswered bookings", Run: bookingJobs.ExpireStale},
 		jobs.Task{Name: "booking reminders", Run: bookingJobs.SendReminders},
-		jobs.Task{Name: "influencer payouts", Run: influencerService.PayOutEarned},
 	)
 
 	// ── Start Server ────────────────────────────────────────

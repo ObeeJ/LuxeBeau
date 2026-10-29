@@ -20,6 +20,7 @@ import { Cascade } from "@/components/motion/cascade";
 import { useArtisans, useProducts } from "@/lib/queries";
 import { type Product } from "@/lib/api";
 import { useCart } from "@/lib/cart";
+import { CATEGORY_IMAGE_MAP } from "@/lib/catalog-data";
 
 export default function Home() {
   const { add } = useCart();

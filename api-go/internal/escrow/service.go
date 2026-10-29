@@ -13,7 +13,6 @@ import (
 	"gorm.io/gorm/clause"
 
 	"luxebeau/internal/domain"
-	"luxebeau/internal/influencer"
 )
 
 // AutoReleaseWindow is how long after funding an escrow auto-releases if the
@@ -69,7 +68,7 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (*domain.Escrow, e
 	}
 	fee := in.FeeBps
 	if fee == 0 {
-		fee = domain.PlatformFeeBps
+		fee = domain.DefaultFeeBps
 	}
 	rail := in.Rail
 	if rail == "" {
@@ -168,10 +167,6 @@ func (s *Service) Release(ctx context.Context, id, actorID string, admin bool) (
 				return err
 			}
 		}
-		// Mark any influencer commissions on this escrow as earned.
-		if err := influencer.EarnCommissions(tx, e.ID); err != nil {
-			return err
-		}
 		s.bumpReputation(tx, e.PayeeID)
 		released = e
 		return nil
@@ -216,10 +211,6 @@ func (s *Service) Refund(ctx context.Context, id, actorID string, admin bool) (*
 			if err := returnDeliveryFee(tx, e); err != nil {
 				return err
 			}
-		}
-		// Void any influencer commissions — no sale, no commission.
-		if err := influencer.CancelCommissions(tx, e.ID); err != nil {
-			return err
 		}
 		refunded = e
 		return nil

@@ -203,15 +203,9 @@ func (r *gormRepository) Fulfil(ctx context.Context, sellerID, orderID, stage, n
 		}
 
 		// Delivered starts the buyer's confirmation window on this seller's
-		// escrow. Marking delivered again never extends it. The window length
-		// is read from the seller's account (defaults to PlatformReleaseWindowHours).
+		// escrow. Marking delivered again never extends it.
 		if stage == "delivered" {
-			var seller domain.User
-			windowHours := domain.PlatformReleaseWindowHours
-			if err := tx.Select("release_window_hours").First(&seller, "id = ?", sellerID).Error; err == nil {
-				windowHours = seller.EffectiveReleaseWindowHours()
-			}
-			releaseBy := at.Add(time.Duration(windowHours) * time.Hour)
+			releaseBy := at.Add(domain.OrderReleaseWindow)
 			res := tx.Model(&domain.Escrow{}).
 				Where("kind = ? AND reference = ? AND payee_id = ? AND state = ? AND release_eligible_at IS NULL",
 					domain.EscrowKindOrder, orderID, sellerID, domain.EscrowFunded).

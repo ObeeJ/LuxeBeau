@@ -9,7 +9,6 @@ import (
 	"gorm.io/gorm"
 
 	"luxebeau/internal/domain"
-	"luxebeau/internal/escrow"
 	"luxebeau/internal/schedule"
 )
 
@@ -67,9 +66,9 @@ func expiryFor(now, start time.Time) time.Time {
 }
 
 // CancelBooking cancels a pending or confirmed booking before it starts and
-// frees its slots. If the booking had an escrow, the client gets a full refund.
-// Cancelling a confirmed booking inside the artisan's notice window is recorded
-// as a late cancellation. Nobody is charged a cancellation fee today.
+// frees its slots. Cancelling a confirmed booking inside the artisan's notice
+// window is recorded as a late cancellation. Nobody is charged: bookings take
+// no online payment today.
 func (s *bookingService) CancelBooking(ctx context.Context, bookingID, actorID string, admin bool, reason string) (*domain.Booking, error) {
 	b, err := s.loadFull(ctx, bookingID)
 	if err != nil {
@@ -84,7 +83,7 @@ func (s *bookingService) CancelBooking(ctx context.Context, bookingID, actorID s
 	case admin:
 		by = "admin"
 	default:
-		return nil, ErrBookingNotFound
+		return nil, ErrBookingNotFound // not yours: indistinguishable from missing
 	}
 
 	start, err := schedule.StartAt(b.BookingDate, b.BookingTime)
@@ -95,10 +94,15 @@ func (s *bookingService) CancelBooking(ctx context.Context, bookingID, actorID s
 	if !start.After(now) {
 		return nil, ErrAlreadyStarted
 	}
+	// The notice window protects the artisan's confirmed appointments. A
+	// request nobody agreed to yet can always be withdrawn, and an artisan or
+	// admin cancelling is never "late" on the client's record.
 	late := by == "buyer" && b.Status == domain.BookingConfirmed &&
 		start.Sub(now) < time.Duration(b.PolicyHours)*time.Hour
 
 	err = s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// Matching on the status we read keeps a concurrent confirm or cancel
+		// from slipping through with the wrong "late" decision.
 		res := tx.Model(&domain.Booking{}).Where("id = ? AND status = ?", b.ID, b.Status).
 			Where("status IN ?", []string{domain.BookingPending, domain.BookingConfirmed}).
 			Updates(map[string]any{
@@ -111,11 +115,7 @@ func (s *bookingService) CancelBooking(ctx context.Context, bookingID, actorID s
 		if res.RowsAffected == 0 {
 			return ErrNotCancellable
 		}
-		if err := releaseSlots(tx, b.ID); err != nil {
-			return err
-		}
-		// Full refund to the client regardless of who cancelled.
-		return escrow.RefundBookingCancel(tx, b.EscrowID, b.BuyerID)
+		return releaseSlots(tx, b.ID)
 	})
 	if err != nil {
 		return nil, err
@@ -123,7 +123,9 @@ func (s *bookingService) CancelBooking(ctx context.Context, bookingID, actorID s
 	return s.loadFull(ctx, bookingID)
 }
 
-func (s *bookingService) closeBooking(ctx context.Context, bookingID, actorID string, admin bool, status string, grace time.Duration, onClose func(*gorm.DB, *domain.Booking) error) (*domain.Booking, error) {
+// closeBooking moves a confirmed booking to a final status once its start time
+// (plus a grace period) has passed. Only the booked artisan or an admin may.
+func (s *bookingService) closeBooking(ctx context.Context, bookingID, actorID string, admin bool, status string, grace time.Duration) (*domain.Booking, error) {
 	b, err := s.loadFull(ctx, bookingID)
 	if err != nil {
 		return nil, err
@@ -150,13 +152,9 @@ func (s *bookingService) closeBooking(ctx context.Context, bookingID, actorID st
 			return ErrNotConfirmed
 		}
 		if status == domain.BookingCompleted {
-			if err := tx.Model(&domain.Artisan{}).Where("id = ?", b.ArtisanID).
-				Update("jobs_completed", gorm.Expr("jobs_completed + 1")).Error; err != nil {
-				return err
-			}
-		}
-		if onClose != nil {
-			return onClose(tx, b)
+			// A finished job adds to the count clients see on the artisan's profile.
+			return tx.Model(&domain.Artisan{}).Where("id = ?", b.ArtisanID).
+				Update("jobs_completed", gorm.Expr("jobs_completed + 1")).Error
 		}
 		return nil
 	})
@@ -167,15 +165,11 @@ func (s *bookingService) closeBooking(ctx context.Context, bookingID, actorID st
 }
 
 func (s *bookingService) CompleteBooking(ctx context.Context, bookingID, actorID string, admin bool) (*domain.Booking, error) {
-	return s.closeBooking(ctx, bookingID, actorID, admin, domain.BookingCompleted, 0, func(tx *gorm.DB, b *domain.Booking) error {
-		return escrow.ReleaseBooking(tx, b.EscrowID)
-	})
+	return s.closeBooking(ctx, bookingID, actorID, admin, domain.BookingCompleted, 0)
 }
 
 func (s *bookingService) MarkNoShow(ctx context.Context, bookingID, actorID string, admin bool) (*domain.Booking, error) {
-	return s.closeBooking(ctx, bookingID, actorID, admin, domain.BookingNoShow, domain.NoShowGrace, func(tx *gorm.DB, b *domain.Booking) error {
-		return escrow.RefundBookingNoShow(tx, b)
-	})
+	return s.closeBooking(ctx, bookingID, actorID, admin, domain.BookingNoShow, domain.NoShowGrace)
 }
 
 // decorate fills in the computed fields on listed bookings: when free

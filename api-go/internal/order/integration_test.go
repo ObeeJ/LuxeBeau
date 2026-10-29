@@ -65,9 +65,6 @@ func TestE2EPaymentIntegration(t *testing.T) {
 		&domain.Escrow{},
 		&domain.LedgerEntry{},
 		&domain.EmailOTP{},
-		&domain.InfluencerReferral{},
-		&domain.InfluencerCommission{},
-		&domain.InfluencerPackage{},
 	)
 	if err != nil {
 		t.Fatalf("failed to migrate db: %v", err)
