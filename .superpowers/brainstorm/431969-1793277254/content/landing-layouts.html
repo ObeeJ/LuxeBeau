@@ -1,0 +1,94 @@
+<style>
+  .pg{background:#fff;color:#000;font-family:Inter,system-ui,sans-serif;font-size:11px;line-height:1.5;border:1px solid #ebebeb}
+  .pg *{box-sizing:border-box}
+  .nav{display:flex;justify-content:space-between;align-items:center;padding:10px 16px;border-bottom:1px solid #000;font-size:10px;letter-spacing:.04em;text-transform:uppercase}
+  .nav b{font-weight:500;font-size:14px;letter-spacing:0;text-transform:none}
+  .ph{background:#f2f4f5;color:#787574;display:flex;align-items:center;justify-content:center;text-align:center;font-size:10px}
+  .btn{display:inline-block;border:1px solid #000;padding:8px 16px;text-transform:uppercase;font-size:10px;letter-spacing:.04em;background:#fff}
+  .btn.v{background:#5433eb;border-color:#5433eb;color:#fff}
+  .sec{padding:18px 16px;border-top:1px solid #ebebeb}
+  .lbl{text-transform:uppercase;font-size:10px;letter-spacing:.04em;color:#787574;margin-bottom:8px}
+  .row{display:flex;gap:8px}
+  .row>*{flex:1}
+  .tag{border:1px solid #000;padding:2px 8px;text-transform:uppercase;font-size:9px}
+  .tag.on{background:#000;color:#fff}
+  h4{margin:0 0 6px;font-weight:400;font-size:15px}
+  .v-txt{color:#5433eb}
+</style>
+
+<h2>Landing page: three layouts to react to</h2>
+<p class="subtitle">Same fonts and colours as today (Inter, black, white, mist grey, one violet accent). Only the structure changes: square corners, thin lines, no shadows, photos doing the talking. Pick the one that feels most like LuxeBeau.</p>
+
+<div class="cards">
+
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="pg">
+        <div class="nav"><b>LuxeBeau</b><span>Shop · Artisans · Sell · Sign in</span></div>
+        <div class="ph" style="height:150px">Big editorial photo (women + men, skin / hair / grooming)</div>
+        <div class="sec">
+          <h4>Beauty for everyone. Vetted sellers. Your money held safe.</h4>
+          <span class="btn v">Start shopping</span>
+        </div>
+        <div class="sec">
+          <div class="lbl">Shop now</div>
+          <div class="row"><div class="ph" style="height:60px">Product</div><div class="ph" style="height:60px">Product</div><div class="ph" style="height:60px">Product</div><div class="ph" style="height:60px">Product</div></div>
+        </div>
+        <div class="sec"><div class="lbl">Why it is safe</div><div class="row"><div>1. Pay into escrow</div><div>2. Seller ships</div><div>3. You confirm, they get paid</div></div></div>
+        <div class="sec" style="background:#f2f4f5"><div class="lbl">For sellers and artisans</div>Grow with us · Brand partnerships <span class="btn" style="margin-left:8px">Apply</span></div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A. Photo first</h3>
+      <p>One big photo and one promise on top, then real products right under it. Closest to the Zara feel.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="pg">
+        <div class="nav"><b>LuxeBeau</b><span>Sign in</span></div>
+        <div style="padding:10px 16px;border-bottom:1px solid #ebebeb;display:flex;justify-content:space-between;align-items:center">
+          <span>Beauty for everyone · Vetted sellers · Money held safe until it arrives</span>
+          <span class="v-txt">How it works</span>
+        </div>
+        <div class="sec" style="border-top:0">
+          <div class="row" style="margin-bottom:10px"><span class="tag on">All</span><span class="tag">Women</span><span class="tag">Men</span><span class="tag">Skin</span><span class="tag">Hair</span><span class="tag">Fragrance</span><span class="tag">Artisans</span></div>
+          <div class="row" style="margin-bottom:8px"><div class="ph" style="height:78px">Product</div><div class="ph" style="height:78px">Product</div><div class="ph" style="height:78px">Product</div><div class="ph" style="height:78px">Product</div></div>
+          <div class="row"><div class="ph" style="height:78px">Product</div><div class="ph" style="height:78px">Product</div><div class="ph" style="height:78px">Product</div><div class="ph" style="height:78px">Product</div></div>
+        </div>
+        <div class="sec"><div class="lbl">Shop safely</div>Escrow on every order · Real, checked vendors · Sign up only at checkout</div>
+        <div class="sec" style="background:#f2f4f5"><div class="lbl">Sell with us</div>Open a shop · Partner with the brand</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B. Shop wall</h3>
+      <p>No hero. The page IS the shop, with a slim promise bar on top. Fastest to a first purchase.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="pg">
+        <div class="nav"><b>LuxeBeau</b><span>Shop · Artisans · Sell · Sign in</span></div>
+        <div style="display:flex;min-height:150px">
+          <div style="width:34%;padding:18px 16px;display:flex;flex-direction:column;justify-content:center;gap:10px">
+            <div class="lbl" style="margin:0">Unisex beauty</div>
+            <h4 style="font-size:16px">For every skin. For every one of you.</h4>
+            <div>Real vendors. Escrow on every order.</div>
+            <div><span class="btn v">Start shopping</span></div>
+          </div>
+          <div class="ph" style="flex:1">Large editorial photo</div>
+        </div>
+        <div class="sec"><div class="lbl">Her · Him · Everyone</div><div class="row"><div class="ph" style="height:56px">Her</div><div class="ph" style="height:56px">Him</div><div class="ph" style="height:56px">Everyone</div></div></div>
+        <div class="sec"><div class="lbl">Trending now</div><div class="row"><div class="ph" style="height:52px">Product</div><div class="ph" style="height:52px">Product</div><div class="ph" style="height:52px">Product</div><div class="ph" style="height:52px">Product</div></div></div>
+        <div class="sec" style="background:#f2f4f5"><div class="row"><div><div class="lbl">Sellers</div>Reach new buyers</div><div><div class="lbl">Artisans</div>Fill your calendar</div><div><div class="lbl">Brands</div>Partner with us</div></div></div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C. Split + Her / Him / Everyone</h3>
+      <p>Text left, big photo right, then three doors that show it is unisex. Sellers, artisans and brands each get a clear box.</p>
+    </div>
+  </div>
+
+</div>

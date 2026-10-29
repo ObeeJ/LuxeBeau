@@ -1,0 +1,668 @@
+<h2>Four purple directions (drafts)</h2>
+<p class="subtitle">Scroll through all four full pages. Click the one you like most below, then tell me in the chat. The judge and polishing pass are still running; polished versions of the best three will replace these.</p>
+<div class="options">
+<div class="option" data-choice="a" onclick="toggleSelect(this)"><div class="letter">A</div><div class="content"><h3>Plum Couture</h3><p>Playfair Display + Jost</p></div></div>
+<div class="option" data-choice="b" onclick="toggleSelect(this)"><div class="letter">B</div><div class="content"><h3>Amethyst Pop</h3><p>DM Serif Display + Outfit</p></div></div>
+<div class="option" data-choice="c" onclick="toggleSelect(this)"><div class="letter">C</div><div class="content"><h3>Lavender Atelier</h3><p>Cormorant Garamond (headlines) with Italiana for the LUXEBEAU wordmark + Montserrat</p></div></div>
+<div class="option" data-choice="d" onclick="toggleSelect(this)"><div class="letter">D</div><div class="content"><h3>Royal Ink</h3><p>Gloock + Manrope</p></div></div>
+</div>
+<div style="margin:56px 0 12px"><h2>A. Plum Couture</h2><p class="subtitle">A deep aubergine hero and a bold royal-purple safety band make the brand read clearly as purple. Every purple sits between hue 278 and 289, so none of it can be mistaken for blue. Playfair Display gives the LUXEBEAU wordmark and headlines the thick-and-thin couture contrast of a fashion house, and Jost keeps the small uppercase labels clean and modern. Escrow safety, the Her/Him/Everyone tiles, sign-up only at checkout and the panels for sellers, artisans and brands each get one short, punchy moment.</p><div style="margin-top:8px"><span title="Aubergine #2a0d33" style="display:inline-block;width:28px;height:28px;background:#2a0d33;border:1px solid #ccc;margin-right:4px"></span><span title="Royal Purple #8a1fc7" style="display:inline-block;width:28px;height:28px;background:#8a1fc7;border:1px solid #ccc;margin-right:4px"></span><span title="Plum #5b1a6e" style="display:inline-block;width:28px;height:28px;background:#5b1a6e;border:1px solid #ccc;margin-right:4px"></span><span title="Orchid #c04ee0" style="display:inline-block;width:28px;height:28px;background:#c04ee0;border:1px solid #ccc;margin-right:4px"></span><span title="Lilac Mist #e2b6f2" style="display:inline-block;width:28px;height:28px;background:#e2b6f2;border:1px solid #ccc;margin-right:4px"></span><span title="Lilac Wash #f4e9f8" style="display:inline-block;width:28px;height:28px;background:#f4e9f8;border:1px solid #ccc;margin-right:4px"></span><span title="Night Ink #140816" style="display:inline-block;width:28px;height:28px;background:#140816;border:1px solid #ccc;margin-right:4px"></span><span title="White #ffffff" style="display:inline-block;width:28px;height:28px;background:#ffffff;border:1px solid #ccc;margin-right:4px"></span></div></div>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,500;0,700;0,800;1,400;1,500&display=swap');
+.lba{--ink:#140816;--aub:#2a0d33;--plum:#5b1a6e;--royal:#8a1fc7;--orchid:#c04ee0;--lilac:#f4e9f8;--line:#e6d9ea;width:100%;overflow:hidden;background:#fff;color:var(--ink);font:400 14px/1.5 'Jost',sans-serif}
+.lba *,.lba *::before,.lba *::after{box-sizing:border-box;border-radius:0!important;box-shadow:none!important}
+.lba h1,.lba h2,.lba h3,.lba h4{font-family:'Playfair Display',serif;font-weight:400;color:inherit;margin:0;line-height:1.04;letter-spacing:-.01em}
+.lba p{font-family:'Jost',sans-serif;font-weight:400;color:inherit;margin:0;line-height:1.55}
+.lba a{color:inherit;text-decoration:none}
+.lba em{font-style:italic;font-weight:400}
+.lba-cap{font:500 11px/1.3 'Jost',sans-serif;letter-spacing:.16em;text-transform:uppercase}
+.lba-ann{background:var(--aub);color:var(--lilac);text-align:center;padding:9px 16px}
+.lba-ann b{color:#e2b6f2;font-weight:600}
+.lba-nav{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:22px 48px;border-bottom:1px solid var(--line)}
+.lba-nl,.lba-nr{display:flex;gap:26px}
+.lba-nr{justify-content:flex-end}
+.lba-word{font-family:'Playfair Display',serif;font-weight:500;font-size:34px;letter-spacing:.32em;margin-right:-.32em;color:var(--aub);line-height:1}
+.lba-hero{display:grid;grid-template-columns:1fr 1.08fr;background:var(--aub);color:#fff;min-height:560px}
+.lba-hc{padding:72px 48px 56px;display:flex;flex-direction:column;justify-content:space-between}
+.lba-hero .lba-cap{color:#e2b6f2}
+.lba h1.lba-h1{font-size:84px;line-height:.96;font-weight:400;color:#fff;margin:22px 0 26px;max-width:450px}
+.lba-h1 em{color:#e2b6f2}
+.lba p.lba-lede{font-size:17px;font-weight:300;color:#eadcef;max-width:400px;margin-bottom:34px}
+.lba-acts{display:flex;align-items:center;gap:24px}
+.lba-btn{display:inline-block;background:var(--royal);color:#fff;font:500 12px/1 'Jost',sans-serif;letter-spacing:.2em;text-transform:uppercase;white-space:nowrap;padding:19px 34px;border:1px solid var(--royal)}
+.lba-hero .lba-btn{background:#fff;color:var(--aub);border-color:#fff}
+.lba-tl{white-space:nowrap;font:500 12px/1 'Jost',sans-serif;letter-spacing:.14em;text-transform:uppercase;border-bottom:1px solid currentColor;padding-bottom:5px}
+.lba-hm{display:flex;gap:40px;border-top:1px solid rgba(255,255,255,.18);padding-top:20px;margin-top:48px;color:#d9c3e2}
+.lba-hm b{display:block;font:400 26px/1.1 'Playfair Display',serif;color:#fff;letter-spacing:0;text-transform:none;margin-bottom:4px}
+.lba-ph{position:relative;overflow:hidden;background:radial-gradient(ellipse 60% 50% at 62% 38%,rgba(255,214,170,.55),transparent 70%),radial-gradient(ellipse 70% 60% at 20% 90%,rgba(192,78,224,.55),transparent 70%),linear-gradient(160deg,#7a2a8c,#3a1046 70%,#24092b)}
+.lba-ph::after{content:'';position:absolute;inset:0;background:repeating-linear-gradient(0deg,rgba(255,255,255,.035) 0 1px,transparent 1px 3px)}
+.lba-pc{position:absolute;left:18px;bottom:16px;z-index:2;color:rgba(255,255,255,.85);font:500 10px/1.3 'Jost',sans-serif;letter-spacing:.18em;text-transform:uppercase}
+.lba-fig{position:absolute;z-index:1;left:50%;bottom:0;transform:translateX(-50%);width:46%;height:78%;background:radial-gradient(ellipse 34% 20% at 50% 20%,rgba(255,226,196,.75),rgba(110,40,110,.4) 70%,transparent 72%),radial-gradient(ellipse 50% 60% at 50% 100%,rgba(30,6,36,.85),transparent 72%)}
+.lba-hp .lba-fig{left:36%}
+.lba-hp .lba-fig+.lba-fig{left:68%;width:40%;height:70%;opacity:.9}
+.lba-cats{display:grid;grid-template-columns:repeat(6,1fr);border-bottom:1px solid var(--line)}
+.lba-cat{padding:22px 20px;border-right:1px solid var(--line);display:flex;justify-content:space-between;align-items:baseline}
+.lba-cat:first-child{padding-left:48px}.lba-cat:last-child{border-right:0;padding-right:48px}
+.lba-cat span{font:400 21px/1 'Playfair Display',serif;color:var(--aub)}
+.lba-cat i{font:500 10px 'Jost',sans-serif;letter-spacing:.14em;color:var(--royal);font-style:normal}
+.lba-sec{padding:72px 48px}
+.lba-hd{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:30px}
+.lba h2.lba-h2{font-size:48px;color:var(--aub);font-weight:400}
+.lba-h2 em{color:var(--royal)}
+.lba-hd .lba-tl{color:var(--royal)}
+.lba-tri{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.lba-tile{height:440px}
+.lba-tile h3{position:absolute;z-index:2;left:22px;top:20px;font-size:56px;font-style:italic;color:#fff;font-weight:400}
+.lba-tile .lba-cap{position:absolute;z-index:2;right:20px;top:30px;color:#fff;border-bottom:1px solid #fff;padding-bottom:3px}
+.lba-t2{background:radial-gradient(ellipse 55% 45% at 45% 35%,rgba(240,190,140,.55),transparent 70%),linear-gradient(170deg,#4a1658,#1c0622)}
+.lba-t3{background:radial-gradient(ellipse 50% 40% at 30% 40%,rgba(255,200,170,.5),transparent 70%),radial-gradient(ellipse 50% 40% at 72% 46%,rgba(214,140,240,.55),transparent 70%),linear-gradient(170deg,#9a2fb8,#4a1060)}
+.lba-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.lba-prod .lba-ph{height:320px;background:radial-gradient(ellipse 60% 45% at 50% 42%,#fff,transparent 72%),linear-gradient(180deg,#f4e9f8,#e5cdee)}
+.lba-prod .lba-ph::after{background:repeating-linear-gradient(0deg,rgba(91,26,110,.03) 0 1px,transparent 1px 3px)}
+.lba-prod .lba-pc{color:var(--plum)}
+.lba-bot{position:absolute;z-index:1;left:50%;bottom:22%;transform:translateX(-50%);width:62px;height:150px;background:linear-gradient(90deg,#3a1046,#8a1fc7 45%,#5b1a6e)}
+.lba-bot::before{content:'';position:absolute;left:18px;top:-30px;width:26px;height:30px;background:#1a0820}
+.lba-bot::after{content:'';position:absolute;left:8px;top:36px;width:46px;height:44px;border:1px solid rgba(255,255,255,.5)}
+.lba-b2{width:96px;height:96px;background:linear-gradient(90deg,#c9a46a,#f3e1b8 45%,#a8803f)}
+.lba-b2::before{left:0;top:-22px;width:96px;height:22px;background:#2a0d33}
+.lba-b3{width:50px;height:180px;background:linear-gradient(90deg,#1a0820,#5b1a6e 50%,#1a0820)}
+.lba-b3::before{left:14px;width:22px}
+.lba-b3::after{left:6px;width:38px}
+.lba-b4{width:80px;height:120px;background:linear-gradient(90deg,#7a2085,#d77fe0 45%,#9a2a9e)}
+.lba-b4::before{left:22px;width:36px}
+.lba-b4::after{left:14px;width:52px}
+.lba-pi{padding-top:14px}
+.lba-ver{display:inline-block;font:600 10px/1 'Jost',sans-serif;letter-spacing:.16em;text-transform:uppercase;color:var(--royal);border:1px solid var(--royal);padding:5px 7px;margin-bottom:10px}
+.lba h4.lba-pn{font:500 17px/1.25 'Jost',sans-serif;color:var(--ink);margin:0 0 2px}
+.lba p.lba-pb{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:#7b6a80}
+.lba p.lba-pr{font:400 20px/1.2 'Playfair Display',serif;color:var(--aub);margin-top:8px}
+.lba-safe{background:var(--royal);color:#fff;padding:76px 48px;display:grid;grid-template-columns:1fr 1.5fr;gap:56px;background-image:radial-gradient(ellipse 50% 80% at 100% 0,rgba(214,120,240,.45),transparent 70%)}
+.lba-safe .lba-cap{color:#f0d4fa}
+.lba h2.lba-sh{font-size:54px;color:#fff;margin-top:16px}
+.lba-safe .lba-sh em{color:#f0d4fa}
+.lba-steps{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid rgba(255,255,255,.35)}
+.lba-step{padding:24px 22px 0 0;margin-right:22px;border-right:1px solid rgba(255,255,255,.2)}
+.lba-step:last-child{border:0;margin:0}
+.lba-step b{display:block;font:400 italic 56px/1 'Playfair Display',serif;color:#f0d4fa;margin-bottom:14px}
+.lba h3.lba-st{font:500 18px/1.25 'Jost',sans-serif;color:#fff;margin:0 0 8px}
+.lba-step p{font-size:14px;font-weight:300;color:#f3e4f8}
+.lba-rep{padding:46px 48px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line);background:var(--lilac)}
+.lba-tag{font:400 italic 46px/1 'Playfair Display',serif;color:var(--royal)}
+.lba p.lba-rp{font-size:16px;color:var(--plum);max-width:380px}
+.lba-av{display:flex}
+.lba-av span{width:40px;height:40px;margin-left:-10px;border:2px solid var(--lilac);background:linear-gradient(140deg,#c04ee0,#5b1a6e)}
+.lba-av span:nth-child(2){background:linear-gradient(140deg,#e9b88a,#7a2a8c)}
+.lba-av span:nth-child(3){background:linear-gradient(140deg,#2a0d33,#8a1fc7)}
+.lba-av span:nth-child(4){background:linear-gradient(140deg,#f0d4fa,#9a2a9e)}
+.lba-pay{display:grid;grid-template-columns:1fr 1fr;gap:56px;align-items:center}
+.lba p.lba-pp{font-size:16px;color:#5a4a60;margin-top:14px;max-width:400px}
+.lba-form{border:1px solid var(--aub);padding:30px}
+.lba-in{display:block;width:100%;border:0;border-bottom:1px solid var(--aub);padding:12px 0;font:400 16px 'Jost',sans-serif;color:#8a7a90;margin:8px 0 22px}
+.lba-form .lba-btn{display:block;text-align:center;width:100%}
+.lba-or{text-align:center;color:#8a7a90;margin:14px 0}
+.lba-g{display:flex;justify-content:center;align-items:center;gap:12px;border:1px solid var(--aub);padding:17px;font:500 12px/1 'Jost',sans-serif;letter-spacing:.2em;text-transform:uppercase;color:var(--aub)}
+.lba-g i{font:700 16px/1 'Jost',sans-serif;font-style:normal;color:var(--royal);letter-spacing:0}
+.lba-three{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--line)}
+.lba-pan{padding:48px 36px 44px;border-right:1px solid var(--line)}
+.lba-pan:first-child{padding-left:48px}
+.lba-pan:last-child{border:0;background:var(--aub);color:#fff}
+.lba-pan .lba-cap{color:var(--royal)}
+.lba-pan:last-child .lba-cap{color:#e2b6f2}
+.lba h3.lba-ph3{font-size:34px;color:inherit;margin:14px 0 12px}
+.lba-pan p{font-size:14px;color:#5a4a60;margin-bottom:24px}
+.lba-pan:last-child p{color:#e0cfe6}
+.lba-pan .lba-tl{color:var(--royal)}
+.lba-pan:last-child .lba-tl{color:#fff}
+.lba-foot{background:var(--ink);color:#cbb8d2;padding:56px 48px 28px}
+.lba-fg{display:grid;grid-template-columns:1.6fr 1fr 1fr 1fr;gap:32px;padding-bottom:40px;border-bottom:1px solid rgba(255,255,255,.14)}
+.lba-foot .lba-word{color:#fff;font-size:28px}
+.lba-fg p{font-size:13px;margin-top:14px;max-width:260px}
+.lba-fc{display:flex;flex-direction:column;gap:10px;font-size:13px}
+.lba-fc .lba-cap{color:#e2b6f2;margin-bottom:6px}
+.lba-fb{display:flex;justify-content:space-between;padding-top:20px;color:#8f7c97}
+</style>
+<div class="lba">
+<div class="lba-ann lba-cap">Pay safely: your money sits in <b>escrow</b> until your order arrives &middot; Verified sellers only</div>
+<nav class="lba-nav lba-cap"><div class="lba-nl"><a>Her</a><a>Him</a><a>Everyone</a><a>Artisans</a></div><div class="lba-word">LUXEBEAU</div><div class="lba-nr"><a>Search</a><a>Sign in</a><a>Bag (0)</a></div></nav>
+<section class="lba-hero"><div class="lba-hc"><div><div class="lba-cap">New season &middot; Lagos, Abuja, PH</div><h1 class="lba-h1">Beauty for <em>every</em> one of us.</h1><p class="lba-lede">Skincare, hair, beard, fragrance and glam for her and him, from checked Nigerian sellers. Browse now, no sign-up.</p><div class="lba-acts"><a class="lba-btn">Start shopping</a><a class="lba-tl" style="color:#fff">How your money stays safe &rarr;</a></div></div><div class="lba-hm lba-cap"><div><b>2,400+</b>Verified sellers</div><div><b>100%</b>Escrow-held</div><div><b>24h</b>Lagos delivery</div></div></div>
+<div class="lba-ph lba-hp"><div class="lba-fig"></div><div class="lba-fig"></div><span class="lba-pc">Photo &middot; woman &amp; man, shea glow, golden hour</span></div></section>
+<div class="lba-cats"><div class="lba-cat"><span>Skincare</span><i>01</i></div><div class="lba-cat"><span>Hair</span><i>02</i></div><div class="lba-cat"><span>Fragrance</span><i>03</i></div><div class="lba-cat"><span>Grooming</span><i>04</i></div><div class="lba-cat"><span>Makeup</span><i>05</i></div><div class="lba-cat"><span>Body</span><i>06</i></div></div>
+<section class="lba-sec"><div class="lba-hd"><h2 class="lba-h2">Made for <em>all</em> of us.</h2><a class="lba-tl">Shop all</a></div><div class="lba-tri">
+<div class="lba-ph lba-tile"><h3>Her</h3><span class="lba-cap">Shop</span><div class="lba-fig"></div><span class="lba-pc">Photo &middot; woman, braids, dewy skin</span></div>
+<div class="lba-ph lba-tile lba-t2"><h3>Him</h3><span class="lba-cap">Shop</span><div class="lba-fig"></div><span class="lba-pc">Photo &middot; man, beard oil, warm light</span></div>
+<div class="lba-ph lba-tile lba-t3"><h3>Everyone</h3><span class="lba-cap">Shop</span><div class="lba-fig" style="left:34%"></div><div class="lba-fig" style="left:68%"></div><span class="lba-pc">Photo &middot; couple, shared fragrance</span></div></div></section>
+<section class="lba-sec" style="padding-top:0"><div class="lba-hd"><h2 class="lba-h2">Loved this week</h2><a class="lba-tl">View all</a></div><div class="lba-row">
+<div class="lba-prod"><div class="lba-ph"><div class="lba-bot"></div><span class="lba-pc">Photo &middot; serum bottle, studio</span></div><div class="lba-pi"><span class="lba-ver">&#10003; Verified seller</span><h4 class="lba-pn">Glow Drops Vitamin C Serum</h4><p class="lba-pb">Ore Skin</p><p class="lba-pr">&#8358;14,500</p></div></div>
+<div class="lba-prod"><div class="lba-ph"><div class="lba-bot lba-b2"></div><span class="lba-pc">Photo &middot; beard balm tin</span></div><div class="lba-pi"><span class="lba-ver">&#10003; Verified seller</span><h4 class="lba-pn">Cedar &amp; Shea Beard Balm</h4><p class="lba-pb">Kingsman Lagos</p><p class="lba-pr">&#8358;8,200</p></div></div>
+<div class="lba-prod"><div class="lba-ph"><div class="lba-bot lba-b3"></div><span class="lba-pc">Photo &middot; oud fragrance, unisex</span></div><div class="lba-pi"><span class="lba-ver">&#10003; Verified seller</span><h4 class="lba-pn">Harmattan Oud Eau de Parfum</h4><p class="lba-pb">Scent of Arewa</p><p class="lba-pr">&#8358;32,000</p></div></div>
+<div class="lba-prod"><div class="lba-ph"><div class="lba-bot lba-b4"></div><span class="lba-pc">Photo &middot; lip &amp; cheek tint</span></div><div class="lba-pi"><span class="lba-ver">&#10003; Verified seller</span><h4 class="lba-pn">Hibiscus Lip &amp; Cheek Tint</h4><p class="lba-pb">Zobo Beauty</p><p class="lba-pr">&#8358;6,800</p></div></div></div></section>
+<section class="lba-safe"><div><div class="lba-cap">Never scammed. Ever.</div><h2 class="lba-sh">Your money waits until it <em>arrives</em>.</h2></div><div class="lba-steps">
+<div class="lba-step"><b>01</b><h3 class="lba-st">You pay into escrow</h3><p>We hold it. The seller can&rsquo;t touch it yet.</p></div>
+<div class="lba-step"><b>02</b><h3 class="lba-st">Seller ships</h3><p>Track it to your door, anywhere in Nigeria.</p></div>
+<div class="lba-step"><b>03</b><h3 class="lba-st">You confirm, they get paid</h3><p>Wrong or missing? You get a full refund.</p></div></div></section>
+<section class="lba-rep"><div class="lba-tag">#RepLuxeBeau</div><p class="lba-rp">40,000+ Nigerians who glow loud and shop smart. Post your look, get featured, earn perks.</p><div class="lba-av"><span></span><span></span><span></span><span></span></div></section>
+<section class="lba-sec lba-pay"><div><div class="lba-cap" style="color:var(--royal)">At checkout</div><h2 class="lba-h2" style="margin-top:14px">One step to pay. <em>No long forms.</em></h2><p class="lba-pp">Shop freely as a guest. Only when you pay do we ask for your email, and that&rsquo;s it.</p></div>
+<div class="lba-form"><div class="lba-cap">Email address</div><div class="lba-in">you@example.com</div><a class="lba-btn">Continue</a><div class="lba-or lba-cap">or</div><a class="lba-g"><i>G</i>Continue with Google</a></div></section>
+<section class="lba-three">
+<div class="lba-pan"><div class="lba-cap">For sellers</div><h3 class="lba-ph3">Open your shop.</h3><p>List in minutes, reach buyers nationwide, get paid the moment they confirm.</p><a class="lba-tl">Start selling</a></div>
+<div class="lba-pan"><div class="lba-cap">For artisans</div><h3 class="lba-ph3">Fill your calendar.</h3><p>Braiders, barbers, MUAs: take bookings and deposits, no more DM back-and-forth.</p><a class="lba-tl">Get bookings</a></div>
+<div class="lba-pan"><div class="lba-cap">For brands</div><h3 class="lba-ph3">Partner with us.</h3><p>Launches, creator campaigns and brand partnerships with a community that reps you.</p><a class="lba-tl">Talk partnerships</a></div></section>
+<footer class="lba-foot"><div class="lba-fg"><div><div class="lba-word">LUXEBEAU</div><p>Beauty for everyone. Verified sellers, escrow-safe payments, made in Nigeria.</p></div>
+<div class="lba-fc"><span class="lba-cap">Shop</span><a>Her</a><a>Him</a><a>Everyone</a><a>Artisans</a></div>
+<div class="lba-fc"><span class="lba-cap">Help</span><a>How escrow works</a><a>Delivery</a><a>Refunds</a></div>
+<div class="lba-fc"><span class="lba-cap">Join</span><a>Sell on LuxeBeau</a><a>Artisan bookings</a><a>Brand partnerships</a></div></div>
+<div class="lba-fb lba-cap"><span>&copy; 2026 LuxeBeau</span><span>Instagram &middot; TikTok &middot; X</span></div></footer>
+</div>
+<div style="margin:56px 0 12px"><h2>B. Amethyst Pop</h2><p class="subtitle">The purple is a deep, saturated amethyst with an orchid-magenta partner. Every purple tested sits between 276 and 295 degrees on the colour wheel, so none of them can read as blue. Each one is shown big: the hero, the escrow band and the brands panel are all full blocks of purple. DM Serif Display gives the wordmark and headlines the thin-and-thick stroke look of Zara&#x27;s logo, but it feels warmer and more fashionable, and Outfit keeps the small spaced-out labels clean, young and easy to read. The layout stays flat and magazine-like, and the copy stays short: shop now with no sign-up, your money is held until your order arrives, rep #LuxeBeauFam. Women and men appear side by side throughout.</p><div style="margin-top:8px"><span title="Amethyst #8B17C9" style="display:inline-block;width:28px;height:28px;background:#8B17C9;border:1px solid #ccc;margin-right:4px"></span><span title="Deep Amethyst #3D0A5C" style="display:inline-block;width:28px;height:28px;background:#3D0A5C;border:1px solid #ccc;margin-right:4px"></span><span title="Orchid #C21BD0" style="display:inline-block;width:28px;height:28px;background:#C21BD0;border:1px solid #ccc;margin-right:4px"></span><span title="Lilac #E5C4F5" style="display:inline-block;width:28px;height:28px;background:#E5C4F5;border:1px solid #ccc;margin-right:4px"></span><span title="Lilac Mist #F3E3FA" style="display:inline-block;width:28px;height:28px;background:#F3E3FA;border:1px solid #ccc;margin-right:4px"></span><span title="Ink #14081C" style="display:inline-block;width:28px;height:28px;background:#14081C;border:1px solid #ccc;margin-right:4px"></span><span title="White #FFFFFF" style="display:inline-block;width:28px;height:28px;background:#FFFFFF;border:1px solid #ccc;margin-right:4px"></span></div></div>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Outfit:wght@300;400;500;600&display=swap');
+.lbb{--p:#8B17C9;--pd:#3D0A5C;--o:#C21BD0;--l:#F3E3FA;--l2:#E5C4F5;--ink:#14081C;--ln:#E6D9EE;background:#fff;color:var(--ink);width:100%;overflow:hidden;font-family:'Outfit',sans-serif;font-weight:400;font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.lbb *{box-sizing:border-box;border-radius:0;box-shadow:none;margin:0;padding:0}
+.lbb h1,.lbb h2,.lbb h3,.lbb h4{font-family:'DM Serif Display',serif;font-weight:400;margin:0;line-height:1;color:inherit;letter-spacing:-.01em}
+.lbb p{font-family:'Outfit',sans-serif;font-weight:300;margin:0;line-height:1.55;color:inherit}
+.lbb em{font-style:italic}
+.lbb a{color:inherit;text-decoration:none}
+.lbb-k{font:500 11px/1.3 'Outfit',sans-serif;letter-spacing:.2em;text-transform:uppercase}
+.lbb-ann{background:var(--pd);color:#fff;text-align:center;padding:10px 16px}
+.lbb-ann b{color:var(--l2);font-weight:600}
+.lbb-nav{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:22px 40px;border-bottom:1px solid var(--ln)}
+.lbb-nl,.lbb-nr{display:flex;gap:26px}
+.lbb-nr{justify-content:flex-end}
+.lbb-wm{font-family:'DM Serif Display',serif;font-size:34px;line-height:1;letter-spacing:.32em;margin-right:-.32em;color:var(--ink)}
+.lbb-hero{background:var(--p);color:#fff;display:grid;grid-template-columns:1.1fr 1fr;min-height:580px}
+.lbb-hx{padding:64px 48px 52px;display:flex;flex-direction:column;justify-content:space-between}
+.lbb-hx h1{font-size:86px;line-height:.92;margin:26px 0 24px;color:#fff}
+.lbb-hx h1 em{color:var(--l2)}
+.lbb-hx p{font-size:17px;max-width:400px;color:#fff;opacity:.92}
+.lbb-cta{display:flex;align-items:center;gap:28px;margin-top:34px}
+.lbb .lbb-btn{display:inline-block;background:#fff;color:var(--pd);border:1px solid #fff;padding:18px 36px;font:600 12px/1 'Outfit',sans-serif;letter-spacing:.2em;text-transform:uppercase}
+.lbb-tl{font:500 12px/1 'Outfit',sans-serif;letter-spacing:.14em;text-transform:uppercase;border-bottom:1px solid currentColor;padding-bottom:5px}
+.lbb-ph{position:relative;overflow:hidden;background:repeating-linear-gradient(0deg,rgba(255,255,255,.04) 0 1px,transparent 1px 3px),radial-gradient(ellipse 60% 50% at 70% 25%,rgba(255,255,255,.45),transparent 70%),linear-gradient(160deg,var(--o),var(--pd))}
+.lbb-cap{position:absolute;left:16px;bottom:14px;font:500 10px/1.3 'Outfit',sans-serif;letter-spacing:.18em;text-transform:uppercase;color:#fff;opacity:.85}
+.lbb-sil{position:absolute;inset:0;background:radial-gradient(ellipse 12% 17% at 50% 44%,rgba(20,8,28,.5) 0 62%,transparent 100%),radial-gradient(ellipse 40% 36% at 50% 102%,rgba(20,8,28,.6) 0 60%,transparent 100%)}
+.lbb-hp{border-left:1px solid rgba(255,255,255,.25)}
+.lbb-hp .lbb-sil{left:-22%;right:22%}
+.lbb-hp .lbb-sil+.lbb-sil{left:24%;right:-24%;top:14%;opacity:.7}
+.lbb-cat{display:grid;grid-template-columns:repeat(6,1fr);border-bottom:1px solid var(--ln)}
+.lbb-cat a{padding:24px 22px;border-right:1px solid var(--ln);display:flex;justify-content:space-between;align-items:baseline}
+.lbb-cat a:last-child{border-right:0}
+.lbb-cat span:first-child{font-family:'DM Serif Display',serif;font-size:23px;text-transform:none;letter-spacing:0}
+.lbb-cat i{font:500 10px 'Outfit',sans-serif;color:var(--p);font-style:normal;letter-spacing:.1em}
+.lbb-tri{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:#fff}
+.lbb-tile{height:470px}
+.lbb-tile .lbb-cap{top:16px;bottom:auto}
+.lbb-tt{position:absolute;left:24px;bottom:24px;color:#fff}
+.lbb-tt h3{font-size:64px;color:#fff;margin-bottom:10px}
+.lbb-t2{background:repeating-linear-gradient(0deg,rgba(255,255,255,.04) 0 1px,transparent 1px 3px),radial-gradient(ellipse 60% 50% at 30% 20%,rgba(255,255,255,.35),transparent 70%),linear-gradient(200deg,var(--p),var(--ink))}
+.lbb-t3{background:repeating-linear-gradient(0deg,rgba(255,255,255,.04) 0 1px,transparent 1px 3px),radial-gradient(ellipse 70% 50% at 50% 20%,rgba(255,255,255,.5),transparent 70%),linear-gradient(180deg,var(--l2),var(--o) 60%,var(--pd))}
+.lbb-t3 .lbb-sil{left:-20%;right:20%}
+.lbb-t3 .lbb-sil+.lbb-sil{left:22%;right:-22%;top:12%;opacity:.75}
+.lbb-wrap{padding:72px 40px}
+.lbb-hd{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:28px}
+.lbb-hd h2{font-size:46px;color:var(--ink)}
+.lbb-hd h2 em{color:var(--p)}
+.lbb-pr{display:grid;grid-template-columns:repeat(4,1fr);gap:20px}
+.lbb-pi{height:310px;background:repeating-linear-gradient(0deg,rgba(20,8,28,.025) 0 1px,transparent 1px 3px),radial-gradient(ellipse 70% 55% at 50% 30%,#fff,transparent 75%),var(--b,var(--l))}
+.lbb-pi::before{content:'';position:absolute;left:39%;width:22%;bottom:16%;height:46%;background:linear-gradient(90deg,var(--c),var(--c2,var(--pd)) 70%,var(--c))}
+.lbb-pi::after{content:'';position:absolute;left:45%;width:10%;bottom:62%;height:9%;background:var(--ink)}
+.lbb-pi .lbb-cap{color:var(--pd)}
+.lbb-vf{position:absolute;top:12px;left:12px;background:#fff;color:var(--p);padding:6px 9px;font:600 10px/1 'Outfit',sans-serif;letter-spacing:.16em;text-transform:uppercase}
+.lbb-nm{font:500 14px/1.35 'Outfit',sans-serif;margin-top:14px;color:var(--ink)}
+.lbb-br{color:#7a6a85;margin-top:4px}
+.lbb-pz{font:600 15px/1 'Outfit',sans-serif;margin-top:10px;color:var(--p)}
+.lbb-safe{background:var(--pd);color:#fff;display:grid;grid-template-columns:1fr 1.5fr;gap:56px;padding:80px 40px}
+.lbb-safe h2{font-size:60px;color:#fff;line-height:.98;margin-top:18px}
+.lbb-safe h2 em{color:var(--o)}
+.lbb-st{display:grid;grid-template-columns:repeat(3,1fr);gap:28px;align-self:end}
+.lbb-st>div{border-top:1px solid rgba(255,255,255,.3);padding-top:20px}
+.lbb-n{font-family:'DM Serif Display',serif;font-size:52px;line-height:1;color:var(--l2);margin-bottom:16px}
+.lbb-st p{font-size:14px;color:#fff;opacity:.85;margin-top:8px}
+.lbb-fam{background:var(--l);display:flex;align-items:center;gap:40px;padding:34px 40px}
+.lbb-fam h3{font-size:44px;color:var(--p)}
+.lbb-fam p{flex:1;color:var(--ink);font-size:15px}
+.lbb-av{display:flex}
+.lbb-av span{width:44px;height:44px;border:2px solid var(--l);margin-left:-8px;background:linear-gradient(150deg,var(--o),var(--pd))}
+.lbb-av span:nth-child(2n){background:linear-gradient(150deg,var(--l2),var(--p))}
+.lbb-av span:nth-child(3n){background:linear-gradient(150deg,var(--p),var(--ink))}
+.lbb-pay{display:grid;grid-template-columns:1fr 1fr;gap:64px;align-items:center}
+.lbb-pay h2{font-size:56px;color:var(--ink);margin:16px 0 18px}
+.lbb-pay h2 em{color:var(--p)}
+.lbb-pay p{color:#4a3b55;max-width:420px}
+.lbb-fm{border:1px solid var(--ink);padding:36px}
+.lbb-in{display:block;width:100%;border:0;border-bottom:1px solid var(--ink);background:transparent;padding:12px 0;margin:8px 0 22px;font:400 17px 'Outfit',sans-serif;color:var(--ink);outline:0;-webkit-appearance:none;appearance:none}
+.lbb .lbb-b1,.lbb .lbb-b2{display:block;text-align:center;padding:17px;font:600 12px/1 'Outfit',sans-serif;letter-spacing:.2em;text-transform:uppercase}
+.lbb .lbb-b1{background:var(--p);color:#fff;border:1px solid var(--p)}
+.lbb .lbb-b2{border:1px solid var(--ink);color:var(--ink)}
+.lbb-b2 b{font-family:'DM Serif Display',serif;font-size:17px;margin-right:10px;color:var(--p)}
+.lbb-or{display:flex;align-items:center;gap:14px;margin:16px 0;color:#7a6a85}
+.lbb-or::before,.lbb-or::after{content:'';flex:1;border-top:1px solid var(--ln)}
+.lbb-sm{font-size:12px;color:#7a6a85;margin-top:16px;text-align:center}
+.lbb-gr{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--ink)}
+.lbb-gp{padding:44px 36px 40px;border-right:1px solid var(--ln);min-height:320px;display:flex;flex-direction:column}
+.lbb-gp h3{font-size:38px;margin:18px 0 14px;color:var(--ink)}
+.lbb-gp p{font-size:14px;color:#4a3b55;flex:1}
+.lbb-gp .lbb-tl{align-self:flex-start;margin-top:24px;color:var(--p)}
+.lbb-g2{background:var(--l)}
+.lbb-g3{background:var(--o);border-right:0}
+.lbb-g3 h3,.lbb-g3 p,.lbb-g3 .lbb-k,.lbb-g3 .lbb-tl{color:#fff}
+.lbb-ft{background:var(--ink);color:#fff;padding:60px 40px 28px}
+.lbb-fc{display:grid;grid-template-columns:repeat(4,1fr);gap:24px}
+.lbb-fc a{display:block;font-size:14px;font-weight:300;opacity:.8;margin-top:10px}
+.lbb-fc .lbb-k{color:var(--l2)}
+.lbb-fw{font-family:'DM Serif Display',serif;font-size:118px;line-height:1;letter-spacing:.2em;padding-left:.2em;color:var(--o);text-align:center;margin:56px 0 28px}
+.lbb-fb{display:flex;justify-content:space-between;border-top:1px solid rgba(255,255,255,.18);padding-top:20px;opacity:.7}
+</style>
+<div class="lbb">
+<div class="lbb-ann lbb-k">Shop safe &middot; <b>Your money is held in escrow</b> until your order arrives &middot; Full refund if it&rsquo;s wrong</div>
+<div class="lbb-nav">
+<div class="lbb-nl lbb-k"><a>Her</a><a>Him</a><a>Everyone</a><a>Artisans</a></div>
+<a class="lbb-wm">LUXEBEAU</a>
+<div class="lbb-nr lbb-k"><a>Search</a><a>Sign in</a><a>Bag (0)</a></div>
+</div>
+<div class="lbb-hero">
+<div class="lbb-hx">
+<div class="lbb-k">Nigeria&rsquo;s beauty marketplace &middot; for her, him &amp; everyone</div>
+<div>
+<h1>Beauty for<br><em>everyone.</em></h1>
+<p>Skincare, hair, grooming and scent from checked Nigerian sellers. No sign-up to start.</p>
+<div class="lbb-cta"><a class="lbb-btn">Start shopping</a><a class="lbb-tl">How your money stays safe &rarr;</a></div>
+</div>
+</div>
+<div class="lbb-ph lbb-hp"><div class="lbb-sil"></div><div class="lbb-sil"></div><div class="lbb-cap">Photo &middot; woman &amp; man, shared glow, Lagos golden hour</div></div>
+</div>
+<div class="lbb-cat lbb-k">
+<a><span>Skincare</span><i>01</i></a><a><span>Hair</span><i>02</i></a><a><span>Fragrance</span><i>03</i></a><a><span>Grooming</span><i>04</i></a><a><span>Makeup</span><i>05</i></a><a><span>Body</span><i>06</i></a>
+</div>
+<div class="lbb-tri">
+<a class="lbb-ph lbb-tile"><div class="lbb-sil"></div><div class="lbb-cap">Photo &middot; woman, braids, dewy skin</div><div class="lbb-tt"><h3>Her</h3><div class="lbb-k">Glow &middot; Lips &middot; Curls &rarr;</div></div></a>
+<a class="lbb-ph lbb-tile lbb-t2"><div class="lbb-sil"></div><div class="lbb-cap">Photo &middot; man, beard oil, warm light</div><div class="lbb-tt"><h3>Him</h3><div class="lbb-k">Beard &middot; Fades &middot; Scent &rarr;</div></div></a>
+<a class="lbb-ph lbb-tile lbb-t3"><div class="lbb-sil"></div><div class="lbb-sil"></div><div class="lbb-cap">Photo &middot; friends, mixed, laughing</div><div class="lbb-tt"><h3>Everyone</h3><div class="lbb-k">Skin &middot; Body &middot; Fragrance &rarr;</div></div></a>
+</div>
+<div class="lbb-wrap">
+<div class="lbb-hd"><h2>New in. <em>All verified.</em></h2><a class="lbb-tl">View all</a></div>
+<div class="lbb-pr">
+<div><div class="lbb-ph lbb-pi" style="--c:#B98AD9;--c2:#F3E3FA"><span class="lbb-vf">&#10003; Verified</span><div class="lbb-cap">Photo &middot; cleanser, daylight</div></div><div class="lbb-nm">Shea &amp; Black Soap Cleanser</div><div class="lbb-br lbb-k">Ori Botanicals</div><div class="lbb-pz">&#8358;8,500</div></div>
+<div><div class="lbb-ph lbb-pi" style="--b:#E5C4F5;--c:#3D0A5C;--c2:#8B17C9"><span class="lbb-vf">&#10003; Verified</span><div class="lbb-cap">Photo &middot; man, beard oil</div></div><div class="lbb-nm">Beard Growth Oil, 30ml</div><div class="lbb-br lbb-k">Mane Lagos</div><div class="lbb-pz">&#8358;6,200</div></div>
+<div><div class="lbb-ph lbb-pi" style="--c:#14081C;--c2:#C21BD0"><span class="lbb-vf">&#10003; Verified</span><div class="lbb-cap">Photo &middot; oud, night</div></div><div class="lbb-nm">Oud Noir Eau de Parfum</div><div class="lbb-br lbb-k">Scent of Eko</div><div class="lbb-pz">&#8358;24,000</div></div>
+<div><div class="lbb-ph lbb-pi" style="--b:#E5C4F5;--c:#C21BD0;--c2:#F3E3FA"><span class="lbb-vf">&#10003; Verified</span><div class="lbb-cap">Photo &middot; woman, lip oil</div></div><div class="lbb-nm">Plum Glow Lip Oil</div><div class="lbb-br lbb-k">Bloom Abuja</div><div class="lbb-pz">&#8358;4,800</div></div>
+</div>
+</div>
+<div class="lbb-safe">
+<div><div class="lbb-k" style="color:#E5C4F5">Never get scammed</div><h2>Your money <em>waits</em> until it arrives.</h2></div>
+<div class="lbb-st">
+<div><div class="lbb-n">01</div><div class="lbb-k">Pay into escrow</div><p>LuxeBeau holds your payment. The seller can&rsquo;t touch it yet.</p></div>
+<div><div class="lbb-n">02</div><div class="lbb-k">Seller ships</div><p>A checked, verified seller sends your order to your door.</p></div>
+<div><div class="lbb-n">03</div><div class="lbb-k">You confirm</div><p>Happy? Confirm and the seller gets paid. Wrong item? Full refund.</p></div>
+</div>
+</div>
+<div class="lbb-fam">
+<h3>#LuxeBeauFam</h3>
+<p>Rep the glow. Tag us, get featured, get first access to drops. 40,000+ members, Lagos to Kano.</p>
+<div class="lbb-av"><span></span><span></span><span></span><span></span><span></span><span></span></div>
+<a class="lbb-tl" style="color:#8B17C9">Join the fam</a>
+</div>
+<div class="lbb-wrap lbb-pay">
+<div><div class="lbb-k" style="color:#8B17C9">Checkout</div><h2>One step to pay. <em>No long forms.</em></h2><p>Browse and fill your bag with no account. When it&rsquo;s time to pay, just your email or Google. Done in seconds.</p></div>
+<div class="lbb-fm">
+<div class="lbb-k">Email address</div>
+<input class="lbb-in" type="email" placeholder="you@example.com">
+<a class="lbb-b1">Continue</a>
+<div class="lbb-or lbb-k">or</div>
+<a class="lbb-b2"><b>G</b>Continue with Google</a>
+<p class="lbb-sm">No password to remember. Payment held in escrow.</p>
+</div>
+</div>
+<div class="lbb-gr">
+<div class="lbb-gp"><div class="lbb-k" style="color:#8B17C9">01 &middot; Sellers</div><h3>Open a shop.</h3><p>List free, earn the Verified badge, reach buyers across Nigeria. Paid fast the moment orders land.</p><a class="lbb-tl">Start selling &rarr;</a></div>
+<div class="lbb-gp lbb-g2"><div class="lbb-k" style="color:#8B17C9">02 &middot; Artisans</div><h3>Fill your calendar.</h3><p>Makeup artists, barbers, braiders, nail techs: take bookings and deposits, held safe till the job&rsquo;s done.</p><a class="lbb-tl">Get bookings &rarr;</a></div>
+<div class="lbb-gp lbb-g3"><div class="lbb-k">03 &middot; Brands</div><h3>Partner with us.</h3><p>Launches, ambassador drops and campaigns with a community that reps what it loves.</p><a class="lbb-tl">Brand partnerships &rarr;</a></div>
+</div>
+<div class="lbb-ft">
+<div class="lbb-fc">
+<div><div class="lbb-k">Shop</div><a>Her</a><a>Him</a><a>Everyone</a><a>New in</a></div>
+<div><div class="lbb-k">Help</div><a>Escrow &amp; refunds</a><a>Delivery</a><a>Returns</a><a>Contact</a></div>
+<div><div class="lbb-k">Grow</div><a>Sell on LuxeBeau</a><a>Artisans</a><a>Brand partnerships</a></div>
+<div><div class="lbb-k">Follow</div><a>Instagram</a><a>TikTok</a><a>X</a><a>#LuxeBeauFam</a></div>
+</div>
+<div class="lbb-fw">LUXEBEAU</div>
+<div class="lbb-fb lbb-k"><span>&copy; 2026 LuxeBeau &middot; Lagos, Nigeria</span><span>Prices in Naira &#8358; &middot; Escrow protected</span></div>
+</div>
+</div>
+
+<div style="margin:56px 0 12px"><h2>C. Lavender Atelier</h2><p class="subtitle">This version uses a calm, gallery-like layout close to Zara&#x27;s, with lots of white space, thin 1px lines and square corners, so the clothes-shop elegance comes through. The colours are pinker than before so the page no longer looks blue: the main purple #8E24AA and the dark plum #5E1675 both sit at hue 285-288, and they fill the hero and the escrow safety band edge to edge. The fonts are new too: Italiana gives the LUXEBEAU name the thin-and-thick fashion-logo strokes, Cormorant Garamond gives big, warm magazine-style headlines, and Montserrat keeps the small menu and button text sharp and easy to read.</p><div style="margin-top:8px"><span title="Atelier Purple #8E24AA" style="display:inline-block;width:28px;height:28px;background:#8E24AA;border:1px solid #ccc;margin-right:4px"></span><span title="Deep Plum #5E1675" style="display:inline-block;width:28px;height:28px;background:#5E1675;border:1px solid #ccc;margin-right:4px"></span><span title="Orchid #B13BD1" style="display:inline-block;width:28px;height:28px;background:#B13BD1;border:1px solid #ccc;margin-right:4px"></span><span title="Lilac #C9A3D6" style="display:inline-block;width:28px;height:28px;background:#C9A3D6;border:1px solid #ccc;margin-right:4px"></span><span title="Lavender Mist #E6D3EC" style="display:inline-block;width:28px;height:28px;background:#E6D3EC;border:1px solid #ccc;margin-right:4px"></span><span title="Lavender Wash #F6EEF8" style="display:inline-block;width:28px;height:28px;background:#F6EEF8;border:1px solid #ccc;margin-right:4px"></span><span title="Ink #151015" style="display:inline-block;width:28px;height:28px;background:#151015;border:1px solid #ccc;margin-right:4px"></span><span title="White #FFFFFF" style="display:inline-block;width:28px;height:28px;background:#FFFFFF;border:1px solid #ccc;margin-right:4px"></span></div></div>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Italiana&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Montserrat:wght@400;500;600&display=swap');
+.lbc{--p:#8E24AA;--pd:#5E1675;--pb:#B13BD1;--lv:#F6EEF8;--lm:#E6D3EC;--ll:#C9A3D6;--ink:#151015;--mu:#6B5C70;--hl:#E7DCEA;width:100%;overflow:hidden;background:#fff;color:var(--ink);font-family:'Montserrat',sans-serif;font-size:14px;line-height:1.6;box-sizing:border-box;border-radius:0;box-shadow:none}
+.lbc *,.lbc *::before,.lbc *::after{box-sizing:border-box;border-radius:0;box-shadow:none}
+.lbc h1,.lbc h2,.lbc h3,.lbc h4{font-family:'Cormorant Garamond',serif;font-weight:500;color:inherit;margin:0;line-height:1.05;letter-spacing:-.01em}
+.lbc p{font-family:'Montserrat',sans-serif;font-weight:400;color:inherit;margin:0;line-height:1.6}
+.lbc a{color:inherit;text-decoration:none}
+.lbc-k{font-family:'Montserrat',sans-serif;font-size:11px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;line-height:1.4}
+.lbc-ann{background:var(--pd);color:#fff;text-align:center;padding:9px 16px}
+.lbc-ann b{font-weight:600;color:var(--ll)}
+.lbc-nav{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:22px 48px;border-bottom:1px solid var(--hl)}
+.lbc-nl,.lbc-nr{display:flex;gap:26px}
+.lbc-nr{justify-content:flex-end}
+.lbc-wm{font-family:'Italiana',serif;font-size:38px;font-weight:400;letter-spacing:.32em;margin-right:-.32em;line-height:1;color:var(--ink)}
+.lbc-hero{display:grid;grid-template-columns:1fr 1.1fr;background:var(--p);color:#fff;min-height:540px}
+.lbc-hc{padding:72px 48px 56px;display:flex;flex-direction:column;justify-content:flex-end;gap:26px}
+.lbc-hero h1{font-size:84px;font-weight:400;line-height:.95;color:#fff}
+.lbc-hero h1 em{font-style:italic;color:var(--lm)}
+.lbc-hero p{font-size:15px;max-width:380px;color:#F3E6F7}
+.lbc-acts{display:flex;align-items:center;gap:28px;margin-top:6px}
+.lbc .lbc-btn{white-space:nowrap;display:inline-block;background:#fff;color:var(--pd);padding:17px 34px;border:1px solid #fff}
+.lbc-tl{white-space:nowrap;border-bottom:1px solid currentColor;padding-bottom:3px}
+.lbc-ph{position:relative;overflow:hidden;background:radial-gradient(ellipse at 30% 25%,rgba(255,255,255,.55),transparent 55%),radial-gradient(circle at 75% 80%,var(--pb),transparent 60%),linear-gradient(160deg,var(--lm),var(--ll) 55%,var(--p));min-height:200px}
+.lbc-ph::before{content:"";position:absolute;inset:0;background:repeating-linear-gradient(115deg,rgba(255,255,255,.05) 0 1px,transparent 1px 3px),repeating-linear-gradient(25deg,rgba(21,16,21,.04) 0 1px,transparent 1px 4px)}
+.lbc-ph::after{content:"";position:absolute;left:50%;bottom:16%;width:22%;height:46%;transform:translateX(-50%);background:linear-gradient(90deg,rgba(255,255,255,.35),rgba(255,255,255,.08) 40%,rgba(94,22,117,.25));border:1px solid rgba(255,255,255,.45)}
+.lbc-ph span{position:absolute;left:16px;bottom:14px;z-index:2;color:#fff;font-size:10px;letter-spacing:.2em;text-transform:uppercase;font-weight:500}
+.lbc-w{background:radial-gradient(ellipse at 35% 30%,#FFE9D9 0,transparent 45%),radial-gradient(circle at 80% 85%,var(--p),transparent 60%),linear-gradient(170deg,#E9C9D9,var(--ll) 60%,var(--pd))}
+.lbc-m{background:radial-gradient(ellipse at 70% 20%,#F5D9B8 0,transparent 40%),radial-gradient(circle at 20% 90%,var(--pd),transparent 65%),linear-gradient(200deg,#B88AA8,#7A3E8A 55%,#2A1430)}
+.lbc-e{background:radial-gradient(ellipse at 50% 25%,#fff 0,transparent 50%),linear-gradient(180deg,var(--lv),var(--lm) 50%,var(--ll))}
+.lbc-e span{color:var(--pd)}
+.lbc-hero .lbc-ph{min-height:540px}
+.lbc-hero .lbc-ph::after{width:16%;height:38%;left:62%}
+.lbc-cats{display:flex;justify-content:center;gap:0;border-bottom:1px solid var(--hl)}
+.lbc-cats a{padding:20px 34px;border-right:1px solid var(--hl)}
+.lbc-cats a:first-child{border-left:1px solid var(--hl)}
+.lbc-cats a:hover{color:var(--p)}
+.lbc-sec{padding:72px 48px}
+.lbc-hd{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:28px}
+.lbc-hd h2{font-size:46px}
+.lbc-hd a{color:var(--p)}
+.lbc-tiles{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+.lbc-tile .lbc-ph{height:400px}
+.lbc-tile h3{font-size:34px;margin-top:16px}
+.lbc-tile p{font-size:13px;color:var(--mu);margin-top:4px}
+.lbc-prods{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.lbc-pc .lbc-ph{height:290px}
+.lbc-pc .lbc-ph::after{width:28%;height:52%}
+.lbc-v{display:inline-block;margin:14px 0 8px;color:var(--p);border:1px solid var(--ll);padding:4px 8px;font-size:10px}
+.lbc-pc h4{font-family:'Montserrat',sans-serif;font-size:13px;font-weight:500;line-height:1.4;letter-spacing:0}
+.lbc-pc p{font-size:12px;color:var(--mu)}
+.lbc-pr{font-family:'Montserrat',sans-serif;font-weight:600;font-size:14px;margin-top:6px}
+.lbc-safe{background:var(--pd);color:#fff;padding:80px 48px;display:grid;grid-template-columns:1fr 1.6fr;gap:56px}
+.lbc-safe h2{font-size:58px;font-weight:400;color:#fff}
+.lbc-safe h2 em{color:var(--ll)}
+.lbc-safe>div>p{color:#E9D6EF;margin-top:18px;max-width:320px}
+.lbc-steps{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid rgba(255,255,255,.3)}
+.lbc-st{padding:26px 22px 0 0}
+.lbc-st+.lbc-st{padding-left:22px;border-left:1px solid rgba(255,255,255,.3)}
+.lbc-n{font-family:'Cormorant Garamond',serif;font-size:64px;line-height:1;color:var(--ll);font-style:italic}
+.lbc-st h4{font-family:'Montserrat',sans-serif;font-size:12px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;margin:14px 0 8px;line-height:1.4;color:#fff}
+.lbc-st p{font-size:13px;color:#E9D6EF}
+.lbc-rep{background:var(--lv);text-align:center;padding:52px 48px;border-bottom:1px solid var(--hl)}
+.lbc-rep h3{font-size:40px;font-style:italic;font-weight:400;color:var(--ink)}
+.lbc-rep h3 b{font-style:normal;font-weight:600;color:var(--p)}
+.lbc-rep p{margin-top:10px;color:var(--mu)}
+.lbc-pay{display:grid;grid-template-columns:1fr 1fr;gap:56px;align-items:center}
+.lbc-pay h2{font-size:52px}
+.lbc-pay>div>p{color:var(--mu);margin-top:14px;max-width:360px}
+.lbc-form{border:1px solid var(--ink);padding:32px}
+.lbc-in{display:block;width:100%;border:0;border-bottom:1px solid var(--ink);padding:12px 0;font-family:'Montserrat',sans-serif;font-size:14px;color:var(--ink);background:transparent;margin:10px 0 22px;outline:none}
+.lbc-b1,.lbc-b2{display:block;text-align:center;padding:16px;border:1px solid var(--p)}
+.lbc .lbc-b1{background:var(--p);color:#fff}
+.lbc .lbc-b2{margin-top:10px;color:var(--ink);border-color:var(--ink)}
+.lbc-or{text-align:center;color:var(--mu);margin-top:14px;font-size:10px}
+.lbc-join{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--hl)}
+.lbc-jp{padding:56px 40px;border-right:1px solid var(--hl)}
+.lbc-jp:last-child{border-right:0;background:var(--lv)}
+.lbc-jp h3{font-size:38px;margin:14px 0 12px}
+.lbc-jp p{color:var(--mu);font-size:13px;min-height:62px}
+.lbc-jp .lbc-k:first-child{color:var(--p)}
+.lbc-jp a{display:inline-block;margin-top:22px;border-bottom:1px solid var(--ink);padding-bottom:3px}
+.lbc-foot{background:var(--ink);color:#CDBFD2;padding:56px 48px 28px}
+.lbc-fg{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:32px}
+.lbc-foot .lbc-wm{color:#fff;font-size:30px}
+.lbc-foot p{font-size:13px;margin-top:14px;max-width:280px;color:#CDBFD2}
+.lbc-fc a{display:block;font-size:13px;margin-top:10px}
+.lbc-fc .lbc-k{color:var(--ll)}
+.lbc-fb{display:flex;justify-content:space-between;margin-top:48px;padding-top:20px;border-top:1px solid #3A2E3D;color:#8E8093}
+</style>
+<div class="lbc">
+<div class="lbc-ann lbc-k">Your money is held in <b>escrow</b> until your order arrives &middot; Never pay a stranger again</div>
+<nav class="lbc-nav">
+<div class="lbc-nl lbc-k"><a href="#">Her</a><a href="#">Him</a><a href="#">Everyone</a><a href="#">Artisans</a></div>
+<a class="lbc-wm" href="#">LUXEBEAU</a>
+<div class="lbc-nr lbc-k"><a href="#">Search</a><a href="#">Sign in</a><a href="#">Bag (0)</a></div>
+</nav>
+<section class="lbc-hero">
+<div class="lbc-hc">
+<div class="lbc-k">New season &middot; Lagos to Abuja</div>
+<h1>Beauty for<br><em>every one</em><br>of us.</h1>
+<p>Skincare, grooming, fragrance and hair for her and him, from verified Nigerian sellers. No sign-up to browse.</p>
+<div class="lbc-acts"><a class="lbc-btn lbc-k" href="#">Start shopping</a><a class="lbc-tl lbc-k" href="#">How your money stays safe</a></div>
+</div>
+<div class="lbc-ph lbc-w"><span>Photo &middot; woman &amp; man, shea glow, soft studio light</span></div>
+</section>
+<div class="lbc-cats lbc-k"><a href="#">Skincare</a><a href="#">Hair</a><a href="#">Fragrance</a><a href="#">Grooming</a><a href="#">Makeup</a><a href="#">Body</a></div>
+<section class="lbc-sec">
+<div class="lbc-hd"><h2>Made for her. Him. All of us.</h2><a class="lbc-k" href="#">Shop all</a></div>
+<div class="lbc-tiles">
+<a class="lbc-tile" href="#"><div class="lbc-ph lbc-w"><span>Photo &middot; woman, braids, gold hour</span></div><h3>Her</h3><p>Glow serums, braiding oils, lip and lash.</p></a>
+<a class="lbc-tile" href="#"><div class="lbc-ph lbc-m"><span>Photo &middot; man, beard oil, warm light</span></div><h3>Him</h3><p>Beard care, fades, fragrance, clean skin.</p></a>
+<a class="lbc-tile" href="#"><div class="lbc-ph lbc-e"><span>Photo &middot; couple, shared vanity, morning</span></div><h3>Everyone</h3><p>Body butters, SPF and scents to share.</p></a>
+</div>
+</section>
+<section class="lbc-sec" style="padding-top:0">
+<div class="lbc-hd"><h2>Trending this week</h2><a class="lbc-k" href="#">View all</a></div>
+<div class="lbc-prods">
+<div class="lbc-pc"><div class="lbc-ph lbc-e"><span>Photo &middot; serum, lilac backdrop</span></div><span class="lbc-v lbc-k">&#10003; Verified</span><h4>Vitamin C Glow Serum</h4><p>Arami Essentials</p><div class="lbc-pr">&#8358;14,500</div></div>
+<div class="lbc-pc"><div class="lbc-ph lbc-m"><span>Photo &middot; beard oil, man's hand</span></div><span class="lbc-v lbc-k">&#10003; Verified</span><h4>Cedar Beard Oil</h4><p>Oga Grooming Co.</p><div class="lbc-pr">&#8358;8,900</div></div>
+<div class="lbc-pc"><div class="lbc-ph lbc-w"><span>Photo &middot; whipped shea, woman</span></div><span class="lbc-v lbc-k">&#10003; Verified</span><h4>Whipped Shea Body Butter</h4><p>Kano Raw</p><div class="lbc-pr">&#8358;6,200</div></div>
+<div class="lbc-pc"><div class="lbc-ph"><span>Photo &middot; unisex oud, on stone</span></div><span class="lbc-v lbc-k">&#10003; Verified</span><h4>Oud &amp; Ginger Eau de Parfum</h4><p>Maison Eko</p><div class="lbc-pr">&#8358;32,000</div></div>
+</div>
+</section>
+<section class="lbc-safe">
+<div><div class="lbc-k" style="color:var(--ll)">LuxeBeau Escrow</div><h2 style="margin-top:14px">Your money <em>waits</em> until it arrives.</h2><p>Every seller is checked. Every payment is held safe. No scams, no stories.</p></div>
+<div class="lbc-steps">
+<div class="lbc-st"><div class="lbc-n">01</div><h4>You pay into escrow</h4><p>We hold your money. The seller can see it, not touch it.</p></div>
+<div class="lbc-st"><div class="lbc-n">02</div><h4>Seller ships</h4><p>Track your order from their shop to your door.</p></div>
+<div class="lbc-st"><div class="lbc-n">03</div><h4>You confirm</h4><p>Then the seller gets paid. Wrong item? Full refund.</p></div>
+</div>
+</section>
+<section class="lbc-rep">
+<div class="lbc-k" style="color:var(--p)">The LuxeBeau family</div>
+<h3 style="margin-top:12px">Glow loud. Rep it. <b>#WeAreLuxeBeau</b></h3>
+<p>Join 40,000+ Nigerians who shop beauty the safe way.</p>
+</section>
+<section class="lbc-sec lbc-pay">
+<div><div class="lbc-k" style="color:var(--p)">Checkout</div><h2 style="margin-top:14px">One step to pay. No long forms.</h2><p>Shop freely as a guest. When you are ready, sign in with email or Google in seconds.</p></div>
+<div class="lbc-form">
+<div class="lbc-k">Email address</div>
+<input class="lbc-in" type="email" placeholder="you@example.com">
+<a class="lbc-b1 lbc-k" href="#">Continue</a>
+<div class="lbc-or lbc-k">or</div>
+<a class="lbc-b2 lbc-k" href="#">Continue with Google</a>
+</div>
+</section>
+<section class="lbc-join">
+<div class="lbc-jp"><div class="lbc-k">For sellers</div><h3>Open your shop</h3><p>Get the Verified badge, reach buyers nationwide and get paid on every delivery.</p><a class="lbc-k" href="#">Start selling</a></div>
+<div class="lbc-jp"><div class="lbc-k">For artisans</div><h3>Fill your calendar</h3><p>Barbers, braiders, MUAs and nail techs: take bookings and deposits, cut no-shows.</p><a class="lbc-k" href="#">Take bookings</a></div>
+<div class="lbc-jp"><div class="lbc-k">For brands</div><h3>Partner with us</h3><p>Launches, creator campaigns and featured placement for brands that want to be seen.</p><a class="lbc-k" href="#">Talk partnerships</a></div>
+</section>
+<footer class="lbc-foot">
+<div class="lbc-fg">
+<div><div class="lbc-wm">LUXEBEAU</div><p>Nigeria's beauty marketplace for everyone. Verified sellers, escrow payments.</p></div>
+<div class="lbc-fc"><div class="lbc-k">Shop</div><a href="#">Her</a><a href="#">Him</a><a href="#">Everyone</a><a href="#">Artisans</a></div>
+<div class="lbc-fc"><div class="lbc-k">Help</div><a href="#">How escrow works</a><a href="#">Refunds</a><a href="#">Delivery</a></div>
+<div class="lbc-fc"><div class="lbc-k">Join</div><a href="#">Sell</a><a href="#">Take bookings</a><a href="#">Brand partners</a></div>
+</div>
+<div class="lbc-fb lbc-k"><span>&copy; 2026 LuxeBeau &middot; Lagos</span><span>Instagram &middot; TikTok &middot; X</span></div>
+</footer>
+</div>
+<div style="margin:56px 0 12px"><h2>D. Royal Ink</h2><p class="subtitle">Royal Ink puts a bold, true purple next to sharp ink black and white, so LuxeBeau feels confident and streetwear-luxe: something people want to wear as a badge (#RepLuxeBeau) and not just a shop. Gloock gives the wordmark and headlines a thin-and-thick fashion-magazine look without the rejected Bodoni, and Manrope keeps the small uppercase labels clean and easy to read. Every purple was checked to sit at hue 277-287, so nothing reads as blue. The escrow safety message gets a large section of its own so shoppers trust it straight away.</p><div style="margin-top:8px"><span title="Royal Purple #9A14C8" style="display:inline-block;width:28px;height:28px;background:#9A14C8;border:1px solid #ccc;margin-right:4px"></span><span title="Electric Orchid #C42BFF" style="display:inline-block;width:28px;height:28px;background:#C42BFF;border:1px solid #ccc;margin-right:4px"></span><span title="Ink #0D0A10" style="display:inline-block;width:28px;height:28px;background:#0D0A10;border:1px solid #ccc;margin-right:4px"></span><span title="White #FFFFFF" style="display:inline-block;width:28px;height:28px;background:#FFFFFF;border:1px solid #ccc;margin-right:4px"></span><span title="Plum Night #2A0740" style="display:inline-block;width:28px;height:28px;background:#2A0740;border:1px solid #ccc;margin-right:4px"></span><span title="Lilac Mist #F0DCF7" style="display:inline-block;width:28px;height:28px;background:#F0DCF7;border:1px solid #ccc;margin-right:4px"></span></div></div>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Gloock&family=Manrope:wght@400;500;600;700;800&display=swap');
+.lbd{--p:#9a14c8;--o:#c42bff;--pd:#2a0740;--pl:#f0dcf7;--k:#0d0a10;--w:#fff;--hl:rgba(13,10,16,.14);background:#fff;color:var(--k);width:100%;overflow:hidden;font-family:'Manrope',sans-serif;font-size:14px;line-height:1.5;box-sizing:border-box}
+.lbd *,.lbd *::before,.lbd *::after{box-sizing:border-box;border-radius:0;box-shadow:none}
+.lbd h1,.lbd h2,.lbd h3,.lbd h4{font-family:'Gloock',serif;font-weight:400;margin:0;line-height:1.02;color:inherit;letter-spacing:-.01em}
+.lbd p{font-family:'Manrope',sans-serif;font-weight:400;margin:0;line-height:1.6;color:inherit}
+.lbd a{color:inherit;text-decoration:none}
+.lbd-up{font-family:'Manrope',sans-serif;font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;line-height:1.4}
+.lbd-ann{background:var(--k);color:#fff;text-align:center;padding:9px 16px}
+.lbd-ann b{color:var(--o);font-weight:800}
+.lbd-nav{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:20px 40px;border-bottom:1px solid var(--hl);background:#fff}
+.lbd-nl,.lbd-nr{display:flex;gap:26px}
+.lbd-nr{justify-content:flex-end}
+.lbd-wm{font-family:'Gloock',serif;font-weight:400;font-size:30px;letter-spacing:.3em;text-transform:uppercase;padding-left:.3em;line-height:1}
+.lbd-hero{background:var(--p);color:#fff;display:grid;grid-template-columns:1.05fr 1fr;min-height:600px}
+.lbd-hc{padding:72px 48px 56px 40px;display:flex;flex-direction:column;justify-content:space-between}
+.lbd-hero h1{font-size:86px;line-height:.94;color:#fff;margin:22px 0 26px}
+.lbd-hero p{font-size:17px;color:rgba(255,255,255,.88);max-width:420px}
+.lbd-cta{display:flex;align-items:center;gap:28px;margin-top:34px}
+.lbd .lbd-btn{display:inline-block;background:var(--k);color:#fff;padding:17px 34px;font-size:12px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;border:1px solid var(--k)}
+.lbd-tl{font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;border-bottom:1px solid currentColor;padding-bottom:3px}
+.lbd-hm{display:flex;gap:28px;border-top:1px solid rgba(255,255,255,.3);padding-top:18px;margin-top:48px}
+.lbd-ph{position:relative;overflow:hidden;background-color:var(--pd)}
+.lbd-ph::after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(0deg,rgba(255,255,255,.035) 0 1px,transparent 1px 3px),repeating-linear-gradient(90deg,rgba(0,0,0,.05) 0 1px,transparent 1px 4px);pointer-events:none}
+.lbd-cap{position:absolute;left:16px;bottom:14px;z-index:2;color:rgba(255,255,255,.85);font-size:10px;font-weight:700;letter-spacing:.16em;text-transform:uppercase}
+.lbd-ph-hero{background:radial-gradient(ellipse 26% 20% at 52% 30%,#e8b48a 0,#b0704a 55%,transparent 72%),radial-gradient(ellipse 46% 40% at 50% 86%,#1a0c22 0,#1a0c22 60%,transparent 62%),radial-gradient(circle at 78% 18%,rgba(255,214,170,.55),transparent 40%),radial-gradient(circle at 20% 70%,#c43dff 0,transparent 55%),linear-gradient(160deg,#4a0b70,#160420)}
+.lbd-tag{position:absolute;top:22px;right:22px;z-index:2;background:#fff;color:var(--k);padding:7px 11px}
+.lbd-cats{background:var(--k);color:#fff;display:grid;grid-template-columns:repeat(6,1fr)}
+.lbd-cat{padding:22px 20px;border-right:1px solid rgba(255,255,255,.16);display:flex;justify-content:space-between;align-items:baseline}
+.lbd-cat:last-child{border-right:0}
+.lbd-cat span{color:var(--o)}
+.lbd-sec{padding:72px 40px}
+.lbd-head{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:28px}
+.lbd-head h2{font-size:52px}
+.lbd-tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.lbd-tile{height:500px}
+.lbd-tile h3{position:absolute;left:22px;top:22px;z-index:2;font-size:64px;color:#fff}
+.lbd-tile .lbd-tl{position:absolute;left:22px;bottom:42px;z-index:2;color:#fff}
+.lbd-t1{background:radial-gradient(ellipse 30% 22% at 50% 40%,#d9a07a,#9a5a38 60%,transparent 72%),radial-gradient(circle at 50% 22%,#f4c542 0,#b8860b 22%,transparent 30%),radial-gradient(circle at 80% 80%,#c43dff,transparent 55%),linear-gradient(180deg,#5c0f86,#22062f)}
+.lbd-t2{background:radial-gradient(ellipse 30% 24% at 48% 42%,#a8683f,#5e341c 60%,transparent 72%),radial-gradient(ellipse 18% 9% at 48% 56%,#140a0a,transparent 70%),radial-gradient(circle at 15% 15%,rgba(255,190,120,.6),transparent 45%),linear-gradient(200deg,#3a0a52,#0d0a10)}
+.lbd-t3{background:radial-gradient(ellipse 18% 16% at 30% 46%,#c98a5a,#7a4527 60%,transparent 72%),radial-gradient(ellipse 18% 16% at 68% 44%,#9e6038,#55301a 60%,transparent 72%),radial-gradient(circle at 50% 100%,#e070ff,transparent 50%),linear-gradient(180deg,#9a14c8,#3a0858)}
+.lbd-prods{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.lbd-pi{height:320px;margin-bottom:14px;border:1px solid var(--hl)}
+.lbd-v{position:absolute;top:12px;left:12px;z-index:2;background:var(--p);border:1px solid #fff;color:#fff;padding:5px 9px;font-size:10px;font-weight:800;letter-spacing:.14em;text-transform:uppercase}
+.lbd-pn{font-family:'Manrope',sans-serif;font-size:14px;font-weight:600;margin:0 0 2px;color:var(--k)}
+.lbd-pb{color:rgba(13,10,16,.55);font-size:11px}
+.lbd-pp{font-family:'Gloock',serif;font-size:22px;margin-top:8px}
+.lbd-p1{background:radial-gradient(ellipse 22% 30% at 50% 55%,#f6efe4,#d8c7ad 70%,transparent 72%),linear-gradient(180deg,#f0dcf7,#d3a3e6)}
+.lbd-p2{background:radial-gradient(ellipse 12% 30% at 50% 55%,#c27a1e,#7a3f08 70%,transparent 72%),radial-gradient(circle at 70% 25%,rgba(255,200,130,.6),transparent 40%),linear-gradient(180deg,#3a0a52,#0d0a10)}
+.lbd-p3{background:radial-gradient(ellipse 13% 28% at 50% 56%,#ffb347,#e07a10 70%,transparent 72%),linear-gradient(180deg,#fff4e6,#f0dcf7)}
+.lbd-p4{background:radial-gradient(ellipse 20% 26% at 50% 58%,#1a0c22,#000 70%,transparent 72%),radial-gradient(circle at 50% 40%,#d07bff,transparent 55%),linear-gradient(180deg,#9a14c8,#2a0740)}
+.lbd-p1 .lbd-cap,.lbd-p3 .lbd-cap{color:rgba(13,10,16,.6)}
+.lbd-safe{background:var(--k);color:#fff;display:grid;grid-template-columns:1fr 1.5fr}
+.lbd-safe h2{font-size:58px;color:#fff;margin:18px 0 20px}
+.lbd-safe .lbd-up{color:var(--o)}
+.lbd-sl{padding:72px 40px;border-right:1px solid rgba(255,255,255,.16)}
+.lbd-steps{display:grid;grid-template-columns:repeat(3,1fr)}
+.lbd-st{padding:72px 28px;border-right:1px solid rgba(255,255,255,.16)}
+.lbd-st:last-child{border-right:0}
+.lbd-st b{display:block;font-family:'Gloock',serif;font-weight:400;font-size:72px;color:var(--o);line-height:1;margin-bottom:26px}
+.lbd-st h3{font-size:24px;color:#fff;margin-bottom:12px}
+.lbd-st p{color:rgba(255,255,255,.7);font-size:13px}
+.lbd-rep{background:var(--o);color:#fff;padding:44px 40px;display:flex;justify-content:space-between;align-items:center;gap:32px}
+.lbd-rep h2{font-size:76px;color:#fff;line-height:1}
+.lbd-rep p{font-size:15px;max-width:330px;color:#fff;margin-bottom:16px}
+.lbd-co{display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid var(--hl)}
+.lbd-col{padding:72px 40px;border-right:1px solid var(--hl)}
+.lbd-col h2{font-size:56px;margin:18px 0 18px}
+.lbd-col p{color:rgba(13,10,16,.7);font-size:15px;max-width:400px}
+.lbd-cor{padding:72px 40px;background:var(--pl);display:flex;flex-direction:column;justify-content:center;gap:12px}
+.lbd-in{border:1px solid var(--k);background:#fff;padding:17px 16px;font-size:14px;color:rgba(13,10,16,.45)}
+.lbd-btn-w{display:block;text-align:center;width:100%}
+.lbd-gg{display:flex;align-items:center;justify-content:center;gap:12px;background:#fff;border:1px solid var(--k);padding:16px;font-size:12px;font-weight:800;letter-spacing:.18em;text-transform:uppercase}
+.lbd-g{font-family:'Gloock',serif;font-size:18px;color:var(--p);letter-spacing:0}
+.lbd-note{color:rgba(13,10,16,.6)}
+.lbd-grow{background:var(--k);color:#fff}
+.lbd-grow .lbd-head{padding:72px 40px 0}
+.lbd-grow h2{color:#fff}
+.lbd-pan{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid rgba(255,255,255,.16);margin-top:28px}
+.lbd-pa{padding:40px;border-right:1px solid rgba(255,255,255,.16);min-height:300px;display:flex;flex-direction:column}
+.lbd-pa:last-child{border-right:0}
+.lbd-pa .lbd-up{color:var(--o)}
+.lbd-pa h3{font-size:36px;color:#fff;margin:18px 0 14px}
+.lbd-pa p{color:rgba(255,255,255,.7);font-size:14px;flex:1;margin-bottom:24px}
+.lbd-pa:nth-child(3){background:var(--p)}
+.lbd-pa:nth-child(3) .lbd-up{color:#fff}
+.lbd-pa:nth-child(3) p{color:rgba(255,255,255,.88)}
+.lbd-ft{background:var(--pd);color:#fff;padding:56px 40px 28px}
+.lbd-fg{display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr;gap:24px;padding-bottom:40px;border-bottom:1px solid rgba(255,255,255,.18)}
+.lbd-fg div{display:flex;flex-direction:column;gap:9px;font-size:13px;color:rgba(255,255,255,.75)}
+.lbd-fg .lbd-up{color:#fff;margin-bottom:6px}
+.lbd-ft .lbd-wm{font-size:40px;padding-left:0}
+.lbd-fb{display:flex;justify-content:space-between;padding-top:22px;color:rgba(255,255,255,.6)}
+</style>
+<div class="lbd">
+<div class="lbd-ann lbd-up"><b>&#9679;</b>&nbsp; Every naira held in escrow until your order arrives &nbsp;&middot;&nbsp; Verified sellers only &nbsp;&middot;&nbsp; Refund if it's wrong</div>
+<div class="lbd-nav">
+<div class="lbd-nl lbd-up"><a href="#">Her</a><a href="#">Him</a><a href="#">Everyone</a><a href="#">Artisans</a></div>
+<div class="lbd-wm">LuxeBeau</div>
+<div class="lbd-nr lbd-up"><a href="#">Search</a><a href="#">Sign in</a><a href="#">Bag (0)</a></div>
+</div>
+<div class="lbd-hero">
+<div class="lbd-hc">
+<div>
+<div class="lbd-up">New season &middot; Made for all of us</div>
+<h1>Beauty is for everybody.</h1>
+<p>Skincare, hair, grooming and scent from verified Nigerian sellers. Shop now. Sign up only when you pay.</p>
+<div class="lbd-cta"><a class="lbd-btn" href="#">Start shopping</a><a class="lbd-tl" href="#">How your money stays safe &rarr;</a></div>
+</div>
+<div class="lbd-hm lbd-up"><span>Escrow on every order</span><span>Checked vendors</span><span>Lagos to Kano</span></div>
+</div>
+<div class="lbd-ph lbd-ph-hero"><div class="lbd-tag lbd-up">Her &amp; Him</div><div class="lbd-cap">PHOTO &middot; woman and man, matching glow, violet studio light</div></div>
+</div>
+<div class="lbd-cats lbd-up">
+<a class="lbd-cat" href="#">Skincare<span>01</span></a><a class="lbd-cat" href="#">Hair<span>02</span></a><a class="lbd-cat" href="#">Fragrance<span>03</span></a><a class="lbd-cat" href="#">Grooming<span>04</span></a><a class="lbd-cat" href="#">Makeup<span>05</span></a><a class="lbd-cat" href="#">Body<span>06</span></a>
+</div>
+<div class="lbd-sec">
+<div class="lbd-head"><h2>Who's it for? You.</h2><div class="lbd-up">Unisex by design</div></div>
+<div class="lbd-tiles">
+<a class="lbd-ph lbd-tile lbd-t1" href="#"><h3>Her</h3><span class="lbd-tl">Shop Her &rarr;</span><div class="lbd-cap">PHOTO &middot; woman, gold gele, dewy skin</div></a>
+<a class="lbd-ph lbd-tile lbd-t2" href="#"><h3>Him</h3><span class="lbd-tl">Shop Him &rarr;</span><div class="lbd-cap">PHOTO &middot; man, beard oil, warm light</div></a>
+<a class="lbd-ph lbd-tile lbd-t3" href="#"><h3>Everyone</h3><span class="lbd-tl">Shop all &rarr;</span><div class="lbd-cap">PHOTO &middot; friends sharing scent, rooftop</div></a>
+</div>
+</div>
+<div class="lbd-sec" style="padding-top:0">
+<div class="lbd-head"><h2>Trending now</h2><a class="lbd-tl" href="#">View all</a></div>
+<div class="lbd-prods">
+<a href="#"><div class="lbd-ph lbd-pi lbd-p1"><div class="lbd-v">&#10003; Verified</div><div class="lbd-cap">PHOTO &middot; shea whip jar, woman's hand</div></div><p class="lbd-pn">Shea Butter Body Whip</p><div class="lbd-pb lbd-up">Oja Naturals</div><div class="lbd-pp">&#8358;8,500</div></a>
+<a href="#"><div class="lbd-ph lbd-pi lbd-p2"><div class="lbd-v">&#10003; Verified</div><div class="lbd-cap">PHOTO &middot; amber beard oil, man's jaw</div></div><p class="lbd-pn">Cedar Beard Oil, 30ml</p><div class="lbd-pb lbd-up">Koko Men</div><div class="lbd-pp">&#8358;6,200</div></a>
+<a href="#"><div class="lbd-ph lbd-pi lbd-p3"><div class="lbd-v">&#10003; Verified</div><div class="lbd-cap">PHOTO &middot; serum dropper, morning light</div></div><p class="lbd-pn">Vitamin C Glow Serum</p><div class="lbd-pb lbd-up">Lumi Lagos</div><div class="lbd-pp">&#8358;14,900</div></a>
+<a href="#"><div class="lbd-ph lbd-pi lbd-p4"><div class="lbd-v">&#10003; Verified</div><div class="lbd-cap">PHOTO &middot; black oud bottle, man in agbada</div></div><p class="lbd-pn">Oud Noir Eau de Parfum</p><div class="lbd-pb lbd-up">House of Ade</div><div class="lbd-pp">&#8358;32,000</div></a>
+</div>
+</div>
+<div class="lbd-safe">
+<div class="lbd-sl"><div class="lbd-up">Never scammed. Never stuck.</div><h2>Your money waits until it arrives.</h2><p style="color:rgba(255,255,255,.7);max-width:340px">We hold your payment. The seller only gets paid when you say it's right.</p></div>
+<div class="lbd-steps">
+<div class="lbd-st"><b>01</b><h3>Pay into escrow</h3><p>Your money sits with LuxeBeau, not the seller.</p></div>
+<div class="lbd-st"><b>02</b><h3>Seller ships</h3><p>Only ID-checked, verified vendors can sell here.</p></div>
+<div class="lbd-st"><b>03</b><h3>You confirm, they get paid</h3><p>Wrong or missing? You get a full refund.</p></div>
+</div>
+</div>
+<div class="lbd-rep">
+<div><div class="lbd-up" style="margin-bottom:10px">The LuxeBeau Fam</div><h2>#RepLuxeBeau</h2></div>
+<div><p>Glow on your own terms, then show it off. Tag your look and get featured.</p><a class="lbd-btn" href="#">Join the fam</a></div>
+</div>
+<div class="lbd-co">
+<div class="lbd-col"><div class="lbd-up" style="color:var(--p)">Checkout</div><h2>One step to pay. No long forms.</h2><p>Browse and fill your bag freely. We only ask for your email when it's time to pay.</p></div>
+<div class="lbd-cor">
+<div class="lbd-up">Email</div>
+<div class="lbd-in">you@email.com</div>
+<a class="lbd-btn lbd-btn-w" href="#">Continue</a>
+<a class="lbd-gg" href="#"><span class="lbd-g">G</span>Continue with Google</a>
+<div class="lbd-up lbd-note">No password. About ten seconds.</div>
+</div>
+</div>
+<div class="lbd-grow">
+<div class="lbd-head"><h2>Grow with LuxeBeau</h2><div class="lbd-up">For sellers, artisans &amp; brands</div></div>
+<div class="lbd-pan">
+<div class="lbd-pa"><div class="lbd-up">Sellers</div><h3>Open your shop today.</h3><p>List in minutes, reach buyers across Nigeria, and get paid safely the moment orders land.</p><a class="lbd-tl" href="#">Start selling &rarr;</a></div>
+<div class="lbd-pa"><div class="lbd-up">Artisans</div><h3>Fill your calendar.</h3><p>Makeup artists, barbers, braiders, nail techs: take bookings and deposits without the chase.</p><a class="lbd-tl" href="#">Get bookings &rarr;</a></div>
+<div class="lbd-pa"><div class="lbd-up">Brands</div><h3>Partner with us.</h3><p>Launch drops, collabs and campaigns with Nigeria's most excited beauty community.</p><a class="lbd-tl" href="#">Talk partnerships &rarr;</a></div>
+</div>
+</div>
+<div class="lbd-ft">
+<div class="lbd-fg">
+<div><div class="lbd-wm">LuxeBeau</div><span style="margin-top:10px">Beauty for everybody. Money safe until it arrives.</span></div>
+<div><div class="lbd-up">Shop</div><span>Her</span><span>Him</span><span>Everyone</span><span>Artisans</span></div>
+<div><div class="lbd-up">Sell</div><span>Open a shop</span><span>Take bookings</span><span>Brand partners</span></div>
+<div><div class="lbd-up">Help</div><span>How escrow works</span><span>Refunds</span><span>Delivery</span></div>
+<div><div class="lbd-up">Follow</div><span>Instagram</span><span>TikTok</span><span>X</span></div>
+</div>
+<div class="lbd-fb lbd-up"><span>&copy; 2026 LuxeBeau &middot; Lagos, Nigeria</span><span>&#8358; NGN &middot; Escrow-protected</span></div>
+</div>
+</div>

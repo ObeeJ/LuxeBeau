@@ -1,0 +1,15 @@
+Method,Name,Error,Occurrences,First Seen,Last Seen
+GET,/admin/users,HTTPError('401 Client Error: Unauthorized for url: /admin/users'),88,2026-10-29T14:44:52Z,2026-10-29T14:45:49Z
+POST,/bookings [POST],HTTPError('400 Client Error: Bad Request for url: /bookings [POST]'),95,2026-10-29T14:44:52Z,2026-10-29T14:45:49Z
+GET,/storefront/:slug/products,HTTPError('404 Client Error: Not Found for url: /storefront/:slug/products'),443,2026-10-29T14:44:54Z,2026-10-29T14:45:50Z
+POST,/bookings [POST],HTTPError('409 Client Error: Conflict for url: /bookings [POST]'),16,2026-10-29T14:45:05Z,2026-10-29T14:45:49Z
+GET,/storefront/:slug,HTTPError('404 Client Error: Not Found for url: /storefront/:slug'),443,2026-10-29T14:44:54Z,2026-10-29T14:45:50Z
+POST,/bookings [POST],HTTPError('429 Client Error: Too Many Requests for url: /bookings [POST]'),147,2026-10-29T14:44:58Z,2026-10-29T14:45:50Z
+GET,/admin/escrows,HTTPError('401 Client Error: Unauthorized for url: /admin/escrows'),75,2026-10-29T14:44:55Z,2026-10-29T14:45:49Z
+GET,/artisans/:id/availability,HTTPError('429 Client Error: Too Many Requests for url: /artisans/:id/availability'),688,2026-10-29T14:44:57Z,2026-10-29T14:45:50Z
+GET,/admin/orders,HTTPError('401 Client Error: Unauthorized for url: /admin/orders'),86,2026-10-29T14:44:53Z,2026-10-29T14:45:50Z
+GET,/artisans/:id/availability,HTTPError('404 Client Error: Not Found for url: /artisans/:id/availability'),248,2026-10-29T14:44:52Z,2026-10-29T14:45:50Z
+GET,/admin/influencer-commissions,HTTPError('401 Client Error: Unauthorized for url: /admin/influencer-commissions'),33,2026-10-29T14:44:56Z,2026-10-29T14:45:48Z
+POST,/orders [POST],HTTPError('409 Client Error: Conflict for url: /orders [POST]'),351,2026-10-29T14:44:52Z,2026-10-29T14:45:50Z
+GET,/admin/bookings,HTTPError('401 Client Error: Unauthorized for url: /admin/bookings'),66,2026-10-29T14:44:52Z,2026-10-29T14:45:48Z
+PATCH,/bookings/:id/confirm,HTTPError('500 Server Error: Internal Server Error for url: /bookings/:id/confirm'),56,2026-10-29T14:45:03Z,2026-10-29T14:45:50Z

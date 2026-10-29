@@ -45,6 +45,8 @@ func insertBooking(t *testing.T, db *gorm.DB, a domain.Artisan, buyer, status st
 func seedBuyer(db *gorm.DB, name string) string {
 	id := uuid.NewString()
 	db.Create(&domain.User{ID: id, Name: name, Email: name + "@test.ng", Role: "buyer"})
+	// Seed a wallet with enough balance for test bookings.
+	db.Create(&domain.Wallet{UserID: id, Balance: 10_000_000})
 	return id
 }
 

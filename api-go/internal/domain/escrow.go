@@ -29,13 +29,10 @@ const (
 	RailHeld = "held"
 )
 
-// DefaultFeeBps is the platform fee on a release, in basis points (100 = 1%).
-const DefaultFeeBps = 100
-
-// OrderReleaseWindow is how long after a seller marks an order delivered the
-// buyer has to confirm or report a problem. If they do neither, the money is
-// released to the seller. A week is the common marketplace claim window.
-const OrderReleaseWindow = 7 * 24 * time.Hour
+// DefaultFeeBps and OrderReleaseWindow are intentionally removed.
+// Use User.EffectiveFeeBps() and User.EffectiveReleaseWindowHours() instead.
+// Platform-wide defaults live in domain/user.go as PlatformFeeBps and
+// PlatformReleaseWindowHours so there is exactly one place to change them.
 
 // OrderHold is the buyer's or seller's view of the escrow holding one
 // seller's share of an order. It carries no account ids or contact details.

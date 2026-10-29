@@ -1,0 +1,27 @@
+Method,Name,Error,Occurrences,First Seen,Last Seen
+GET,/me/bookings,HTTPError('404 Client Error: Not Found for url: /me/bookings'),21,2026-10-29T13:48:42Z,2026-10-29T13:48:59Z
+POST,/orders [POST],HTTPError('404 Client Error: Not Found for url: /orders [POST]'),15,2026-10-29T13:48:46Z,2026-10-29T13:48:59Z
+GET,/me/artisan,HTTPError('404 Client Error: Not Found for url: /me/artisan'),12,2026-10-29T13:48:41Z,2026-10-29T13:49:00Z
+GET,/admin/bookings,HTTPError('404 Client Error: Not Found for url: /admin/bookings'),3,2026-10-29T13:48:47Z,2026-10-29T13:48:50Z
+GET,/admin/orders,HTTPError('404 Client Error: Not Found for url: /admin/orders'),2,2026-10-29T13:48:53Z,2026-10-29T13:48:58Z
+GET,/me/wallet/withdrawals,HTTPError('404 Client Error: Not Found for url: /me/wallet/withdrawals'),6,2026-10-29T13:48:51Z,2026-10-29T13:48:57Z
+GET,/artisans/:id,HTTPError('404 Client Error: Not Found for url: /artisans/:id'),32,2026-10-29T13:48:42Z,2026-10-29T13:48:59Z
+GET,/wallets/me,HTTPError('404 Client Error: Not Found for url: /wallets/me'),40,2026-10-29T13:48:41Z,2026-10-29T13:49:00Z
+GET,/me/products,HTTPError('404 Client Error: Not Found for url: /me/products'),10,2026-10-29T13:48:42Z,2026-10-29T13:48:59Z
+GET,/me/delivery-zones,HTTPError('404 Client Error: Not Found for url: /me/delivery-zones'),3,2026-10-29T13:48:44Z,2026-10-29T13:48:55Z
+GET,/artisans,HTTPError('404 Client Error: Not Found for url: /artisans'),47,2026-10-29T13:48:42Z,2026-10-29T13:49:00Z
+GET,/admin/escrows,HTTPError('404 Client Error: Not Found for url: /admin/escrows'),3,2026-10-29T13:48:45Z,2026-10-29T13:48:57Z
+GET,/auth/me,HTTPError('404 Client Error: Not Found for url: /auth/me'),6,2026-10-29T13:48:42Z,2026-10-29T13:48:57Z
+POST,/me/influencer-packages [POST],HTTPError('404 Client Error: Not Found for url: /me/influencer-packages [POST]'),2,2026-10-29T13:48:46Z,2026-10-29T13:48:54Z
+GET,/me/sales,HTTPError('404 Client Error: Not Found for url: /me/sales'),9,2026-10-29T13:48:43Z,2026-10-29T13:48:59Z
+GET,/artisans/:id/availability,HTTPError('404 Client Error: Not Found for url: /artisans/:id/availability'),35,2026-10-29T13:48:44Z,2026-10-29T13:48:59Z
+GET,/me/artisan/schedule,HTTPError('404 Client Error: Not Found for url: /me/artisan/schedule'),6,2026-10-29T13:48:48Z,2026-10-29T13:48:58Z
+GET,/me/orders,HTTPError('404 Client Error: Not Found for url: /me/orders'),21,2026-10-29T13:48:41Z,2026-10-29T13:48:59Z
+GET,/products,HTTPError('404 Client Error: Not Found for url: /products'),114,2026-10-29T13:48:41Z,2026-10-29T13:48:59Z
+GET,/me/influencer-packages,HTTPError('404 Client Error: Not Found for url: /me/influencer-packages'),14,2026-10-29T13:48:41Z,2026-10-29T13:49:00Z
+GET,/admin/influencer-commissions,HTTPError('404 Client Error: Not Found for url: /admin/influencer-commissions'),2,2026-10-29T13:48:41Z,2026-10-29T13:48:54Z
+GET,/admin/users,HTTPError('404 Client Error: Not Found for url: /admin/users'),4,2026-10-29T13:48:43Z,2026-10-29T13:48:58Z
+GET,/products/:id,HTTPError('404 Client Error: Not Found for url: /products/:id'),50,2026-10-29T13:48:41Z,2026-10-29T13:49:00Z
+GET,/me/artisan/slots,HTTPError('404 Client Error: Not Found for url: /me/artisan/slots'),4,2026-10-29T13:48:47Z,2026-10-29T13:48:56Z
+POST,/bookings [POST],HTTPError('404 Client Error: Not Found for url: /bookings [POST]'),6,2026-10-29T13:48:47Z,2026-10-29T13:49:00Z
+PUT,/me/storefront-slug,HTTPError('404 Client Error: Not Found for url: /me/storefront-slug'),1,2026-10-29T13:48:52Z,2026-10-29T13:48:52Z

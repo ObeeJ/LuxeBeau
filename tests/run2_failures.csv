@@ -1,0 +1,24 @@
+Method,Name,Error,Occurrences,First Seen,Last Seen
+POST,/orders [POST],HTTPError('401 Client Error: Unauthorized for url: /orders [POST]'),492,2026-10-29T14:12:54Z,2026-10-29T14:13:52Z
+GET,/me/artisan/schedule,HTTPError('401 Client Error: Unauthorized for url: /me/artisan/schedule'),161,2026-10-29T14:12:54Z,2026-10-29T14:13:51Z
+GET,/me/products,HTTPError('401 Client Error: Unauthorized for url: /me/products'),401,2026-10-29T14:12:53Z,2026-10-29T14:13:52Z
+GET,/admin/users,HTTPError('401 Client Error: Unauthorized for url: /admin/users'),89,2026-10-29T14:12:53Z,2026-10-29T14:13:52Z
+GET,/me/wallet/withdrawals,HTTPError('404 Client Error: Not Found for url: /me/wallet/withdrawals'),109,2026-10-29T14:12:54Z,2026-10-29T14:13:52Z
+GET,/me/artisan,HTTPError('401 Client Error: Unauthorized for url: /me/artisan'),343,2026-10-29T14:12:53Z,2026-10-29T14:13:52Z
+GET,/me/artisan/slots,HTTPError('401 Client Error: Unauthorized for url: /me/artisan/slots'),167,2026-10-29T14:12:53Z,2026-10-29T14:13:52Z
+GET,/me/sales,HTTPError('401 Client Error: Unauthorized for url: /me/sales'),309,2026-10-29T14:12:53Z,2026-10-29T14:13:52Z
+GET,/me/delivery-zones,HTTPError('404 Client Error: Not Found for url: /me/delivery-zones'),223,2026-10-29T14:12:54Z,2026-10-29T14:13:52Z
+GET,/admin/escrows,HTTPError('401 Client Error: Unauthorized for url: /admin/escrows'),57,2026-10-29T14:12:53Z,2026-10-29T14:13:49Z
+GET,/artisans/:id/availability,HTTPError('429 Client Error: Too Many Requests for url: /artisans/:id/availability'),685,2026-10-29T14:13:00Z,2026-10-29T14:13:52Z
+GET,/admin/orders,HTTPError('401 Client Error: Unauthorized for url: /admin/orders'),100,2026-10-29T14:12:55Z,2026-10-29T14:13:51Z
+GET,/me/bookings,HTTPError('401 Client Error: Unauthorized for url: /me/bookings'),761,2026-10-29T14:12:53Z,2026-10-29T14:13:52Z
+POST,/me/influencer-packages [POST],HTTPError('404 Client Error: Not Found for url: /me/influencer-packages [POST]'),111,2026-10-29T14:12:56Z,2026-10-29T14:13:51Z
+GET,/me/orders,HTTPError('401 Client Error: Unauthorized for url: /me/orders'),760,2026-10-29T14:12:53Z,2026-10-29T14:13:52Z
+GET,/artisans/:id/availability,HTTPError('404 Client Error: Not Found for url: /artisans/:id/availability'),249,2026-10-29T14:12:53Z,2026-10-29T14:13:52Z
+POST,/bookings [POST],HTTPError('401 Client Error: Unauthorized for url: /bookings [POST]'),237,2026-10-29T14:12:53Z,2026-10-29T14:13:52Z
+GET,/me/influencer-packages,HTTPError('404 Client Error: Not Found for url: /me/influencer-packages'),177,2026-10-29T14:12:53Z,2026-10-29T14:13:52Z
+GET,/admin/influencer-commissions,HTTPError('404 Client Error: Not Found for url: /admin/influencer-commissions'),29,2026-10-29T14:12:55Z,2026-10-29T14:13:51Z
+GET,/auth/me,HTTPError('401 Client Error: Unauthorized for url: /auth/me'),273,2026-10-29T14:12:53Z,2026-10-29T14:13:52Z
+GET,/wallets/me,HTTPError('401 Client Error: Unauthorized for url: /wallets/me'),1090,2026-10-29T14:12:53Z,2026-10-29T14:13:52Z
+GET,/admin/bookings,HTTPError('401 Client Error: Unauthorized for url: /admin/bookings'),71,2026-10-29T14:12:56Z,2026-10-29T14:13:51Z
+PUT,/me/storefront-slug,HTTPError('404 Client Error: Not Found for url: /me/storefront-slug'),93,2026-10-29T14:12:54Z,2026-10-29T14:13:51Z

@@ -42,7 +42,7 @@ func setup(t *testing.T, name string) *env {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := db.AutoMigrate(&domain.User{}, &domain.Wallet{}, &domain.Product{}, &domain.Order{}, &domain.OrderItem{}, &domain.Escrow{}, &domain.LedgerEntry{}, &domain.Artisan{}); err != nil {
+	if err := db.AutoMigrate(&domain.User{}, &domain.Wallet{}, &domain.Product{}, &domain.Order{}, &domain.OrderItem{}, &domain.Escrow{}, &domain.LedgerEntry{}, &domain.Artisan{}, &domain.InfluencerReferral{}, &domain.InfluencerCommission{}, &domain.InfluencerPackage{}); err != nil {
 		t.Fatal(err)
 	}
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
@@ -134,8 +134,9 @@ func TestOrderMoneyLifecycle(t *testing.T) {
 	}
 	holds = e.holds(o.ID)
 	a := holds[sellerA].ReleaseEligibleAt
-	if a == nil || a.Before(time.Now().Add(domain.OrderReleaseWindow-time.Minute)) || a.After(time.Now().Add(domain.OrderReleaseWindow+time.Minute)) {
-		t.Fatalf("seller A release time = %v, want about %v from now", a, domain.OrderReleaseWindow)
+	window := time.Duration(domain.PlatformReleaseWindowHours) * time.Hour
+	if a == nil || a.Before(time.Now().Add(window-time.Minute)) || a.After(time.Now().Add(window+time.Minute)) {
+		t.Fatalf("seller A release time = %v, want about %v from now", a, window)
 	}
 	if holds[sellerB].ReleaseEligibleAt != nil {
 		t.Fatal("seller B's window started before B delivered")
@@ -152,14 +153,14 @@ func TestOrderMoneyLifecycle(t *testing.T) {
 		t.Errorf("window moved from %v to %v", before, again)
 	}
 
-	// ── The window passes: the sweeper pays seller A, net of the 1% fee ──
+	// ── The window passes: the sweeper pays seller A, net of the 2.5% fee ──
 	e.db.Model(&domain.Escrow{}).Where("id = ?", holds[sellerA].ID).Update("release_eligible_at", time.Now().Add(-time.Minute))
 	if n, err := e.escrows.SweepAutoReleases(ctx); err != nil || n != 1 {
 		t.Fatalf("sweep after the window: released %d, err %v; want 1", n, err)
 	}
-	fee := soap / 100
+	fee := soap * domain.PlatformFeeBps / 10000
 	if got := e.balance(sellerA); got != soap-fee {
-		t.Fatalf("seller A wallet = %d, want %d (items less the 1%% fee)", got, soap-fee)
+		t.Fatalf("seller A wallet = %d, want %d (items less the 2.5%% fee)", got, soap-fee)
 	}
 	if e.holds(o.ID)[sellerA].State != domain.EscrowReleased || e.holds(o.ID)[sellerB].State != domain.EscrowFunded {
 		t.Fatal("only seller A's escrow should have released")
@@ -218,7 +219,7 @@ func TestBuyerConfirmsDeliveryAndPaysSellerEarly(t *testing.T) {
 	if _, err := e.escrows.Release(ctx, h.ID, buyerID, false); err != nil {
 		t.Fatalf("buyer confirm: %v", err)
 	}
-	if got, want := e.balance(sellerB), int64(1_200_000)-12_000; got != want {
+	if got, want := e.balance(sellerB), int64(1_200_000)-int64(1_200_000)*domain.PlatformFeeBps/10000; got != want {
 		t.Fatalf("seller B wallet = %d, want %d", got, want)
 	}
 	if _, err := e.escrows.Release(ctx, h.ID, buyerID, false); err == nil {
@@ -235,7 +236,9 @@ func TestSellerSeesOnlyTheirOwnPayout(t *testing.T) {
 		t.Fatalf("sales = %d, err %v", len(sales), err)
 	}
 	holds := sales[0].Holds
-	if len(holds) != 1 || holds[0].Amount != 2*850_000 || holds[0].Net != 2*850_000-17_000 {
+	sellerAItems := int64(2 * 850_000)
+	sellerANet := sellerAItems - sellerAItems*domain.PlatformFeeBps/10000
+	if len(holds) != 1 || holds[0].Amount != sellerAItems || holds[0].Net != sellerANet {
 		t.Fatalf("seller A's holds = %+v, want only their own escrow with its net payout", holds)
 	}
 	if holds[0].Seller != "" {

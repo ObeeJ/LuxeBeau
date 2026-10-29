@@ -1,0 +1,324 @@
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&display=swap');
+.lx{--brand:#8a1fc7;--brand-d:#6f16a3;--wash:#f3e6fb;--glow:rgba(138,31,199,.35);--ink:#000;--muted:#707070;--line:#ebebeb;--bg:#fafafa;
+  --spring:cubic-bezier(.34,1.56,.64,1);--out:cubic-bezier(.22,1,.36,1);--std:cubic-bezier(.2,0,0,1);
+  font-family:'Geist',system-ui,sans-serif;color:var(--ink);background:var(--bg);font-size:14px;line-height:1.4;position:relative;overflow:hidden;border-radius:12px;padding:0 28px 40px}
+.lx *{box-sizing:border-box;margin:0}
+.lx h1,.lx h2,.lx h3,.lx h4,.lx p{font-family:inherit;color:inherit;font-weight:inherit}
+.lx button{font:inherit;border:0;background:none;cursor:pointer;color:inherit}
+.lx .tap{transition:transform .15s ease-in-out,opacity .15s ease-in-out}
+.lx .tap:active{transform:scale(.96);opacity:.6}
+
+.lx-bar{position:sticky;top:12px;z-index:5;margin:16px auto 0;max-width:1080px;display:flex;align-items:center;gap:14px;background:rgba(255,255,255,.86);backdrop-filter:blur(14px);border-radius:999px;padding:8px 8px 8px 10px;box-shadow:0 4px 24px rgba(0,0,0,.08)}
+.lx-logo{height:44px;padding:0 16px;border-radius:999px;background:var(--brand);color:#fff;display:flex;align-items:center;font-weight:800;font-size:18px;letter-spacing:-.05em;box-shadow:0 6px 16px var(--glow)}
+.lx-search{flex:1;height:44px;border-radius:999px;background:#f2f2f2;display:flex;align-items:center;gap:10px;padding:0 16px;color:#7a7a7a}
+.lx-seg{display:flex;background:#f2f2f2;border-radius:999px;padding:4px;position:relative}
+.lx-seg button{position:relative;z-index:1;padding:8px 14px;border-radius:999px;font-weight:600;font-size:13px;color:#555;transition:color .2s}
+.lx-seg button.on{color:#fff}
+.lx-seg .pill{position:absolute;top:4px;bottom:4px;border-radius:999px;background:var(--ink);transition:left .35s var(--out),width .35s var(--out)}
+.lx-bag{position:relative;height:44px;padding:0 16px;border-radius:999px;background:var(--ink);color:#fff;display:flex;align-items:center;gap:8px;font-weight:600}
+.lx-bag .cnt{position:relative;display:inline-block;height:18px;min-width:18px;overflow:hidden;text-align:center}
+.lx-bag .cnt span{display:block;line-height:18px}
+.lx-bag.bounce{animation:lxCartBounce .4s var(--spring)}
+@keyframes lxCartBounce{0%{transform:scale(1)}50%{transform:scale(1.3)}to{transform:scale(1)}}
+@keyframes lxNumIn{0%{opacity:0;transform:translateY(100%)}to{opacity:1;transform:translateY(0)}}
+.lx-bag .cnt span.in{animation:lxNumIn .3s var(--out)}
+
+.lx-hero{margin-top:22px;display:grid;grid-template-columns:1.05fr 1fr;gap:16px}
+.lx-hl{background:#fff;border-radius:40px;padding:44px 40px;display:flex;flex-direction:column;justify-content:flex-end;min-height:470px;box-shadow:0 4px 24px rgba(0,0,0,.05);position:relative;overflow:hidden}
+.lx-hl .eyebrow{position:absolute;top:30px;left:40px;display:flex;gap:8px;align-items:center;font-weight:600;font-size:13px;background:var(--wash);color:var(--brand-d);padding:7px 12px;border-radius:999px}
+.lx-hl .dot{width:8px;height:8px;border-radius:50%;background:var(--brand);animation:lxPulse 2s ease-in-out infinite}
+@keyframes lxPulse{50%{opacity:.35}}
+.lx-hl h1{font-weight:800;font-size:72px;line-height:.93;letter-spacing:-.05em}
+.lx-word{display:inline-block;position:relative;height:.98em;overflow:hidden;vertical-align:bottom;color:var(--brand);min-width:2.2em}
+.lx-word span{display:block}
+.lx-word span.in{animation:lxNumIn .45s var(--out)}
+.lx-word span.out{position:absolute;left:0;top:0;animation:lxNumOut .45s var(--out) forwards}
+@keyframes lxNumOut{0%{opacity:1;transform:translateY(0)}to{opacity:0;transform:translateY(-100%)}}
+.lx-hl p.sub{font-size:17px;margin:16px 0 24px;max-width:420px;color:#222}
+.lx-btns{display:flex;gap:10px;flex-wrap:wrap}
+.lx-btn{border-radius:999px;padding:14px 22px;font-weight:600;font-size:15px;display:inline-flex;gap:8px;align-items:center}
+.lx-btn.p{background:var(--brand);color:#fff;box-shadow:0 6px 18px var(--glow)}
+.lx-btn.s{background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.08)}
+.lx-btn.p:hover{background:var(--brand-d)}
+
+.lx-hr{position:relative;border-radius:40px;background:radial-gradient(circle at 30% 20%,#c56ef0 0,transparent 45%),linear-gradient(150deg,var(--brand),#3b0a5c);overflow:hidden;min-height:470px}
+.lx-stack{position:absolute;left:44px;top:60px;width:210px;height:270px}
+.lx-sc{position:absolute;inset:0;border-radius:28px;box-shadow:0 24px 50px rgba(0,0,0,.3);transition:transform .52s var(--std),opacity .52s var(--std),filter .52s var(--std);overflow:hidden}
+.lx-sc .cap{position:absolute;left:12px;right:12px;bottom:12px;background:rgba(255,255,255,.92);border-radius:16px;padding:9px 12px;font-size:12px}
+.lx-sc .cap b{display:block;font-size:13px}
+.lx-sc[data-pos="0"]{transform:translateY(0) rotate(5deg);z-index:3;opacity:1}
+.lx-sc[data-pos="1"]{transform:translate(-13px,0) rotate(-5deg);z-index:2;opacity:1}
+.lx-sc[data-pos="2"]{transform:translate(-22px,0) rotate(-9deg) scale(.92);z-index:1;opacity:1}
+.lx-sc[data-pos="x"]{transform:translate(40px,-14px) rotate(14deg);opacity:0;filter:blur(1.5px);z-index:4}
+.lx-phone{position:absolute;right:34px;top:44px;width:236px;border-radius:40px;background:#111;padding:8px;box-shadow:0 30px 60px rgba(0,0,0,.35);animation:lxIdle 4s ease-in-out alternate infinite}
+@keyframes lxIdle{to{translate:0 4%}}
+.lx-scr{background:#fff;border-radius:32px;padding:40px 15px 15px;position:relative}
+.lx-scr .notch{position:absolute;top:9px;left:50%;transform:translateX(-50%);width:80px;height:22px;border-radius:999px;background:#111}
+.lx-scr h4{font-weight:700;font-size:15px;letter-spacing:-.02em;margin-bottom:6px}
+.lx-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line);font-size:12px}
+.lx-esc{margin-top:12px;background:var(--wash);border-radius:16px;padding:11px;font-size:11.5px}
+.lx-esc b{display:flex;gap:6px;align-items:center;color:var(--brand-d);font-size:12.5px;margin-bottom:3px}
+.lx-pay{margin-top:12px;background:var(--brand);color:#fff;border-radius:999px;text-align:center;padding:11px;font-weight:600;font-size:13px}
+.lx-hr .tagline{position:absolute;left:40px;bottom:34px;right:40px;color:#fff;display:flex;justify-content:space-between;align-items:flex-end}
+.lx-hr .tagline b{font-size:26px;font-weight:800;letter-spacing:-.04em;line-height:1}
+.lx-hr .tagline span{font-size:13px;opacity:.85;max-width:180px;text-align:right}
+
+.lx-cats{display:flex;gap:10px;margin:22px 0 0;flex-wrap:wrap}
+.lx-cat{display:flex;align-items:center;gap:9px;background:#fff;border-radius:999px;padding:6px 16px 6px 6px;font-weight:600;box-shadow:0 2px 10px rgba(0,0,0,.05)}
+.lx-cat i{width:34px;height:34px;border-radius:50%;display:inline-block;transition:transform .3s var(--spring)}
+.lx-cat:hover i{transform:rotate(-12deg) scale(1.12)}
+
+.lx-sec{margin-top:44px}
+.lx-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.lx-h h2{font-size:26px;font-weight:700;letter-spacing:-.03em}
+.lx-h .sub{color:var(--muted);font-size:14px;margin-top:2px}
+.lx-arrows{display:flex;gap:8px}
+.lx-arrows button{width:40px;height:40px;border-radius:50%;background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.08);font-size:18px}
+.lx-arrows button:hover{background:#f0f0f0}
+
+.lx .cz{opacity:0;transform:translateY(8px)}
+.lx .cz.in{animation:lxCascade .35s var(--out) both;animation-delay:calc(var(--i,0) * 45ms)}
+@keyframes lxCascade{to{opacity:1;transform:translateY(0)}}
+@keyframes lxRail{0%{opacity:0;transform:translateX(calc(var(--dir,1) * 18px))}to{opacity:1;transform:translateX(0)}}
+.lx .rail-in{animation:lxRail .18s var(--std) both;animation-delay:calc(var(--i,0) * 25ms)}
+
+.lx-rail{display:grid;grid-auto-flow:column;grid-auto-columns:calc((100% - 5*14px)/6);gap:14px;overflow-x:auto;scroll-behavior:smooth;scrollbar-width:none;padding-bottom:4px}
+.lx-rail::-webkit-scrollbar{display:none}
+.lx-pc{position:relative}
+.lx-pc .im{position:relative;aspect-ratio:1/1.1;border-radius:24px;overflow:hidden}
+.lx-pc .im .art{position:absolute;inset:0;transition:transform .3s ease-in-out}
+.lx-pc:hover .im .art{transform:scale(1.06)}
+.lx-pc .v{position:absolute;top:10px;left:10px;background:#fff;border-radius:999px;font-size:11px;font-weight:600;padding:4px 9px 4px 6px;display:flex;gap:5px;align-items:center;z-index:2}
+.lx-pc .v i{width:13px;height:13px;border-radius:50%;background:var(--brand);display:inline-flex;align-items:center;justify-content:center;color:#fff;font-size:8px;font-style:normal}
+.lx-heart{position:absolute;top:8px;right:8px;width:34px;height:34px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;z-index:2;transition:transform .15s ease-in-out}
+.lx-heart:hover{transform:scale(1.1)}
+.lx-heart svg{width:16px;height:16px}
+.lx-heart.on svg{fill:var(--brand);stroke:var(--brand);animation:lxPop .28s var(--spring)}
+@keyframes lxPop{0%{transform:scale(.4)}60%{transform:scale(1.15)}to{transform:scale(1)}}
+.lx-add{position:absolute;right:10px;bottom:10px;width:38px;height:38px;border-radius:50%;background:var(--ink);color:#fff;font-size:20px;line-height:1;z-index:2;opacity:0;transform:translateY(6px);transition:opacity .2s,transform .2s var(--out),background .2s}
+.lx-pc:hover .lx-add{opacity:1;transform:none}
+.lx-add.done{background:var(--brand);opacity:1;transform:none}
+.lx-pc .n{font-weight:600;margin-top:10px;font-size:13.5px;line-height:1.25}
+.lx-pc .b{color:var(--muted);font-size:12.5px}
+.lx-pc .meta{display:flex;justify-content:space-between;align-items:center;margin-top:3px}
+.lx-pc .pr{font-weight:600}
+.lx-pc .st{font-size:12px;color:#444}
+.lx-pc .st b{color:var(--brand)}
+
+.lx-edits{display:grid;grid-template-columns:1.3fr 1fr 1fr;gap:14px}
+.lx-ed{position:relative;border-radius:32px;overflow:hidden;min-height:300px;padding:22px;color:#fff;display:flex;flex-direction:column;justify-content:flex-end}
+.lx-ed .who{position:absolute;top:18px;left:18px;display:flex;gap:8px;align-items:center;background:rgba(255,255,255,.18);backdrop-filter:blur(8px);border-radius:999px;padding:5px 12px 5px 5px;font-weight:600;font-size:12px}
+.lx-ed .who i{width:26px;height:26px;border-radius:50%;display:inline-block}
+.lx-ed h3{font-size:30px;font-weight:800;letter-spacing:-.045em;line-height:1}
+.lx-ed p{opacity:.85;margin-top:6px}
+.lx-ed .pv{position:absolute;right:22px;top:58px;display:flex}
+.lx-ed .pv span{width:74px;height:92px;border-radius:18px;box-shadow:0 12px 24px rgba(0,0,0,.25);margin-left:-18px;border:3px solid rgba(255,255,255,.9)}
+.lx-ed:hover .pv span:nth-child(1){animation:lxFloat1 4.8s ease-in-out infinite alternate}
+.lx-ed:hover .pv span:nth-child(2){animation:lxFloat2 5.6s ease-in-out infinite alternate}
+.lx-ed:hover .pv span:nth-child(3){animation:lxFloat3 5.2s ease-in-out infinite alternate}
+@keyframes lxFloat1{0%{transform:rotate(0) translate(0) scale(1)}42%{transform:rotate(-1.8deg) translate(-5px,-4px) scale(1.015)}to{transform:rotate(1.1deg) translate(4px,-8px) scale(1.025)}}
+@keyframes lxFloat2{0%{transform:rotate(0) translate(0) scale(1)}48%{transform:rotate(1.5deg) translate(1px,-7px) scale(1.02)}to{transform:rotate(-1deg) translate(-3px,-4px) scale(1.01)}}
+@keyframes lxFloat3{0%{transform:rotate(0) translate(0) scale(1)}36%{transform:rotate(1.9deg) translate(5px,-5px) scale(1.015)}to{transform:rotate(-1.2deg) translate(8px,-9px) scale(1.025)}}
+
+.lx-stores{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.lx-store{background:#fff;border-radius:28px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.05)}
+.lx-store .cv{height:110px;position:relative}
+.lx-store .lg{position:absolute;left:16px;bottom:-22px;width:52px;height:52px;border-radius:16px;border:3px solid #fff;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;letter-spacing:-.04em}
+.lx-store .bd{padding:30px 16px 16px}
+.lx-store .nm{font-weight:700;font-size:15px;letter-spacing:-.02em;display:flex;gap:6px;align-items:center}
+.lx-store .nm i{width:14px;height:14px;border-radius:50%;background:var(--brand);display:inline-flex;align-items:center;justify-content:center;color:#fff;font-size:8px;font-style:normal}
+.lx-store .mt{color:var(--muted);font-size:12.5px}
+.lx-store .two{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+.lx-store .two span{aspect-ratio:1;border-radius:16px}
+.lx-store:hover .two span:nth-child(1){animation:lxFloat1 4.8s ease-in-out infinite alternate}
+.lx-store:hover .two span:nth-child(2){animation:lxFloat2 5.6s ease-in-out infinite alternate}
+
+.lx-safe{background:var(--ink);color:#fff;border-radius:40px;padding:36px 40px;display:grid;grid-template-columns:1fr 1.6fr;gap:36px;align-items:center}
+.lx-safe h2{font-size:38px;font-weight:800;letter-spacing:-.045em;line-height:1}
+.lx-safe h2 em{font-style:normal;color:#d9a5f5}
+.lx-safe p{color:#bdbdbd;margin-top:10px}
+.lx-track{position:relative;display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.lx-track .bar{position:absolute;left:0;right:0;top:19px;height:3px;background:#2c2c2c;border-radius:3px;overflow:hidden}
+.lx-track .bar i{position:absolute;inset:0;width:0;background:linear-gradient(90deg,var(--brand),#d9a5f5);animation:lxFill 6s var(--std) infinite}
+@keyframes lxFill{0%{width:0}80%,to{width:100%}}
+.lx-stp{position:relative;padding-top:52px}
+.lx-stp .nb{position:absolute;top:0;left:0;width:40px;height:40px;border-radius:50%;background:#2c2c2c;display:flex;align-items:center;justify-content:center;font-weight:700;animation:lxStep 6s infinite}
+.lx-stp:nth-child(3) .nb{animation-delay:2.2s}.lx-stp:nth-child(4) .nb{animation-delay:4.4s}
+@keyframes lxStep{0%,10%{background:#2c2c2c;transform:scale(1)}14%{background:var(--brand);transform:scale(1.15)}20%,100%{background:var(--brand);transform:scale(1)}}
+.lx-stp h4{font-weight:700;font-size:16px}
+.lx-stp p{font-size:13px;margin-top:4px}
+
+.lx-join{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:14px}
+.lx-jc{border-radius:32px;padding:28px;min-height:230px;display:flex;flex-direction:column;justify-content:space-between;transition:transform .3s var(--out)}
+.lx-jc:hover{transform:translateY(-4px)}
+.lx-jc h3{font-size:28px;font-weight:800;letter-spacing:-.045em;line-height:1.02}
+.lx-jc p{margin-top:8px;opacity:.85}
+.lx-jc .lk{font-weight:600;display:inline-flex;gap:6px;align-items:center}
+.lx-jc .lk span{transition:transform .2s var(--out)}
+.lx-jc:hover .lk span{transform:translateX(4px)}
+
+.lx-toast{position:sticky;bottom:18px;margin:0 auto;width:max-content;max-width:90%;background:var(--ink);color:#fff;border-radius:999px;padding:12px 18px;display:flex;gap:10px;align-items:center;font-weight:500;box-shadow:0 10px 30px rgba(0,0,0,.25);opacity:0;transform:translateY(30%);pointer-events:none;transition:opacity .3s var(--out),transform .3s var(--out);z-index:6}
+.lx-toast.show{opacity:1;transform:none}
+.lx-toast i{width:22px;height:22px;border-radius:50%;background:var(--brand);display:inline-flex;align-items:center;justify-content:center;font-style:normal;font-size:12px}
+.lx-foot{margin-top:48px;display:flex;justify-content:space-between;align-items:flex-end;border-top:1px solid var(--line);padding-top:26px;color:var(--muted)}
+.lx-foot .w{font-weight:800;font-size:44px;letter-spacing:-.06em;color:var(--brand);line-height:1}
+@media (prefers-reduced-motion:reduce){.lx *,.lx *::before{animation:none!important;transition:none!important}.lx .cz{opacity:1;transform:none}}
+</style>
+
+<h2>LuxeBeau · shop.com-inspired, v2 (interactive)</h2>
+<p class="subtitle">Purple. shop.com's real animation timings, our own layout. Try it: switch Her / Him / Everyone in the top bar, hover products and press <b>+</b>, tap hearts, use the arrows, hover the creator edits and stores.</p>
+
+<div class="lx" id="lx">
+  <div class="lx-bar">
+    <div class="lx-logo tap">luxebeau</div>
+    <div class="lx-search"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>Search beard oil, glow serum, braiders in Lekki…</div>
+    <div class="lx-seg" id="seg"><span class="pill"></span><button class="on tap" data-g="all">Everyone</button><button class="tap" data-g="her">Her</button><button class="tap" data-g="him">Him</button></div>
+    <button class="lx-bag tap" id="bag"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 8h14l-1 12H6z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg>Bag <span class="cnt"><span>0</span></span></button>
+  </div>
+
+  <div class="lx-hero">
+    <div class="lx-hl cz">
+      <span class="eyebrow"><span class="dot"></span>Every order protected by escrow</span>
+      <h1>Beauty is all about <span class="lx-word" id="word"><span>you</span></span></h1>
+      <p class="sub">Skincare, hair, grooming and scent for every one of us, from sellers we've checked. Shop now. Sign up only when you pay.</p>
+      <div class="lx-btns"><button class="lx-btn p tap">Start shopping</button><button class="lx-btn s tap">▶ How you're protected</button></div>
+    </div>
+    <div class="lx-hr cz" style="--i:2">
+      <div class="lx-stack" id="stack">
+        <div class="lx-sc" data-pos="0" style="background:radial-gradient(circle at 50% 35%,#ffd9b8,#c56a2c 75%)"><div class="cap"><b>Honey Cleansing Bar</b>Adunni Organics · ₦8,500</div></div>
+        <div class="lx-sc" data-pos="1" style="background:radial-gradient(circle at 50% 35%,#9a6a4a,#1b1008 75%)"><div class="cap"><b>Shea Beard Oil</b>Oba Grooming · ₦6,200</div></div>
+        <div class="lx-sc" data-pos="2" style="background:radial-gradient(circle at 50% 35%,#f2d4ff,#7a14b3 75%)"><div class="cap"><b>Oud Body Mist</b>Maison Eko · ₦14,000</div></div>
+        <div class="lx-sc" data-pos="x" style="background:radial-gradient(circle at 50% 35%,#ffd1df,#a3204f 75%)"><div class="cap"><b>Hibiscus Lip Tint</b>Zobo Beauty · ₦4,800</div></div>
+      </div>
+      <div class="lx-phone"><div class="lx-scr"><div class="notch"></div>
+        <h4>Checkout</h4>
+        <div class="lx-row"><span>Shea beard oil</span><b>₦6,200</b></div>
+        <div class="lx-row"><span>Honey cleansing bar</span><b>₦8,500</b></div>
+        <div class="lx-row"><span>Delivery · Lagos</span><b>₦1,500</b></div>
+        <div class="lx-esc"><b>🔒 Held safe in escrow</b>Seller is paid only after you confirm it arrived.</div>
+        <div class="lx-pay">Continue with Google</div>
+        <p style="text-align:center;font-size:11px;color:#707070;margin-top:7px">or just your email · no long forms</p>
+      </div></div>
+      <div class="tagline"><b>Real sellers.<br>Real glow.</b><span>Not delivered or not right? Your money comes back.</span></div>
+    </div>
+  </div>
+
+  <div class="lx-cats" id="cats"></div>
+
+  <div class="lx-sec">
+    <div class="lx-h"><div><h2 id="railTitle">Trending for everyone</h2><div class="sub">Rated by real buyers. Every seller verified.</div></div><div class="lx-arrows"><button class="tap" data-r="-1">‹</button><button class="tap" data-r="1">›</button></div></div>
+    <div class="lx-rail" id="rail"></div>
+  </div>
+
+  <div class="lx-sec">
+    <div class="lx-h"><div><h2>Edits from people you follow</h2><div class="sub">Hand-picked by Nigerian creators. Shop the whole look.</div></div></div>
+    <div class="lx-edits">
+      <div class="lx-ed cz tap" style="background:radial-gradient(circle at 80% 20%,#e19af7 0,transparent 45%),linear-gradient(140deg,var(--brand),#3b0a5c)"><span class="who"><i style="background:radial-gradient(circle,#ffcfb0,#a5562a)"></i>@tolu.glows</span><div class="pv"><span style="background:radial-gradient(circle at 50% 35%,#fff1dc,#e0a160)"></span><span style="background:radial-gradient(circle at 50% 35%,#ffd1df,#a3204f)"></span><span style="background:radial-gradient(circle at 50% 35%,#f2d4ff,#7a14b3)"></span></div><h3>Tolu's Harmattan glow edit</h3><p>8 products · from ₦3,900</p></div>
+      <div class="lx-ed cz tap" style="--i:1;background:radial-gradient(circle at 80% 20%,#b07a52 0,transparent 45%),linear-gradient(140deg,#1d1d1d,#3a2416)"><span class="who"><i style="background:radial-gradient(circle,#c99772,#3d2416)"></i>@kingsley.cuts</span><div class="pv"><span style="background:radial-gradient(circle at 50% 35%,#9a6a4a,#1b1008)"></span><span style="background:radial-gradient(circle at 50% 35%,#ddd,#444)"></span></div><h3>The 5-minute groom</h3><p>5 products · from ₦4,500</p></div>
+      <div class="lx-ed cz tap" style="--i:2;background:radial-gradient(circle at 80% 20%,#ffd0e3 0,transparent 45%),linear-gradient(140deg,#d0467a,var(--brand))"><span class="who"><i style="background:radial-gradient(circle,#ffe0cc,#b4703f)"></i>@amaka.and.ade</span><div class="pv"><span style="background:radial-gradient(circle at 50% 35%,#f2d4ff,#7a14b3)"></span><span style="background:radial-gradient(circle at 50% 35%,#fff1dc,#e0a160)"></span></div><h3>Scents we share</h3><p>6 unisex fragrances</p></div>
+    </div>
+  </div>
+
+  <div class="lx-sec">
+    <div class="lx-h"><div><h2>Trending stores</h2><div class="sub">Verified Nigerian brands and artisans.</div></div></div>
+    <div class="lx-stores" id="stores"></div>
+  </div>
+
+  <div class="lx-sec">
+    <div class="lx-safe cz">
+      <div><h2>Your money waits <em>until it arrives.</em></h2><p>Never scammed. Every seller is checked before they can sell on LuxeBeau.</p></div>
+      <div class="lx-track"><div class="bar"><i></i></div>
+        <div class="lx-stp"><span class="nb">1</span><h4>You pay</h4><p>We hold it in escrow. The seller can't touch it yet.</p></div>
+        <div class="lx-stp"><span class="nb">2</span><h4>They deliver</h4><p>A verified seller sends it to your door.</p></div>
+        <div class="lx-stp"><span class="nb">3</span><h4>You confirm</h4><p>Then they get paid. Not right? Full refund.</p></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="lx-sec">
+    <div class="lx-join">
+      <div class="lx-jc cz tap" style="background:var(--brand);color:#fff"><div><h3>Sell to buyers who already trust us</h3><p>Open a shop in minutes. Get paid the moment orders are confirmed.</p></div><span class="lk">Open your shop <span>→</span></span></div>
+      <div class="lx-jc cz tap" style="--i:1;background:#fff;box-shadow:0 4px 24px rgba(0,0,0,.05)"><div><h3>Fill your calendar</h3><p>Braiders, barbers, MUAs: take paid bookings with deposits held safe.</p></div><span class="lk" style="color:var(--brand)">Join as an artisan <span>→</span></span></div>
+      <div class="lx-jc cz tap" style="--i:2;background:var(--wash)"><div><h3>Partner with LuxeBeau</h3><p>Brand launches, creator campaigns and drops with a community that reps what it loves.</p></div><span class="lk" style="color:var(--brand-d)">Talk partnerships <span>→</span></span></div>
+    </div>
+  </div>
+
+  <div class="lx-foot"><div class="w">luxebeau</div><div>Beauty for everyone · Made in Nigeria · #RepLuxeBeau</div></div>
+  <div class="lx-toast" id="toast"><i>✓</i><span id="toastTxt">Added to bag</span></div>
+</div>
+
+<script>
+(function(){
+  const R = document.getElementById('lx'); if (!R) return;
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const P = [
+    {n:'Honey Cleansing Bar',b:'Adunni Organics',p:8500,r:4.8,c:312,g:'her',a:'radial-gradient(circle at 50% 38%,#ffe8cc,#d98a45 60%,#a85d22)'},
+    {n:'Shea Beard Oil, 30ml',b:'Oba Grooming',p:6200,r:4.9,c:540,g:'him',a:'radial-gradient(circle at 50% 38%,#b5835e,#3a2416 70%)'},
+    {n:'Oud Noir Body Mist',b:'Maison Eko',p:14000,r:4.7,c:221,g:'all',a:'radial-gradient(circle at 50% 38%,#f2d4ff,#8a1fc7 65%,#4a0c70)'},
+    {n:'Hibiscus Lip & Cheek Tint',b:'Zobo Beauty',p:4800,r:4.6,c:198,g:'her',a:'radial-gradient(circle at 50% 38%,#ffe0ea,#d6336c 65%,#7a1030)'},
+    {n:'Charcoal Face Wash',b:'Lagos Men Co.',p:5500,r:4.5,c:402,g:'him',a:'radial-gradient(circle at 50% 38%,#e6e6e6,#4a4a4a 65%,#151515)'},
+    {n:'Edge Control Gel',b:'Kinfolk Hair',p:3900,r:4.8,c:640,g:'all',a:'radial-gradient(circle at 50% 38%,#f2f7ee,#9db78a 70%,#5d7a49)'},
+    {n:'Vitamin C Glow Serum',b:'Ore Skin',p:14500,r:4.9,c:880,g:'all',a:'radial-gradient(circle at 50% 38%,#fff3d1,#f0b429 65%,#b07800)'},
+    {n:'Bump Stopper Aftershave',b:'Oba Grooming',p:5200,r:4.7,c:265,g:'him',a:'radial-gradient(circle at 50% 38%,#dfe9f0,#6b8aa0 65%,#2e4252)'},
+    {n:'Braid Spray, Tea Tree',b:'Kinfolk Hair',p:4200,r:4.6,c:310,g:'her',a:'radial-gradient(circle at 50% 38%,#e8ffe8,#4fa86a 65%,#21613a)'},
+    {n:'Cedar & Shea Body Butter',b:'Kingsman Lagos',p:8200,r:4.8,c:157,g:'all',a:'radial-gradient(circle at 50% 38%,#fbefe3,#c8a27a 65%,#7a5634)'},
+  ];
+  const naira = n => '₦' + n.toLocaleString('en-NG');
+  const heart = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.5-7 10-7 10z"/></svg>';
+
+  const C = [['Skincare','#ffe8cc,#d98a45'],['Hair','#5a3a2a,#140b07'],['Grooming','#ddd,#3b3b3b'],['Fragrance','#f2d4ff,#8a1fc7'],['Makeup','#ffd1df,#a3204f'],['Body','#fbefe3,#c8a27a'],['Beard','#b5835e,#3a2416'],['Book an artisan','#e9d6ff,#6f16a3']];
+  document.getElementById('cats').innerHTML = C.map((c,i)=>`<button class="lx-cat tap cz" style="--i:${i}"><i style="background:radial-gradient(circle at 40% 35%,${c[1]})"></i>${c[0]}</button>`).join('');
+
+  const S = [['Adunni Organics','AO','Skincare · Abeokuta','#d98a45,#7a3e12','#ffe8cc,#d98a45','#fff3d1,#f0b429'],['Oba Grooming','OB','Men\'s grooming · Lagos','#3a2416,#0d0806','#b5835e,#3a2416','#dfe9f0,#6b8aa0'],['Maison Eko','ME','Fragrance · Lekki','#8a1fc7,#3b0a5c','#f2d4ff,#8a1fc7','#ffd1df,#a3204f'],['Braids by Simi','BS','Artisan · Ikeja · books in 2 days','#d0467a,#6f16a3','#e8ffe8,#4fa86a','#5a3a2a,#140b07']];
+  document.getElementById('stores').innerHTML = S.map((s,i)=>`<div class="lx-store tap cz" style="--i:${i}"><div class="cv" style="background:linear-gradient(135deg,${s[3]})"><span class="lg" style="background:linear-gradient(135deg,${s[3]})">${s[1]}</span></div><div class="bd"><div class="nm">${s[0]} <i>✓</i></div><div class="mt">${s[2]}</div><div class="two"><span style="background:radial-gradient(circle at 50% 38%,${s[4]})"></span><span style="background:radial-gradient(circle at 50% 38%,${s[5]})"></span></div></div></div>`).join('');
+
+  const rail = document.getElementById('rail');
+  const titles = {all:'Trending for everyone',her:'Trending for her',him:'Trending for him'};
+  let bagCount = 0, prevIdx = 0;
+  function render(g, dir){
+    const list = g==='all' ? P : P.filter(p=>p.g===g||p.g==='all');
+    rail.innerHTML = list.map((p,i)=>`<div class="lx-pc ${dir===undefined?'cz':'rail-in'}" style="--i:${i};--dir:${dir||1}">
+      <div class="im"><div class="art" style="background:${p.a}"></div><span class="v"><i>✓</i>Verified</span>
+      <button class="lx-heart tap" aria-label="Save">${heart}</button><button class="lx-add tap" aria-label="Add to bag">+</button></div>
+      <div class="n">${p.n}</div><div class="b">${p.b}</div>
+      <div class="meta"><span class="pr">${naira(p.p)}</span><span class="st"><b>★</b> ${p.r} (${p.c})</span></div></div>`).join('');
+    document.getElementById('railTitle').textContent = titles[g];
+    if (dir===undefined) observe(rail.querySelectorAll('.cz'));
+  }
+
+  const io = 'IntersectionObserver' in window ? new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}}),{threshold:.15}) : null;
+  function observe(nodes){ nodes.forEach(n=> reduce||!io ? n.classList.add('in') : io.observe(n)); }
+
+  const seg = document.getElementById('seg'), pill = seg.querySelector('.pill'), btns=[...seg.querySelectorAll('button')];
+  function movePill(b){ pill.style.left=b.offsetLeft+'px'; pill.style.width=b.offsetWidth+'px'; }
+  btns.forEach((b,i)=>b.addEventListener('click',()=>{
+    btns.forEach(x=>x.classList.remove('on')); b.classList.add('on'); movePill(b);
+    render(b.dataset.g, i>=prevIdx?1:-1); prevIdx=i;
+  }));
+
+  R.querySelectorAll('[data-r]').forEach(a=>a.addEventListener('click',()=>rail.scrollBy({left:+a.dataset.r*rail.clientWidth*.8,behavior:reduce?'auto':'smooth'})));
+
+  const bag = document.getElementById('bag'), cnt = bag.querySelector('.cnt'), toast=document.getElementById('toast'), tt=document.getElementById('toastTxt'); let tmr;
+  function showToast(t){ tt.textContent=t; toast.classList.add('show'); clearTimeout(tmr); tmr=setTimeout(()=>toast.classList.remove('show'),2400); }
+  rail.addEventListener('click',e=>{
+    const h=e.target.closest('.lx-heart'); if(h){ h.classList.toggle('on'); if(h.classList.contains('on')) showToast('Saved to your favourites'); return; }
+    const a=e.target.closest('.lx-add'); if(a){
+      a.classList.add('done'); a.textContent='✓'; bagCount++;
+      cnt.innerHTML=`<span class="in">${bagCount}</span>`;
+      bag.classList.remove('bounce'); void bag.offsetWidth; bag.classList.add('bounce');
+      showToast('Added · your money stays safe in escrow');
+    }
+  });
+
+  const W=['you','her','him','us'], word=document.getElementById('word'); let wi=0;
+  if(!reduce) setInterval(()=>{ wi=(wi+1)%W.length; const old=word.querySelector('span'); old.className='out'; const n=document.createElement('span'); n.className='in'; n.textContent=W[wi]; word.appendChild(n); setTimeout(()=>old.remove(),460); },2200);
+
+  const cards=[...document.querySelectorAll('#stack .lx-sc')];
+  if(!reduce) setInterval(()=>{ cards.forEach(c=>{ const p=c.dataset.pos; c.dataset.pos = p==='0'?'x':p==='1'?'0':p==='2'?'1':'2'; }); },2600);
+
+  render('all');
+  observe(R.querySelectorAll('.cz'));
+  requestAnimationFrame(()=>movePill(btns[0]));
+})();
+</script>

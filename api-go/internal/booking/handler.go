@@ -5,11 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"luxebeau/internal/domain"
+	"luxebeau/internal/escrow"
 	"luxebeau/internal/mail"
 	"luxebeau/internal/media"
 	"luxebeau/internal/response"
@@ -222,6 +224,9 @@ func (h *BookingHandler) ConfirmBooking(c *gin.Context) {
 		return
 	case errors.Is(err, ErrNotPending):
 		response.Conflict(c, "This request was already answered, cancelled or has expired.")
+		return
+	case errors.Is(err, escrow.ErrInsufficientBalance):
+		response.Fail(c, http.StatusPaymentRequired, "INSUFFICIENT_BALANCE", "The client's wallet doesn't have enough funds to cover this booking.")
 		return
 	case err != nil:
 		h.logger.Error("confirm booking failed", slog.Any("error", err))

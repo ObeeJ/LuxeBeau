@@ -35,6 +35,11 @@ func NewWalletSettlement(logger *slog.Logger) *WalletSettlement {
 
 func (w *WalletSettlement) Name() string { return domain.RailWallet }
 
+// ErrInsufficientBalance is returned when a wallet debit would take the
+// balance below zero. Callers can check for it to return a 402/409 instead
+// of a 500.
+var ErrInsufficientBalance = errors.New("insufficient wallet balance")
+
 func adjust(tx *gorm.DB, userID string, delta int64) error {
 	if userID == "" {
 		return errors.New("wallet settlement requires an on-platform account")
@@ -46,8 +51,6 @@ func adjust(tx *gorm.DB, userID string, delta int64) error {
 		return res.Error
 	}
 	if res.RowsAffected == 0 {
-		// A credit to an account that has no wallet row yet creates it;
-		// a debit that finds too little money is a real shortfall.
 		if delta > 0 {
 			var exists int64
 			if err := tx.Model(&domain.Wallet{}).Where("user_id = ?", userID).Count(&exists).Error; err != nil {
@@ -57,7 +60,7 @@ func adjust(tx *gorm.DB, userID string, delta int64) error {
 				return tx.Create(&domain.Wallet{UserID: userID, Balance: delta}).Error
 			}
 		}
-		return errors.New("insufficient wallet balance")
+		return ErrInsufficientBalance
 	}
 	return nil
 }

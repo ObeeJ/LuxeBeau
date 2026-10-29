@@ -1,0 +1,151 @@
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,500;1,6..96,400&family=Hanken+Grotesk:wght@300;400;500&display=swap');
+  .lb{--ink:#000;--white:#fff;--mist:#f2f4f5;--line:#ebebeb;--muted:#787574;--violet:#5433eb;--wash:#c0b5f3;--slate:#332f2d;
+      font-family:'Hanken Grotesk',system-ui,sans-serif;font-weight:400;font-size:13px;line-height:1.5;color:var(--ink);background:var(--white);border:1px solid var(--line);overflow:hidden}
+  .lb *{box-sizing:border-box;margin:0}
+  .lb .serif{font-family:'Bodoni Moda','Didot',serif;font-weight:400}
+  .lb .up{text-transform:uppercase;letter-spacing:.08em;font-size:11px}
+
+  .lb .bar{background:var(--violet);color:#fff;text-align:center;padding:8px 12px}
+  .lb .nav{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:16px 28px;border-bottom:1px solid var(--ink)}
+  .lb .nav .l{display:flex;gap:22px}
+  .lb .nav .r{display:flex;gap:22px;justify-content:flex-end}
+  .lb .mark{font-family:'Bodoni Moda',serif;font-size:30px;letter-spacing:.14em;text-transform:uppercase;line-height:1}
+
+  .lb .hero{display:grid;grid-template-columns:1.05fr 1fr;background:linear-gradient(135deg,#5433eb 0%,#3a1fc4 100%);color:#fff;min-height:430px}
+  .lb .hero .t{padding:56px 40px 48px 28px;display:flex;flex-direction:column;justify-content:center;gap:22px}
+  .lb .hero h1{font-family:'Bodoni Moda',serif;font-weight:400;font-size:74px;line-height:.98;letter-spacing:-.02em}
+  .lb .hero h1 i{color:var(--wash)}
+  .lb .hero p{max-width:380px;font-size:15px;font-weight:300;color:#e8e3fc}
+  .lb .cta{display:flex;gap:20px;align-items:center}
+  .lb .btn{display:inline-block;padding:14px 28px;background:#fff;color:var(--violet);text-transform:uppercase;letter-spacing:.08em;font-size:11px;font-weight:500}
+  .lb .btn.dark{background:var(--ink);color:#fff}
+  .lb .btn.line{background:transparent;color:inherit;border:1px solid currentColor}
+  .lb .lnk{text-decoration:underline;text-underline-offset:4px;color:inherit}
+  .lb .hero .pics{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:28px 28px 0 0}
+  .lb .pic{position:relative;display:flex;align-items:flex-end;padding:12px;font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:#fff}
+  .lb .p1{background:linear-gradient(160deg,#c0b5f3,#8a6df7 55%,#2b1796);grid-row:span 2}
+  .lb .p2{background:linear-gradient(200deg,#f2f4f5,#c0b5f3 70%);color:var(--slate)}
+  .lb .p3{background:linear-gradient(20deg,#1a1038,#5433eb)}
+
+  .lb .strip{display:flex;justify-content:space-between;padding:14px 28px;border-bottom:1px solid var(--line);font-family:'Bodoni Moda',serif;font-style:italic;font-size:18px;color:var(--slate)}
+
+  .lb .sec{padding:56px 28px}
+  .lb .head{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:24px}
+  .lb h2{font-family:'Bodoni Moda',serif;font-weight:400;font-size:40px;line-height:1.05;letter-spacing:-.01em}
+
+  .lb .trio{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .lb .tile{height:300px;padding:20px;display:flex;flex-direction:column;justify-content:flex-end;color:#fff;position:relative}
+  .lb .tile .w{font-family:'Bodoni Moda',serif;font-size:46px;line-height:1}
+  .lb .tile .s{font-size:11px;text-transform:uppercase;letter-spacing:.08em;margin-top:8px}
+  .lb .t1{background:linear-gradient(180deg,#e9a9d6 0%,#7b4de0 100%)}
+  .lb .t2{background:linear-gradient(180deg,#5b6ee8 0%,#1d1670 100%)}
+  .lb .t3{background:linear-gradient(180deg,#c0b5f3 0%,#5433eb 100%)}
+
+  .lb .grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:18px 10px}
+  .lb .card .im{height:230px;margin-bottom:10px;position:relative}
+  .lb .card .tag{position:absolute;top:10px;left:10px;background:#fff;padding:3px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.08em}
+  .lb .card .row{display:flex;justify-content:space-between;align-items:baseline}
+  .lb .card .sm{color:var(--muted);font-size:12px}
+  .lb .c1{background:linear-gradient(160deg,#f2f4f5,#c0b5f3)}
+  .lb .c2{background:linear-gradient(160deg,#d9d2fa,#8a6df7)}
+  .lb .c3{background:linear-gradient(160deg,#ece9fb,#5433eb)}
+  .lb .c4{background:linear-gradient(160deg,#f2f4f5,#b3a4f1)}
+
+  .lb .safe{background:var(--ink);color:#fff;padding:64px 28px}
+  .lb .safe h2{font-size:52px;max-width:560px}
+  .lb .safe h2 i{color:var(--wash)}
+  .lb .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:0;margin-top:40px;border-top:1px solid #444}
+  .lb .step{padding:22px 24px 0 0}
+  .lb .step .n{font-family:'Bodoni Moda',serif;font-style:italic;font-size:56px;color:var(--violet);line-height:1}
+  .lb .step h3{font-weight:500;font-size:15px;margin:10px 0 4px}
+  .lb .step p{color:#b9b6b3;font-weight:300}
+
+  .lb .signup{display:grid;grid-template-columns:1fr 1fr;background:var(--mist)}
+  .lb .signup .a{padding:48px 28px;display:flex;flex-direction:column;justify-content:center;gap:12px}
+  .lb .field{border-bottom:1px solid var(--ink);padding:10px 0;color:var(--muted);background:transparent}
+  .lb .signup .b{background:linear-gradient(135deg,#c0b5f3,#5433eb)}
+
+  .lb .join{display:grid;grid-template-columns:repeat(3,1fr)}
+  .lb .join>div{padding:40px 28px;min-height:260px;display:flex;flex-direction:column;justify-content:space-between;gap:20px}
+  .lb .j1{background:var(--wash)} .lb .j2{background:var(--violet);color:#fff} .lb .j3{background:var(--ink);color:#fff}
+  .lb .join h3{font-family:'Bodoni Moda',serif;font-weight:400;font-size:30px;line-height:1.1}
+  .lb .foot{display:flex;justify-content:space-between;padding:22px 28px;border-top:1px solid var(--ink);color:var(--muted)}
+</style>
+
+<h2>Landing page v2: one full design</h2>
+<p class="subtitle">Bodoni Moda for the wordmark and big headlines (close to Zara's style), Hanken Grotesk for everything else. Your violet, wash, mist and ink, used boldly. Coloured blocks stand in for photos. Scroll the whole page.</p>
+
+<div class="lb">
+  <div class="bar up">Pay safely: your money is held until your order arrives</div>
+
+  <div class="nav up">
+    <div class="l"><span>Her</span><span>Him</span><span>Everyone</span><span>Artisans</span></div>
+    <div class="mark">LuxeBeau</div>
+    <div class="r"><span>Search</span><span>Sign in</span><span>Bag (0)</span></div>
+  </div>
+
+  <div class="hero">
+    <div class="t">
+      <span class="up" style="color:#e8e3fc">Unisex beauty · Made for you</span>
+      <h1>Beauty,<br><i>for everyone.</i></h1>
+      <p>Skin, hair, scent and grooming from real, checked vendors. Start shopping now. Sign up only when you pay.</p>
+      <div class="cta"><span class="btn">Start shopping</span><span class="lnk up">How your money stays safe</span></div>
+    </div>
+    <div class="pics">
+      <div class="pic p1">Photo · glowing skin</div>
+      <div class="pic p2">Photo · grooming</div>
+      <div class="pic p3">Photo · fragrance</div>
+    </div>
+  </div>
+
+  <div class="strip"><span>Skincare</span><span>Hair</span><span>Fragrance</span><span>Grooming</span><span>Makeup</span><span>Body</span></div>
+
+  <div class="sec">
+    <div class="head"><h2>Shop by who it is for</h2><span class="lnk up">See everything</span></div>
+    <div class="trio">
+      <div class="tile t1"><div class="w">Her</div><div class="s">Skin · Hair · Makeup</div></div>
+      <div class="tile t2"><div class="w">Him</div><div class="s">Grooming · Beard · Skin</div></div>
+      <div class="tile t3"><div class="w">Everyone</div><div class="s">Scent · Body · Care</div></div>
+    </div>
+  </div>
+
+  <div class="sec" style="padding-top:0">
+    <div class="head"><h2>New this week</h2><span class="lnk up">Shop all</span></div>
+    <div class="grid4">
+      <div class="card"><div class="im c1"><span class="tag">Verified</span></div><div class="row"><span>Honey Cleansing Bar</span><span>₦8,500</span></div><div class="sm">Adunni Organics</div></div>
+      <div class="card"><div class="im c2"><span class="tag">Verified</span></div><div class="row"><span>Shea Beard Oil</span><span>₦6,200</span></div><div class="sm">Oba Grooming</div></div>
+      <div class="card"><div class="im c3"><span class="tag">Verified</span></div><div class="row"><span>Oud Body Mist</span><span>₦14,000</span></div><div class="sm">Maison Eko</div></div>
+      <div class="card"><div class="im c4"><span class="tag">Verified</span></div><div class="row"><span>Edge Control Gel</span><span>₦3,900</span></div><div class="sm">Kinfolk Hair</div></div>
+    </div>
+  </div>
+
+  <div class="safe">
+    <span class="up" style="color:var(--wash)">Never scammed</span>
+    <h2 style="margin-top:10px">Your money waits <i>until it arrives.</i></h2>
+    <div class="steps">
+      <div class="step"><div class="n">01</div><h3>You pay into escrow</h3><p>We hold it. The seller cannot touch it yet.</p></div>
+      <div class="step"><div class="n">02</div><h3>The seller ships</h3><p>Every vendor is checked before they can sell.</p></div>
+      <div class="step"><div class="n">03</div><h3>You confirm, they get paid</h3><p>Not right? Your money comes back.</p></div>
+    </div>
+  </div>
+
+  <div class="signup">
+    <div class="a">
+      <span class="up" style="color:var(--violet)">At checkout</span>
+      <h2 style="font-size:34px">One step to pay.<br>No long forms.</h2>
+      <div class="field">Email</div>
+      <span class="btn dark" style="align-self:flex-start">Continue</span>
+      <span style="color:var(--muted);font-size:12px">Or continue with Google</span>
+    </div>
+    <div class="b"></div>
+  </div>
+
+  <div class="join">
+    <div class="j1"><div><span class="up">Sellers</span><h3 style="margin-top:10px">Sell to buyers who already trust the shop.</h3></div><span class="btn dark" style="align-self:flex-start">Open a shop</span></div>
+    <div class="j2"><div><span class="up">Artisans</span><h3 style="margin-top:10px">Fill your calendar with clients.</h3></div><span class="btn" style="align-self:flex-start">Join as artisan</span></div>
+    <div class="j3"><div><span class="up" style="color:var(--wash)">Brands</span><h3 style="margin-top:10px">Partner with LuxeBeau.</h3></div><span class="btn line" style="align-self:flex-start">Talk to us</span></div>
+  </div>
+
+  <div class="foot up"><span class="mark" style="font-size:18px;color:var(--ink)">LuxeBeau</span><span>Help</span><span>Safety</span><span>Sell</span><span>© 2026</span></div>
+</div>

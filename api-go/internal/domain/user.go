@@ -20,11 +20,56 @@ type User struct {
 	Status        string     `gorm:"type:varchar(20);default:'active'" json:"status"`         // active, suspended
 	Jurisdiction  string     `gorm:"type:varchar(80)" json:"jurisdiction"`                    // Nigerian state the user operates in
 	Verified      bool       `gorm:"type:boolean;default:false" json:"verified"`              // quality-checked / verified badge
-	CACNumber     string     `gorm:"type:varchar(30)" json:"cac_number"`                      // business registration (sellers/artisans)
+	CACNumber     string     `gorm:"type:varchar(30)" json:"cac_number"`                      // CAC registration number (optional — not all partners have one)
+	NINNumber     string     `gorm:"type:varchar(20)" json:"-"`                               // NIN — stored for KYC, never returned in API responses
 	KYCStatus     string     `gorm:"type:varchar(20);default:'unverified'" json:"kyc_status"` // unverified, pending, verified, failed
-	CreatedAt     time.Time  `json:"created_at"`
-	UpdatedAt     time.Time  `json:"updated_at"`
+	// StorefrontSlug is the partner's unique brand handle, e.g. "arike-spa".
+	// Combined with the platform domain it forms arike-spa.luxebeau.com.
+	// NULL means not yet claimed; empty string is never stored.
+	StorefrontSlug *string `gorm:"type:varchar(80);uniqueIndex" json:"storefront_slug,omitempty"`
+	// FeeBps is the platform fee charged on escrow releases for this partner,
+	// in basis points. 0 means use the platform default (250 = 2.5%).
+	FeeBps int `gorm:"type:integer;default:0" json:"fee_bps,omitempty"`
+	// ReleaseWindowHours is how long after delivery confirmation the buyer has
+	// to dispute before funds auto-release. 0 means use the platform default.
+	ReleaseWindowHours int       `gorm:"type:integer;default:0" json:"release_window_hours,omitempty"`
+	CreatedAt          time.Time `json:"created_at"`
+	UpdatedAt          time.Time `json:"updated_at"`
 }
+
+// EffectiveFeeBps returns the fee to charge on this partner's escrow releases.
+// Falls back to the platform default of 2.5% if the partner has no override.
+func (u *User) EffectiveFeeBps() int {
+	if u.FeeBps > 0 {
+		return u.FeeBps
+	}
+	return PlatformFeeBps
+}
+
+// EffectiveReleaseWindowHours returns the buyer's dispute window for this
+// partner's orders. Falls back to the platform default of 48 hours.
+func (u *User) EffectiveReleaseWindowHours() int {
+	if u.ReleaseWindowHours > 0 {
+		return u.ReleaseWindowHours
+	}
+	return PlatformReleaseWindowHours
+}
+
+// Platform-wide defaults. These are the only place these values live;
+// nothing else in the codebase hardcodes them.
+const (
+	// PlatformFeeBps is 2.5% — cheaper than Paystack (1.5% + ₦100) and
+	// includes escrow protection on top of payment processing.
+	PlatformFeeBps = 250
+	// PlatformReleaseWindowHours is 48 hours. Shorter than the old 7-day
+	// constant; fast enough for Nigerian sellers, long enough for buyers.
+	PlatformReleaseWindowHours = 48
+	// MaxReleaseWindowHours is the ceiling a partner can request.
+	MaxReleaseWindowHours = 120 // 5 days
+	// PlatformDeliveryFeeKobo is the fallback delivery fee when a seller has
+	// not configured their own delivery zones. ₦1,500.
+	PlatformDeliveryFeeKobo int64 = 150_000
+)
 
 type UserRepository interface {
 	Create(ctx context.Context, user *User) error

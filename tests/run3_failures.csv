@@ -1,0 +1,17 @@
+Method,Name,Error,Occurrences,First Seen,Last Seen
+GET,/admin/users,HTTPError('401 Client Error: Unauthorized for url: /admin/users'),53,2026-10-29T14:24:16Z,2026-10-29T14:25:11Z
+GET,/me/wallet/withdrawals,HTTPError('404 Client Error: Not Found for url: /me/wallet/withdrawals'),54,2026-10-29T14:24:18Z,2026-10-29T14:25:11Z
+POST,/bookings [POST],HTTPError('400 Client Error: Bad Request for url: /bookings [POST]'),64,2026-10-29T14:24:17Z,2026-10-29T14:25:11Z
+POST,/bookings [POST],HTTPError('409 Client Error: Conflict for url: /bookings [POST]'),15,2026-10-29T14:24:25Z,2026-10-29T14:25:05Z
+GET,/me/delivery-zones,HTTPError('404 Client Error: Not Found for url: /me/delivery-zones'),106,2026-10-29T14:24:17Z,2026-10-29T14:25:11Z
+POST,/bookings [POST],HTTPError('429 Client Error: Too Many Requests for url: /bookings [POST]'),16,2026-10-29T14:24:30Z,2026-10-29T14:25:10Z
+GET,/admin/escrows,HTTPError('401 Client Error: Unauthorized for url: /admin/escrows'),31,2026-10-29T14:24:16Z,2026-10-29T14:25:11Z
+GET,/artisans/:id/availability,HTTPError('429 Client Error: Too Many Requests for url: /artisans/:id/availability'),101,2026-10-29T14:24:25Z,2026-10-29T14:25:08Z
+GET,/admin/orders,HTTPError('401 Client Error: Unauthorized for url: /admin/orders'),57,2026-10-29T14:24:17Z,2026-10-29T14:25:11Z
+POST,/me/influencer-packages [POST],HTTPError('404 Client Error: Not Found for url: /me/influencer-packages [POST]'),46,2026-10-29T14:24:18Z,2026-10-29T14:25:11Z
+GET,/artisans/:id/availability,HTTPError('404 Client Error: Not Found for url: /artisans/:id/availability'),237,2026-10-29T14:24:17Z,2026-10-29T14:25:11Z
+GET,/me/influencer-packages,HTTPError('404 Client Error: Not Found for url: /me/influencer-packages'),99,2026-10-29T14:24:17Z,2026-10-29T14:25:11Z
+GET,/admin/influencer-commissions,HTTPError('404 Client Error: Not Found for url: /admin/influencer-commissions'),19,2026-10-29T14:24:23Z,2026-10-29T14:25:07Z
+POST,/orders [POST],HTTPError('409 Client Error: Conflict for url: /orders [POST]'),88,2026-10-29T14:24:17Z,2026-10-29T14:25:11Z
+GET,/admin/bookings,HTTPError('401 Client Error: Unauthorized for url: /admin/bookings'),44,2026-10-29T14:24:19Z,2026-10-29T14:25:11Z
+PUT,/me/storefront-slug,HTTPError('404 Client Error: Not Found for url: /me/storefront-slug'),52,2026-10-29T14:24:19Z,2026-10-29T14:25:11Z

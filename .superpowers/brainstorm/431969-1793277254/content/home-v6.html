@@ -1,0 +1,345 @@
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800;900&display=swap');
+.sx{--brand:#8a1fc7;--brand-d:#6f16a3;--wash:#f3e6fb;--glow:rgba(138,31,199,.38);--ink:#000;--muted:#6b6b6b;--line:#ebebeb;--bg:#fafafa;--tile:#f2f2f2;
+  --spring:cubic-bezier(.34,1.56,.64,1);--out:cubic-bezier(.22,1,.36,1);--std:cubic-bezier(.2,0,0,1);
+  font-family:'Geist',-apple-system,system-ui,sans-serif;color:var(--ink);background:var(--bg);font-size:14px;line-height:1.35;position:relative;overflow:hidden;border-radius:12px;
+  display:grid;grid-template-columns:96px 1fr;padding:20px 32px 0 0}
+.sx *{box-sizing:border-box;margin:0}
+.sx h1,.sx h2,.sx h3,.sx h4,.sx p{font-family:inherit;color:inherit;font-weight:inherit;line-height:inherit}
+:where(.sx) button{font:inherit;border:0;background:none;cursor:pointer;color:inherit;padding:0}
+.sx .tap{transition:transform .15s ease-in-out,opacity .15s ease-in-out}
+.sx .tap:active{transform:scale(.96);opacity:.6}
+
+/* ── left rail: logo tile + floating dock (shop.com signature) ── */
+.sx-left{position:relative;display:flex;flex-direction:column;align-items:center}
+.sx-logo{width:58px;height:58px;border-radius:18px;background:var(--brand);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:17px;letter-spacing:-.06em;box-shadow:0 6px 18px var(--glow)}
+.sx-dock{position:sticky;top:240px;margin-top:230px;background:#fff;border-radius:999px;padding:8px;display:flex;flex-direction:column;gap:4px;box-shadow:0 2px 12px rgba(0,0,0,.07)}
+.sx-dock button{position:relative;width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#8a8a8a}
+.sx-dock button.on{background:#f0f0f0;color:#000}
+.sx-dock button:hover svg{transform:scale(1.1)}
+.sx-dock svg{width:22px;height:22px;transition:transform .15s ease-in-out}
+.sx-badge{position:absolute;top:4px;right:3px;min-width:18px;height:18px;border-radius:999px;background:var(--brand);color:#fff;font-size:11px;font-weight:700;display:none;align-items:center;justify-content:center;padding:0 4px;overflow:hidden}
+.sx-badge.has{display:flex}
+.sx-badge span{display:block}
+.sx-badge span.in{animation:sxNumIn .3s var(--out)}
+.sx-dock .bounce svg{animation:sxBounce .4s var(--spring)}
+@keyframes sxBounce{0%{transform:scale(1)}50%{transform:scale(1.3)}to{transform:scale(1)}}
+@keyframes sxNumIn{0%{opacity:0;transform:translateY(100%)}to{opacity:1;transform:translateY(0)}}
+.sx-dock2{position:sticky;top:700px;margin-top:40px;background:#fff;border-radius:999px;padding:8px;display:flex;flex-direction:column;gap:6px;align-items:center;box-shadow:0 2px 12px rgba(0,0,0,.07);font-size:11px;color:#555}
+.sx-dock2 i{width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#8a8a8a;font-style:normal;font-size:20px}
+
+/* ── top: search + category pills ── */
+.sx-search{margin:0 auto;width:520px;height:62px;border-radius:999px;background:#fff;box-shadow:0 4px 24px rgba(0,0,0,.08);display:flex;align-items:center;gap:14px;padding:0 24px;color:#7a7a7a;font-size:16px;transition:box-shadow .2s,width .35s var(--out)}
+.sx-search:hover{box-shadow:0 6px 28px rgba(0,0,0,.12);width:540px}
+.sx-pills{display:flex;gap:24px;justify-content:center;margin:18px 0 18px;align-items:center}
+.sx-pill{display:flex;align-items:center;gap:9px;font-weight:500;font-size:14px}
+.sx-pill i{width:32px;height:32px;border-radius:50%;display:inline-block;transition:transform .3s var(--spring)}
+.sx-pill:hover i{transform:scale(1.12) rotate(-8deg)}
+.sx-grid4{width:22px;height:22px;display:grid;grid-template-columns:1fr 1fr;gap:3px}
+.sx-grid4 b{background:#9a9a9a;border-radius:3px}
+
+/* ── hero card ── */
+.sx-hero{position:relative;background:#fff;border-radius:40px;height:440px;box-shadow:0 4px 24px rgba(0,0,0,.06);overflow:hidden}
+.sx-hero .tx{position:absolute;left:34px;bottom:32px;width:470px;z-index:3}
+.sx-hero h2{font-weight:800;font-size:66px;line-height:.92;letter-spacing:-.05em}
+.sx-word{display:inline-block;position:relative;height:.98em;overflow:hidden;vertical-align:bottom;color:var(--brand);min-width:2.1em}
+.sx-word span{display:block}
+.sx-word span.in{animation:sxNumIn .45s var(--out)}
+.sx-word span.out{position:absolute;left:0;top:0;animation:sxNumOut .45s var(--out) forwards}
+@keyframes sxNumOut{to{opacity:0;transform:translateY(-100%)}}
+.sx-hero p{font-size:16px;margin:14px 0 20px;max-width:360px}
+.sx-btns{display:flex;gap:10px;align-items:center}
+.sx-btn{border-radius:999px;padding:13px 20px;font-weight:600;font-size:15px;display:inline-flex;gap:8px;align-items:center}
+.sx-btn.p{background:var(--brand);color:#fff;box-shadow:0 6px 18px var(--glow)}
+.sx-btn.p:hover{background:var(--brand-d)}
+.sx-btn.s{background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.08)}
+.sx-fl{position:absolute;animation:sxIdle 4s ease-in-out alternate infinite}
+@keyframes sxIdle{to{translate:0 5%}}
+.sx-tile{border-radius:22px;box-shadow:0 18px 40px rgba(0,0,0,.14);overflow:hidden;position:relative}
+.sx-chip{position:absolute;left:10px;right:10px;bottom:10px;background:var(--brand);color:#fff;border-radius:999px;text-align:center;font-size:11px;font-weight:600;padding:6px}
+.sx-bottle{position:absolute;border-radius:16px 16px 20px 20px;box-shadow:0 18px 30px rgba(0,0,0,.12)}
+.sx-phone{position:absolute;right:150px;top:38px;width:246px;border-radius:42px;background:#111;padding:9px;box-shadow:0 30px 60px rgba(0,0,0,.25);transform:rotate(4deg)}
+.sx-scr{background:#fff;border-radius:34px;padding:44px 16px 18px;position:relative;height:460px}
+.sx-scr .notch{position:absolute;top:10px;left:50%;transform:translateX(-50%);width:84px;height:24px;border-radius:999px;background:#111}
+.sx-scr h4{font-size:15px;font-weight:700;letter-spacing:-.02em;margin-bottom:4px}
+.sx-row{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--line);font-size:12px;gap:8px}
+.sx-row i{width:28px;height:28px;border-radius:8px;flex:none}
+.sx-esc{margin-top:12px;background:var(--wash);border-radius:16px;padding:11px;font-size:11.5px}
+.sx-esc b{display:block;color:var(--brand-d);font-size:12.5px;margin-bottom:2px}
+.sx-pay{margin-top:12px;background:var(--brand);color:#fff;border-radius:999px;text-align:center;padding:12px;font-weight:600;font-size:13px}
+
+/* ── feed ── */
+.sx-explore{font-size:40px;font-weight:800;letter-spacing:-.045em;margin:44px 0 16px}
+.sx-sec{margin-top:40px}
+.sx-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.sx-h h3{font-size:22px;font-weight:700;letter-spacing:-.03em}
+.sx-arrows{display:flex;gap:8px;opacity:0;transition:opacity .2s}
+.sx-sec:hover .sx-arrows{opacity:1}
+.sx-arrows button{width:38px;height:38px;border-radius:50%;background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.1);font-size:18px}
+.sx .cz{opacity:0;transform:translateY(8px)}
+.sx .cz.in{animation:sxCascade .35s var(--out) both;animation-delay:calc(var(--i,0) * 45ms)}
+@keyframes sxCascade{to{opacity:1;transform:none}}
+
+/* editorial edits with cycling image stack */
+.sx-edits{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.sx-ed{position:relative;height:330px;border-radius:28px;overflow:hidden;color:#fff}
+.sx-ed .cv{position:absolute;inset:0;transition:transform .4s ease-in-out}
+.sx-ed:hover .cv{transform:scale(1.04)}
+.sx-ed .grad{position:absolute;inset:0;background:linear-gradient(180deg,transparent 45%,rgba(0,0,0,.55))}
+.sx-ed h4{position:absolute;left:20px;right:20px;bottom:20px;font-size:20px;font-weight:700;letter-spacing:-.025em;line-height:1.1}
+.sx-ed h4 small{display:block;font-size:12.5px;font-weight:500;opacity:.85;margin-top:4px;letter-spacing:0}
+.sx-stk{position:absolute;left:50%;top:44px;width:120px;height:150px;margin-left:-60px}
+.sx-stk span{position:absolute;inset:0;border-radius:18px;border:3px solid #fff;box-shadow:0 14px 28px rgba(0,0,0,.25);transition:transform .52s var(--std),opacity .52s var(--std),filter .52s var(--std)}
+.sx-stk span[data-p="0"]{transform:rotate(5deg);z-index:3}
+.sx-stk span[data-p="1"]{transform:translate(-13px,0) rotate(-5deg);z-index:2}
+.sx-stk span[data-p="2"]{transform:translate(-22px,0) rotate(-9deg) scale(.92);z-index:1}
+.sx-stk span[data-p="x"]{transform:translate(12px,-6px) rotate(9deg);opacity:0;filter:blur(1.5px);z-index:4}
+
+/* categories grid */
+.sx-cats{display:grid;grid-template-columns:repeat(6,1fr);gap:14px}
+.sx-cat{background:#fff;border-radius:24px;padding:14px;box-shadow:0 2px 12px rgba(0,0,0,.04)}
+.sx-cat .im{aspect-ratio:1;border-radius:16px;overflow:hidden;position:relative}
+.sx-cat .im span{position:absolute;inset:0;transition:transform .3s ease-in-out}
+.sx-cat:hover .im span{transform:scale(1.06)}
+.sx-cat b{display:block;margin-top:10px;font-weight:600;font-size:14px}
+
+/* product rail */
+.sx-rail{display:grid;grid-auto-flow:column;grid-auto-columns:calc((100% - 5*14px)/6);gap:14px;overflow-x:auto;scroll-behavior:smooth;scrollbar-width:none}
+.sx-rail::-webkit-scrollbar{display:none}
+.sx-pc{position:relative}
+.sx-pc .im{position:relative;aspect-ratio:1;border-radius:16px;overflow:hidden;background:var(--tile)}
+.sx-pc .im .art{position:absolute;inset:0;transition:transform .15s ease-in-out}
+.sx-pc:hover .im .art{transform:scale(1.04)}
+.sx-heart{position:absolute;top:8px;right:8px;width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.95);display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .15s,transform .15s ease-in-out;z-index:2}
+.sx-pc:hover .sx-heart,.sx-heart.on{opacity:1}
+.sx-heart:hover{transform:scale(1.1)}
+.sx-heart svg{width:16px;height:16px}
+.sx-heart.on svg{fill:var(--brand);stroke:var(--brand);animation:sxPop .28s var(--spring)}
+@keyframes sxPop{0%{transform:scale(.4)}60%{transform:scale(1.15)}to{transform:scale(1)}}
+.sx-add{position:absolute;right:8px;bottom:8px;height:34px;padding:0 13px;border-radius:999px;background:#fff;font-weight:600;font-size:13px;box-shadow:0 2px 10px rgba(0,0,0,.12);opacity:0;transform:translateY(6px);transition:opacity .15s,transform .2s var(--out),background .2s,color .2s;z-index:2}
+.sx-pc:hover .sx-add{opacity:1;transform:none}
+.sx-add.done{background:var(--brand);color:#fff;opacity:1;transform:none}
+.sx-pc .mer{display:flex;gap:6px;align-items:center;margin-top:9px;font-size:12px;color:var(--muted)}
+.sx-pc .mer i{width:18px;height:18px;border-radius:6px;display:inline-block}
+.sx-pc .n{font-weight:600;font-size:14px;margin-top:3px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.sx-pc .st{font-size:12px;margin-top:3px;color:#333;display:flex;gap:4px;align-items:center}
+.sx-pc .st b{color:var(--brand);letter-spacing:-1px}
+.sx-pc .pr{font-weight:600;margin-top:3px}
+
+/* trust strip (ours) */
+.sx-trust{display:flex;align-items:center;gap:22px;background:#fff;border-radius:999px;padding:12px 14px 12px 22px;box-shadow:0 2px 12px rgba(0,0,0,.05)}
+.sx-trust .t{display:flex;gap:10px;align-items:center;font-weight:600}
+.sx-trust .t i{width:30px;height:30px;border-radius:50%;background:var(--wash);color:var(--brand);display:flex;align-items:center;justify-content:center;font-style:normal;font-size:14px}
+.sx-trust .sep{flex:1;height:2px;background:var(--line);position:relative;overflow:hidden;border-radius:2px}
+.sx-trust .sep::after{content:"";position:absolute;inset:0;width:40%;background:var(--brand);animation:sxSweep 2.4s var(--std) infinite}
+@keyframes sxSweep{0%{transform:translateX(-100%)}to{transform:translateX(260%)}}
+.sx-trust .more{margin-left:8px;background:var(--ink);color:#fff;border-radius:999px;padding:10px 16px;font-weight:600}
+
+/* store cards (large-product-focused-merchant-card) */
+.sx-stores{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.sx-store{background:#fff;border-radius:28px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.05)}
+.sx-store .cv{position:relative;height:170px;overflow:hidden}
+.sx-store .cv span{position:absolute;inset:0;transition:transform .4s ease-in-out}
+.sx-store:hover .cv span{transform:scale(1.04)}
+.sx-store .cv .gr{position:absolute;inset:0;background:linear-gradient(180deg,transparent 40%,rgba(0,0,0,.5))}
+.sx-store .brand{position:absolute;left:16px;bottom:14px;display:flex;gap:10px;align-items:center;color:#fff;z-index:2}
+.sx-store .brand i{width:40px;height:40px;border-radius:12px;border:2px solid #fff;display:flex;align-items:center;justify-content:center;font-style:normal;font-weight:800;font-size:13px}
+.sx-store .brand b{font-size:17px;font-weight:700;letter-spacing:-.02em;display:block}
+.sx-store .brand small{opacity:.85;font-size:12px}
+.sx-store .two{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:12px}
+.sx-store .two div span{display:block;aspect-ratio:1;border-radius:14px}
+.sx-store:hover .two div:nth-child(1) span{animation:sxF1 4.8s ease-in-out infinite alternate}
+.sx-store:hover .two div:nth-child(2) span{animation:sxF2 5.6s ease-in-out infinite alternate}
+@keyframes sxF1{0%{transform:rotate(0) translate(0) scale(1)}42%{transform:rotate(-1.8deg) translate(-5px,-4px) scale(1.015)}to{transform:rotate(1.1deg) translate(4px,-8px) scale(1.025)}}
+@keyframes sxF2{0%{transform:rotate(0) translate(0) scale(1)}48%{transform:rotate(1.5deg) translate(1px,-7px) scale(1.02)}to{transform:rotate(-1deg) translate(-3px,-4px) scale(1.01)}}
+.sx-store .two p{font-size:12.5px;font-weight:600;margin-top:6px}
+
+/* sell row (ours) */
+.sx-join{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.sx-jc{border-radius:28px;padding:24px;min-height:170px;display:flex;flex-direction:column;justify-content:space-between;transition:transform .3s var(--out)}
+.sx-jc:hover{transform:translateY(-3px)}
+.sx-jc h4{font-size:22px;font-weight:800;letter-spacing:-.04em;line-height:1.05}
+.sx-jc p{margin-top:6px;opacity:.85;font-size:13.5px}
+.sx-jc .lk{font-weight:600}
+
+/* footer like shop.com */
+.sx-foot{grid-column:1/-1;margin-top:56px;background:#fff;padding:36px 32px 22px 96px}
+.sx-qr{width:64px;height:64px;border-radius:12px;background:#000;padding:7px;display:grid;grid-template-columns:repeat(7,1fr);gap:1px}
+.sx-qr b{background:#fff;border-radius:1px}.sx-qr b.k{background:#000}
+.sx-fw{font-weight:900;font-size:40px;letter-spacing:-.07em;color:var(--brand);margin-top:16px;line-height:1}
+.sx-ft{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;margin-top:26px;font-size:13px}
+.sx-ft h5{font-size:13px;font-weight:600;margin-bottom:10px}
+.sx-ft p{color:#333;margin-bottom:8px}
+.sx-fb{display:flex;justify-content:space-between;align-items:center;margin-top:24px;color:var(--muted);font-size:12px}
+.sx-badges{display:flex;gap:8px}
+.sx-badges span{border:1px solid #000;border-radius:8px;padding:5px 10px;font-size:11px;font-weight:600;color:#000}
+.sx-toast{position:fixed;left:50%;bottom:22px;transform:translate(-50%,30%);background:var(--ink);color:#fff;border-radius:999px;padding:12px 18px;display:flex;gap:10px;align-items:center;font-weight:500;box-shadow:0 10px 30px rgba(0,0,0,.25);opacity:0;pointer-events:none;transition:opacity .3s var(--out),transform .3s var(--out);z-index:50}
+.sx-toast.show{opacity:1;transform:translate(-50%,0)}
+.sx-toast i{width:22px;height:22px;border-radius:50%;background:var(--brand);display:inline-flex;align-items:center;justify-content:center;font-style:normal;font-size:12px}
+@media (prefers-reduced-motion:reduce){.sx *{animation:none!important;transition:none!important}.sx .cz{opacity:1;transform:none}}
+
+.sx-search{padding-right:8px}
+.sx-scan{display:flex;align-items:center;gap:6px;height:46px;padding:0 14px 0 12px !important;border-radius:999px;background:var(--wash) !important;color:var(--brand-d) !important;font-weight:600;font-size:14px;position:relative;overflow:hidden}
+.sx-scan i{position:absolute;left:12px;width:20px;height:2px;background:var(--brand);border-radius:2px;top:22px;opacity:0}
+.sx-scan:hover i{opacity:1;animation:sxScan 1.1s ease-in-out infinite alternate}
+@keyframes sxScan{from{transform:translateY(-7px)}to{transform:translateY(7px)}}
+.sx-foot{display:block}.sx-fb{gap:20px}
+.sx::after{content:"";position:absolute;inset:0;pointer-events:none;z-index:40;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .55 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");background-size:220px 220px;opacity:.07;mix-blend-mode:multiply}
+</style>
+
+<h2>Pick a logo</h2><p class="subtitle">Four new marks, no sparkles. Each shown as app icon, small icons, on white, on purple, and in plain black (how it looks printed on a bag or tee).</p><div class="options"><div class="option" data-choice="halo" onclick="toggleSelect(this)" style="align-items:flex-start"><div class="content" style="width:100%"><h3>A. Halo</h3><p>A ring with a glowing dot: a compact mirror catching the light, or a halo. One shape, instantly recognisable, great as a sticker.</p>
+<div style="display:flex;gap:14px;align-items:center;margin-top:12px;flex-wrap:wrap"><svg viewBox="0 0 64 64" width="72" height="72" style="border-radius:18px;background:#8a1fc7;display:block"><circle cx="29" cy="35" r="16" stroke="#fff" stroke-width="8.5" fill="none"/><circle cx="45" cy="18" r="8.5" fill="#fff"/></svg><svg viewBox="0 0 64 64" width="32" height="32" style="border-radius:8px;background:#8a1fc7;display:block"><circle cx="29" cy="35" r="16" stroke="#fff" stroke-width="8.5" fill="none"/><circle cx="45" cy="18" r="8.5" fill="#fff"/></svg><svg viewBox="0 0 64 64" width="18" height="18" style="border-radius:5px;background:#8a1fc7;display:block"><circle cx="29" cy="35" r="16" stroke="#fff" stroke-width="8.5" fill="none"/><circle cx="45" cy="18" r="8.5" fill="#fff"/></svg>
+<div style="display:flex;gap:10px;align-items:center;background:#fff;padding:12px 16px;border-radius:16px;border:1px solid #eee"><svg viewBox="0 0 64 64" width="36" height="36" style="border-radius:10px;background:#8a1fc7;display:block"><circle cx="29" cy="35" r="16" stroke="#fff" stroke-width="8.5" fill="none"/><circle cx="45" cy="18" r="8.5" fill="#fff"/></svg><span style="font-family:Geist,system-ui,sans-serif;font-weight:900;font-size:30px;letter-spacing:-.065em;color:#8a1fc7;line-height:1">luxebeau</span></div>
+<div style="display:flex;gap:10px;align-items:center;background:#8a1fc7;padding:12px 16px;border-radius:16px"><svg viewBox="0 0 64 64" width="36" height="36" style="display:block"><circle cx="29" cy="35" r="16" stroke="#fff" stroke-width="8.5" fill="none"/><circle cx="45" cy="18" r="8.5" fill="#fff"/></svg><span style="font-family:Geist,system-ui,sans-serif;font-weight:900;font-size:30px;letter-spacing:-.065em;color:#fff;line-height:1">luxebeau</span></div>
+<div style="display:flex;gap:10px;align-items:center;background:#fff;padding:12px 16px;border-radius:16px;border:1px solid #eee"><svg viewBox="0 0 64 64" width="36" height="36" style="display:block"><circle cx="29" cy="35" r="16" stroke="#000" stroke-width="8.5" fill="none"/><circle cx="45" cy="18" r="8.5" fill="#000"/></svg><span style="font-family:Geist,system-ui,sans-serif;font-weight:900;font-size:30px;letter-spacing:-.065em;color:#000;line-height:1">luxebeau</span></div></div></div></div><div class="option" data-choice="pair" onclick="toggleSelect(this)" style="align-items:flex-start"><div class="content" style="width:100%"><h3>B. Pair</h3><p>Two linked rings: her and him, together. Says unisex without words.</p>
+<div style="display:flex;gap:14px;align-items:center;margin-top:12px;flex-wrap:wrap"><svg viewBox="0 0 64 64" width="72" height="72" style="border-radius:18px;background:#8a1fc7;display:block"><circle cx="24" cy="32" r="13" stroke="#fff" stroke-width="7.5" fill="none"/><circle cx="40" cy="32" r="13" stroke="#fff" stroke-width="7.5" fill="none" stroke-opacity=".6"/></svg><svg viewBox="0 0 64 64" width="32" height="32" style="border-radius:8px;background:#8a1fc7;display:block"><circle cx="24" cy="32" r="13" stroke="#fff" stroke-width="7.5" fill="none"/><circle cx="40" cy="32" r="13" stroke="#fff" stroke-width="7.5" fill="none" stroke-opacity=".6"/></svg><svg viewBox="0 0 64 64" width="18" height="18" style="border-radius:5px;background:#8a1fc7;display:block"><circle cx="24" cy="32" r="13" stroke="#fff" stroke-width="7.5" fill="none"/><circle cx="40" cy="32" r="13" stroke="#fff" stroke-width="7.5" fill="none" stroke-opacity=".6"/></svg>
+<div style="display:flex;gap:10px;align-items:center;background:#fff;padding:12px 16px;border-radius:16px;border:1px solid #eee"><svg viewBox="0 0 64 64" width="36" height="36" style="border-radius:10px;background:#8a1fc7;display:block"><circle cx="24" cy="32" r="13" stroke="#fff" stroke-width="7.5" fill="none"/><circle cx="40" cy="32" r="13" stroke="#fff" stroke-width="7.5" fill="none" stroke-opacity=".6"/></svg><span style="font-family:Geist,system-ui,sans-serif;font-weight:900;font-size:30px;letter-spacing:-.065em;color:#8a1fc7;line-height:1">luxebeau</span></div>
+<div style="display:flex;gap:10px;align-items:center;background:#8a1fc7;padding:12px 16px;border-radius:16px"><svg viewBox="0 0 64 64" width="36" height="36" style="display:block"><circle cx="24" cy="32" r="13" stroke="#fff" stroke-width="7.5" fill="none"/><circle cx="40" cy="32" r="13" stroke="#fff" stroke-width="7.5" fill="none" stroke-opacity=".6"/></svg><span style="font-family:Geist,system-ui,sans-serif;font-weight:900;font-size:30px;letter-spacing:-.065em;color:#fff;line-height:1">luxebeau</span></div>
+<div style="display:flex;gap:10px;align-items:center;background:#fff;padding:12px 16px;border-radius:16px;border:1px solid #eee"><svg viewBox="0 0 64 64" width="36" height="36" style="display:block"><circle cx="24" cy="32" r="13" stroke="#000" stroke-width="7.5" fill="none"/><circle cx="40" cy="32" r="13" stroke="#000" stroke-width="7.5" fill="none" stroke-opacity=".6"/></svg><span style="font-family:Geist,system-ui,sans-serif;font-weight:900;font-size:30px;letter-spacing:-.065em;color:#000;line-height:1">luxebeau</span></div></div></div></div><div class="option" data-choice="bow" onclick="toggleSelect(this)" style="align-items:flex-start"><div class="content" style="width:100%"><h3>C. Bow</h3><p>A bold bow: a gift, a treat, something you're proud to carry. Playful and easy to rep.</p>
+<div style="display:flex;gap:14px;align-items:center;margin-top:12px;flex-wrap:wrap"><svg viewBox="0 0 64 64" width="72" height="72" style="border-radius:18px;background:#8a1fc7;display:block"><path d="M32 32 14 19.5c-3.5 8-3.5 17 0 25zM32 32l18-12.5c3.5 8 3.5 17 0 25z" fill="#fff" stroke="#fff" stroke-width="5" stroke-linejoin="round"/><circle cx="32" cy="32" r="5.5" fill="#e7c6fb"/></svg><svg viewBox="0 0 64 64" width="32" height="32" style="border-radius:8px;background:#8a1fc7;display:block"><path d="M32 32 14 19.5c-3.5 8-3.5 17 0 25zM32 32l18-12.5c3.5 8 3.5 17 0 25z" fill="#fff" stroke="#fff" stroke-width="5" stroke-linejoin="round"/><circle cx="32" cy="32" r="5.5" fill="#e7c6fb"/></svg><svg viewBox="0 0 64 64" width="18" height="18" style="border-radius:5px;background:#8a1fc7;display:block"><path d="M32 32 14 19.5c-3.5 8-3.5 17 0 25zM32 32l18-12.5c3.5 8 3.5 17 0 25z" fill="#fff" stroke="#fff" stroke-width="5" stroke-linejoin="round"/><circle cx="32" cy="32" r="5.5" fill="#e7c6fb"/></svg>
+<div style="display:flex;gap:10px;align-items:center;background:#fff;padding:12px 16px;border-radius:16px;border:1px solid #eee"><svg viewBox="0 0 64 64" width="36" height="36" style="border-radius:10px;background:#8a1fc7;display:block"><path d="M32 32 14 19.5c-3.5 8-3.5 17 0 25zM32 32l18-12.5c3.5 8 3.5 17 0 25z" fill="#fff" stroke="#fff" stroke-width="5" stroke-linejoin="round"/><circle cx="32" cy="32" r="5.5" fill="#e7c6fb"/></svg><span style="font-family:Geist,system-ui,sans-serif;font-weight:900;font-size:30px;letter-spacing:-.065em;color:#8a1fc7;line-height:1">luxebeau</span></div>
+<div style="display:flex;gap:10px;align-items:center;background:#8a1fc7;padding:12px 16px;border-radius:16px"><svg viewBox="0 0 64 64" width="36" height="36" style="display:block"><path d="M32 32 14 19.5c-3.5 8-3.5 17 0 25zM32 32l18-12.5c3.5 8 3.5 17 0 25z" fill="#fff" stroke="#fff" stroke-width="5" stroke-linejoin="round"/><circle cx="32" cy="32" r="5.5" fill="#fff"/></svg><span style="font-family:Geist,system-ui,sans-serif;font-weight:900;font-size:30px;letter-spacing:-.065em;color:#fff;line-height:1">luxebeau</span></div>
+<div style="display:flex;gap:10px;align-items:center;background:#fff;padding:12px 16px;border-radius:16px;border:1px solid #eee"><svg viewBox="0 0 64 64" width="36" height="36" style="display:block"><path d="M32 32 14 19.5c-3.5 8-3.5 17 0 25zM32 32l18-12.5c3.5 8 3.5 17 0 25z" fill="#000" stroke="#000" stroke-width="5" stroke-linejoin="round"/><circle cx="32" cy="32" r="5.5" fill="#000"/></svg><span style="font-family:Geist,system-ui,sans-serif;font-weight:900;font-size:30px;letter-spacing:-.065em;color:#000;line-height:1">luxebeau</span></div></div></div></div><div class="option" data-choice="ldot" onclick="toggleSelect(this)" style="align-items:flex-start"><div class="content" style="width:100%"><h3>D. L-dot</h3><p>A soft L with a dot of glow. The most 'tech brand' of the four, clean at any size.</p>
+<div style="display:flex;gap:14px;align-items:center;margin-top:12px;flex-wrap:wrap"><svg viewBox="0 0 64 64" width="72" height="72" style="border-radius:18px;background:#8a1fc7;display:block"><path d="M20 12v30a10 10 0 0 0 10 10h20" stroke="#fff" stroke-width="9" stroke-linecap="round" fill="none"/><circle cx="45" cy="21" r="7.5" fill="#fff"/></svg><svg viewBox="0 0 64 64" width="32" height="32" style="border-radius:8px;background:#8a1fc7;display:block"><path d="M20 12v30a10 10 0 0 0 10 10h20" stroke="#fff" stroke-width="9" stroke-linecap="round" fill="none"/><circle cx="45" cy="21" r="7.5" fill="#fff"/></svg><svg viewBox="0 0 64 64" width="18" height="18" style="border-radius:5px;background:#8a1fc7;display:block"><path d="M20 12v30a10 10 0 0 0 10 10h20" stroke="#fff" stroke-width="9" stroke-linecap="round" fill="none"/><circle cx="45" cy="21" r="7.5" fill="#fff"/></svg>
+<div style="display:flex;gap:10px;align-items:center;background:#fff;padding:12px 16px;border-radius:16px;border:1px solid #eee"><svg viewBox="0 0 64 64" width="36" height="36" style="border-radius:10px;background:#8a1fc7;display:block"><path d="M20 12v30a10 10 0 0 0 10 10h20" stroke="#fff" stroke-width="9" stroke-linecap="round" fill="none"/><circle cx="45" cy="21" r="7.5" fill="#fff"/></svg><span style="font-family:Geist,system-ui,sans-serif;font-weight:900;font-size:30px;letter-spacing:-.065em;color:#8a1fc7;line-height:1">luxebeau</span></div>
+<div style="display:flex;gap:10px;align-items:center;background:#8a1fc7;padding:12px 16px;border-radius:16px"><svg viewBox="0 0 64 64" width="36" height="36" style="display:block"><path d="M20 12v30a10 10 0 0 0 10 10h20" stroke="#fff" stroke-width="9" stroke-linecap="round" fill="none"/><circle cx="45" cy="21" r="7.5" fill="#fff"/></svg><span style="font-family:Geist,system-ui,sans-serif;font-weight:900;font-size:30px;letter-spacing:-.065em;color:#fff;line-height:1">luxebeau</span></div>
+<div style="display:flex;gap:10px;align-items:center;background:#fff;padding:12px 16px;border-radius:16px;border:1px solid #eee"><svg viewBox="0 0 64 64" width="36" height="36" style="display:block"><path d="M20 12v30a10 10 0 0 0 10 10h20" stroke="#000" stroke-width="9" stroke-linecap="round" fill="none"/><circle cx="45" cy="21" r="7.5" fill="#000"/></svg><span style="font-family:Geist,system-ui,sans-serif;font-weight:900;font-size:30px;letter-spacing:-.065em;color:#000;line-height:1">luxebeau</span></div></div></div></div></div><div style="height:40px"></div><h2>Home page v6 · grain, no arches</h2>
+<p class="subtitle">shop.com's structure: logo tile + left dock, pill search, photo pills, one wide hero card, then an "Explore" feed (edits, categories, rated rows, store cards). LuxeBeau's 20%: purple, the changing headline word, Her/Him, the escrow strip, the sell row. Hover rows for arrows, press <b>Add</b>, tap hearts.</p>
+
+<div class="sx" id="sx">
+  <div class="sx-left">
+    <div class="sx-logo tap"><svg viewBox="0 0 64 64" width="44" height="44"><circle cx="29" cy="35" r="16" stroke="#fff" stroke-width="8.5" fill="none"/><circle cx="45" cy="18" r="8.5" fill="#fff"/></svg></div>
+    <div class="sx-dock">
+      <button class="on tap" aria-label="Home"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3 3 10v10h6v-6h6v6h6V10z"/></svg></button>
+      <button class="tap" aria-label="Categories"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="8" rx="2"/><rect x="3" y="13" width="8" height="8" rx="2"/><rect x="13" y="13" width="8" height="8" rx="2"/></svg></button>
+      <button class="tap" id="cartBtn" aria-label="Bag"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4h14l-2 9H8.2zM2 2h4l3 12h11v2H8L5 4H2z"/><circle cx="9" cy="20" r="1.8"/><circle cx="18" cy="20" r="1.8"/></svg><span class="sx-badge" id="badge"><span>0</span></span></button>
+      <button class="tap" aria-label="Book"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 4h14a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zm0 6v9h14v-9z"/><path d="M7 2h2v4H7zM15 2h2v4h-2z"/></svg></button>
+      <button class="tap" aria-label="Orders"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 7l9-4 9 4v10l-9 4-9-4zm9 2 6.5-2.9L12 3.2 5.5 6.1z"/></svg></button>
+    </div>
+    <div class="sx-dock2"><i>♡</i><i style="font-size:11px;width:auto;height:auto;padding:0 0 6px">Sign in</i></div>
+  </div>
+
+  <div>
+    <div class="sx-search"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><span style="flex:1">What are you glowing up with today?</span><button class="sx-scan tap" aria-label="Scan a product to search" title="Scan a product"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/></svg><i></i><span>Scan</span></button></div>
+    <div class="sx-pills" id="pills"></div>
+
+    <div class="sx-hero cz">
+      <div class="sx-bottle sx-fl" style="left:420px;top:-30px;width:64px;height:180px;transform:rotate(10deg);background:linear-gradient(90deg,#e4e4e4,#fff 45%,#c8c8c8)"></div>
+      <div class="sx-fl" style="left:480px;top:90px;animation-delay:-1s"><div class="sx-tile" style="width:150px;height:196px;transform:rotate(-6deg);background:#141414"><div class="sx-bottle" style="left:52px;top:26px;width:46px;height:118px;background:linear-gradient(90deg,#9a5a24,#e3a058 45%,#7a4216)"></div><span class="sx-chip">Buy with escrow</span></div></div>
+      <div class="sx-fl" style="left:600px;top:170px;animation-delay:-2.2s"><div class="sx-tile" style="width:128px;height:168px;transform:rotate(5deg);background:linear-gradient(160deg,var(--wash),#d9b3f2)"><div class="sx-bottle" style="left:40px;top:28px;width:48px;height:94px;background:linear-gradient(90deg,var(--brand-d),#b65ae8 45%,var(--brand-d))"></div><span class="sx-chip">Add to bag</span></div></div>
+      <div class="sx-fl" style="left:640px;top:40px;animation-delay:-3s"><div class="sx-tile" style="width:96px;height:96px;transform:rotate(-4deg);background:radial-gradient(circle at 45% 35%,#e0ab84,#5a3220 72%)"></div></div>
+      <div class="sx-fl" style="right:-24px;top:24px;animation-delay:-.6s"><div class="sx-tile" style="width:160px;height:100px;transform:rotate(-6deg);background:linear-gradient(135deg,#2b1206,var(--brand))"><span style="position:absolute;left:14px;bottom:12px;color:#fff;font-weight:700;letter-spacing:-.02em">Oba Grooming</span></div></div>
+      <div class="sx-bottle" style="right:-50px;top:250px;width:160px;height:240px;border-radius:44px;transform:rotate(-14deg);background:linear-gradient(90deg,#efe6d8,#fffaf2 45%,#d8c9b2)"></div>
+      <div class="sx-phone"><div class="sx-scr"><div class="notch"></div>
+        <h4>Your bag</h4>
+        <div class="sx-row"><i style="background:radial-gradient(circle,#b5835e,#3a2416)"></i><span style="flex:1">Shea beard oil</span><b>₦6,200</b></div>
+        <div class="sx-row"><i style="background:radial-gradient(circle,#ffe8cc,#d98a45)"></i><span style="flex:1">Honey cleansing bar</span><b>₦8,500</b></div>
+        <div class="sx-row"><i style="background:#f2f2f2"></i><span style="flex:1">Delivery · Lagos</span><b>₦1,500</b></div>
+        <div class="sx-esc"><b>🔒 Held safe in escrow</b>Seller gets paid only after you confirm it arrived.</div>
+        <div class="sx-pay">Pay ₦16,200</div>
+        <p style="text-align:center;font-size:11px;color:#707070;margin-top:8px">Sign up here with Google or email</p>
+      </div></div>
+      <div class="tx">
+        <h2>Beauty is all about <span class="sx-word" id="word"><span>you</span></span></h2>
+        <p>All the brands you love, for her, him and everyone. Verified sellers. Your money held safe till it arrives.</p>
+        <div class="sx-btns"><button class="sx-btn p tap">Start shopping</button><button class="sx-btn s tap">▶ What is LuxeBeau</button></div>
+      </div>
+    </div>
+
+    <h1 class="sx-explore">Explore</h1>
+    <div class="sx-edits" id="edits"></div>
+
+    <div class="sx-sec"><div class="sx-h"><h3>Browse categories</h3></div><div class="sx-cats" id="cats"></div></div>
+
+    <div class="sx-sec" data-rail="him"><div class="sx-h"><h3>Top rated in grooming</h3><div class="sx-arrows"><button class="tap" data-d="-1">‹</button><button class="tap" data-d="1">›</button></div></div><div class="sx-rail"></div></div>
+
+    <div class="sx-sec"><div class="sx-trust cz">
+      <span class="t"><i>₦</i>You pay into escrow</span><span class="sep"></span>
+      <span class="t"><i>✓</i>Verified seller delivers</span><span class="sep"></span>
+      <span class="t"><i>★</i>You confirm, they get paid</span>
+      <button class="more tap">How it works</button>
+    </div></div>
+
+    <div class="sx-sec"><div class="sx-h"><h3>Trending stores</h3></div><div class="sx-stores" id="stores"></div></div>
+
+    <div class="sx-sec" data-rail="her"><div class="sx-h"><h3>New in skincare</h3><div class="sx-arrows"><button class="tap" data-d="-1">‹</button><button class="tap" data-d="1">›</button></div></div><div class="sx-rail"></div></div>
+
+    <div class="sx-sec" data-rail="all"><div class="sx-h"><h3>Loved by everyone</h3><div class="sx-arrows"><button class="tap" data-d="-1">‹</button><button class="tap" data-d="1">›</button></div></div><div class="sx-rail"></div></div>
+
+    <div class="sx-sec"><div class="sx-join">
+      <div class="sx-jc cz tap" style="background:var(--brand);color:#fff"><div><h4>Sell on LuxeBeau</h4><p>Open a shop in minutes. Paid as soon as buyers confirm.</p></div><span class="lk">Start selling →</span></div>
+      <div class="sx-jc cz tap" style="--i:1;background:#fff;box-shadow:0 2px 12px rgba(0,0,0,.05)"><div><h4>Fill your calendar</h4><p>Braiders, barbers, MUAs: paid bookings, deposits held safe.</p></div><span class="lk" style="color:var(--brand)">Join as an artisan →</span></div>
+      <div class="sx-jc cz tap" style="--i:2;background:var(--wash)"><div><h4>Brand partnerships</h4><p>Launches and creator campaigns with a community that reps you.</p></div><span class="lk" style="color:var(--brand-d)">Partner with us →</span></div>
+    </div></div>
+  </div>
+
+  <div class="sx-foot">
+    <svg viewBox="0 0 64 64" width="64" height="64" style="border-radius:18px;background:#8a1fc7;display:block"><circle cx="29" cy="35" r="16" stroke="#fff" stroke-width="8.5" fill="none"/><circle cx="45" cy="18" r="8.5" fill="#fff"/></svg>
+    <div class="sx-fw">luxebeau</div>
+    <p style="color:#6b6b6b;margin-top:6px;font-size:13px">Beauty designed around you</p>
+    <div class="sx-ft">
+      <div><h5>Learn more</h5><p>What is LuxeBeau?</p><p>How escrow works</p><p>Help center</p></div>
+      <div><h5>Get started</h5><p>For sellers</p><p>For artisans</p><p>For brands & creators</p></div>
+      <div><h5>Social</h5><p>Instagram</p><p>TikTok</p><p>#RepLuxeBeau</p></div>
+      <div><h5>Legal</h5><p>Terms of Service</p><p>Privacy Policy</p><p>Refund policy</p></div>
+    </div>
+    <div class="sx-fb"><span>Beauty for everyone. Verified sellers. Every order protected.</span><span>© 2026 LuxeBeau</span></div>
+  </div>
+  <div class="sx-toast" id="toast"><i>✓</i><span id="tt"></span></div>
+</div>
+
+<script>
+(function(){
+  const R=document.getElementById('sx'); if(!R) return;
+  const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const g=(a,b,c)=>`radial-gradient(circle at 50% 38%,${a},${b} 62%${c?','+c:''})`;
+  const M={AO:['Adunni Organics','#d98a45,#7a3e12'],OB:['Oba Grooming','#3a2416,#0d0806'],ME:['Maison Eko','#8a1fc7,#3b0a5c'],ZB:['Zobo Beauty','#d6336c,#7a1030'],KH:['Kinfolk Hair','#4fa86a,#21613a'],LM:['Lagos Men Co.','#4a4a4a,#111'],OS:['Ore Skin','#f0b429,#b07800']};
+  const P={
+    him:[['Shea Beard Oil, 30ml','OB',6200,4.9,540,g('#b5835e','#3a2416')],['Charcoal Face Wash','LM',5500,4.5,402,g('#e6e6e6','#4a4a4a','#151515')],['Bump Stopper Aftershave','OB',5200,4.7,265,g('#dfe9f0','#6b8aa0')],['Beard Balm, Cedar','OB',7400,4.8,188,g('#fbefe3','#c8a27a')],['Matte Daily Moisturiser','LM',6900,4.6,141,g('#f4f4f4','#9a9a9a')],['Edge Up Trimmer Oil','LM',3500,4.4,96,g('#ffe9c7','#c08a3a')],['Oud Noir Body Mist','ME',14000,4.7,221,g('#f2d4ff','#8a1fc7','#4a0c70')]],
+    her:[['Vitamin C Glow Serum','OS',14500,4.9,880,g('#fff3d1','#f0b429','#b07800')],['Honey Cleansing Bar','AO',8500,4.8,312,g('#ffe8cc','#d98a45','#a85d22')],['Hibiscus Lip & Cheek Tint','ZB',4800,4.6,198,g('#ffe0ea','#d6336c','#7a1030')],['Rice Water Toner','OS',7600,4.7,233,g('#ffffff','#e9e2d6')],['Shea Night Cream','AO',9200,4.8,176,g('#fff8ef','#e8cfa8')],['Braid Spray, Tea Tree','KH',4200,4.6,310,g('#e8ffe8','#4fa86a','#21613a')],['Kojic Brightening Soap','AO',3800,4.5,402,g('#fff1d6','#e0a160')]],
+    all:[['Edge Control Gel','KH',3900,4.8,640,g('#f2f7ee','#9db78a','#5d7a49')],['Cedar & Shea Body Butter','OB',8200,4.8,157,g('#fbefe3','#c8a27a','#7a5634')],['Oud Noir Body Mist','ME',14000,4.7,221,g('#f2d4ff','#8a1fc7','#4a0c70')],['SPF 50 Invisible Gel','OS',11800,4.9,512,g('#fffbe6','#f5d76e')],['Black Soap Shower Gel','AO',5100,4.7,288,g('#4a3a2e','#1b120c')],['Lip Balm Trio','ZB',3200,4.6,377,g('#ffe0ea','#e86a92')],['Amber Hair Oil','KH',6400,4.8,219,g('#ffe2b3','#c9781e')]]
+  };
+  const naira=n=>'₦'+n.toLocaleString('en-NG');
+  const heart='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.5-7 10-7 10z"/></svg>';
+
+  document.getElementById('pills').innerHTML=[['Her','#ffd7c2,#c9733f'],['Him','#c99772,#3d2416'],['Skincare','#fff3e0,#e2b96f'],['Hair','#5a3a2a,#140b07'],['Grooming','#d4d4d4,#3b3b3b'],['Fragrance','#f1d9ff,#8a1fc7'],['Artisans','#ffc4d6,#b4235a']]
+    .map(p=>`<button class="sx-pill tap"><i style="background:radial-gradient(circle at 40% 35%,${p[1]})"></i>${p[0]}</button>`).join('')+'<span class="sx-grid4"><b></b><b></b><b></b><b></b></span>';
+
+  const E=[["Tolu's Harmattan glow edit",'by @tolu.glows · 8 products','linear-gradient(150deg,#b65ae8,#3b0a5c)',['#fff3d1,#f0b429','#ffe0ea,#d6336c','#f2d4ff,#8a1fc7','#ffe8cc,#d98a45']],
+           ['The 5-minute groom','by @kingsley.cuts · 5 products','linear-gradient(150deg,#5a3a2a,#0d0806)',['#b5835e,#3a2416','#dfe9f0,#6b8aa0','#e6e6e6,#4a4a4a','#fbefe3,#c8a27a']],
+           ['Scents we share','by @amaka.and.ade · unisex','linear-gradient(150deg,#e86a92,#8a1fc7)',['#f2d4ff,#8a1fc7','#ffe2b3,#c9781e','#ffe0ea,#d6336c','#fff,#e9e2d6']]];
+  document.getElementById('edits').innerHTML=E.map((e,i)=>`<div class="sx-ed cz tap" style="--i:${i}"><div class="cv" style="background:${e[2]}"></div><div class="sx-stk">${e[3].map((c,j)=>`<span data-p="${j<3?j:'x'}" style="background:radial-gradient(circle at 50% 38%,${c})"></span>`).join('')}</div><div class="grad"></div><h4>${e[0]}<small>${e[1]}</small></h4></div>`).join('');
+
+  document.getElementById('cats').innerHTML=[['Skincare','#fff3d1,#f0b429'],['Hair','#5a3a2a,#140b07'],['Grooming','#dfe9f0,#6b8aa0'],['Fragrance','#f2d4ff,#8a1fc7'],['Makeup','#ffe0ea,#d6336c'],['Book an artisan','#e9d6ff,#6f16a3']]
+    .map((c,i)=>`<div class="sx-cat cz tap" style="--i:${i}"><div class="im"><span style="background:radial-gradient(circle at 50% 40%,${c[1]})"></span></div><b>${c[0]}</b></div>`).join('');
+
+  const ST=[['ME','Maison Eko','Fragrance · Lekki','linear-gradient(135deg,#b65ae8,#3b0a5c)',P.all[2],P.him[6]],['AO','Adunni Organics','Skincare · Abeokuta','linear-gradient(135deg,#f0b429,#a85d22)',P.her[1],P.her[4]],['BS','Braids by Simi','Artisan · Ikeja · books in 2 days','linear-gradient(135deg,#e86a92,#6f16a3)',P.her[5],P.all[6]]];
+  document.getElementById('stores').innerHTML=ST.map((s,i)=>`<div class="sx-store cz tap" style="--i:${i}"><div class="cv"><span style="background:${s[3]}"></span><div class="gr"></div><div class="brand"><i style="background:${s[3]}">${s[0]}</i><div><b>${s[1]} ✓</b><small>${s[2]}</small></div></div></div><div class="two">${[s[4],s[5]].map(p=>`<div><span style="background:${p[5]}"></span><p>${naira(p[2])}</p></div>`).join('')}</div></div>`).join('');
+
+  R.querySelectorAll('[data-rail]').forEach(sec=>{
+    const rail=sec.querySelector('.sx-rail');
+    rail.innerHTML=P[sec.dataset.rail].map((p,i)=>`<div class="sx-pc cz" style="--i:${i}"><div class="im"><div class="art" style="background:${p[5]}"></div><button class="sx-heart tap" aria-label="Save">${heart}</button><button class="sx-add tap">Add</button></div>
+      <div class="mer"><i style="background:linear-gradient(135deg,${M[p[1]][1]})"></i>${M[p[1]][0]}</div><div class="n">${p[0]}</div>
+      <div class="st"><b>★★★★★</b>${p[3]} (${p[4]})</div><div class="pr">${naira(p[2])}</div></div>`).join('');
+    sec.querySelectorAll('[data-d]').forEach(a=>a.addEventListener('click',()=>rail.scrollBy({left:+a.dataset.d*rail.clientWidth*.8,behavior:reduce?'auto':'smooth'})));
+  });
+
+
+  const io='IntersectionObserver' in window?new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}}),{threshold:.12}):null;
+  R.querySelectorAll('.cz').forEach(n=>reduce||!io?n.classList.add('in'):io.observe(n));
+
+  const badge=document.getElementById('badge'), cart=document.getElementById('cartBtn'), toast=document.getElementById('toast'), tt=document.getElementById('tt'); let n=0, tm;
+  const say=t=>{tt.textContent=t;toast.classList.add('show');clearTimeout(tm);tm=setTimeout(()=>toast.classList.remove('show'),2400)};
+  R.addEventListener('click',e=>{
+    const h=e.target.closest('.sx-heart'); if(h){h.classList.toggle('on'); if(h.classList.contains('on')) say('Saved to favourites'); return;}
+    const a=e.target.closest('.sx-add'); if(a&&!a.classList.contains('done')){a.classList.add('done');a.textContent='✓ Added';n++;
+      badge.classList.add('has');badge.innerHTML=`<span class="in">${n}</span>`;cart.classList.remove('bounce');void cart.offsetWidth;cart.classList.add('bounce');
+      say('Added to bag · held safe in escrow when you pay');}
+  });
+
+  if(reduce) return;
+  const W=['you','her','him','us'], word=document.getElementById('word'); let wi=0;
+  setInterval(()=>{wi=(wi+1)%W.length;const o=word.querySelector('span');o.className='out';const s=document.createElement('span');s.className='in';s.textContent=W[wi];word.appendChild(s);setTimeout(()=>o.remove(),460)},2400);
+  R.querySelectorAll('.sx-stk').forEach((stk,k)=>{const sp=[...stk.children];setTimeout(()=>setInterval(()=>sp.forEach(s=>{const p=s.dataset.p;s.dataset.p=p==='0'?'x':p==='1'?'0':p==='2'?'1':'2'}),2600),k*700)});
+})();
+</script>

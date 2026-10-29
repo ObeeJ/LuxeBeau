@@ -13,6 +13,7 @@ import (
 
 	"gorm.io/gorm"
 	"luxebeau/internal/domain"
+	"luxebeau/internal/escrow"
 	"luxebeau/internal/schedule"
 )
 
@@ -198,9 +199,10 @@ func (s *bookingService) ArtisanUser(ctx context.Context, artisanID uint) (*doma
 }
 
 // ConfirmBooking lets the booked artisan (or an admin) confirm a request that
-// is still waiting for an answer, and returns it with the client and artisan
-// loaded for notifications. A cancelled, expired or finished booking can't be
-// confirmed.
+// is still waiting for an answer. On confirmation the client's wallet is debited
+// and the payment is held in escrow — the artisan only gets paid after they
+// mark the appointment completed. A cancelled, expired or finished booking
+// can't be confirmed.
 func (s *bookingService) ConfirmBooking(ctx context.Context, bookingID, actorID string, admin bool) (*domain.Booking, error) {
 	b, err := s.loadFull(ctx, bookingID)
 	if err != nil {
@@ -212,14 +214,32 @@ func (s *bookingService) ConfirmBooking(ctx context.Context, bookingID, actorID 
 	if start, err := schedule.StartAt(b.BookingDate, b.BookingTime); err != nil || !start.After(schedule.Now()) {
 		return nil, ErrNotPending
 	}
-	res := s.db.WithContext(ctx).Model(&domain.Booking{}).
-		Where("id = ? AND status = ?", b.ID, domain.BookingPending).
-		Updates(map[string]any{"status": domain.BookingConfirmed, "expires_at": nil})
-	if res.Error != nil {
-		return nil, res.Error
+
+	// Load the artisan's user account to read their fee tier.
+	var artisanUser domain.User
+	if err := s.db.WithContext(ctx).Select("id", "fee_bps", "release_window_hours").
+		First(&artisanUser, "id = ?", b.Artisan.UserID).Error; err != nil {
+		return nil, fmt.Errorf("load artisan account: %w", err)
 	}
-	if res.RowsAffected == 0 {
-		return nil, ErrNotPending
+
+	err = s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		res := tx.Model(&domain.Booking{}).
+			Where("id = ? AND status = ?", b.ID, domain.BookingPending).
+			Updates(map[string]any{"status": domain.BookingConfirmed, "expires_at": nil})
+		if res.Error != nil {
+			return res.Error
+		}
+		if res.RowsAffected == 0 {
+			return ErrNotPending
+		}
+		// Hold the payment in escrow in the same transaction.
+		if _, err := escrow.HoldBooking(tx, b, &artisanUser); err != nil {
+			return fmt.Errorf("hold booking payment: %w", err)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 	b.Status = domain.BookingConfirmed
 	b.ExpiresAt = nil

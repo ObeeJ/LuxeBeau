@@ -33,7 +33,7 @@ export function EscrowStrip() {
 
       <Link
         href="/dashboard/escrow"
-        className="lb-press inline-flex h-9 items-center gap-1.5 rounded-full bg-ink px-4 text-[13px] font-semibold text-surface hover:bg-slate"
+        className="lb-press inline-flex h-9 items-center gap-1.5 rounded-full bg-brand px-4 text-[13px] font-semibold text-surface shadow-glow transition-all hover:bg-brand-deep"
       >
         <ShieldCheck className="h-4 w-4" aria-hidden />
         <span>How it works</span>
