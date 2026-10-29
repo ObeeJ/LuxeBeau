@@ -1,56 +1,66 @@
 import Link from "next/link";
-import { LuxeBeauWordmark } from "@/components/site/logo";
+import { LuxeBeauMark, LuxeBeauWordmark } from "@/components/site/logo";
 
 const columns = [
   {
-    title: "Marketplace",
+    title: "Learn more",
     links: [
-      { label: "Shop products", href: "/shop" },
+      { label: "What is LuxeBeau?", href: "/shop" },
+      { label: "How escrow works", href: "/dashboard/escrow" },
       { label: "Book artisans", href: "/services" },
-      { label: "Your bag", href: "/cart" },
     ],
   },
   {
-    title: "Partners",
+    title: "Get started",
     links: [
       { label: "Sell on LuxeBeau", href: "/partnership/seller" },
       { label: "Join as an artisan", href: "/partnership/artisan" },
-      { label: "Escrow payments", href: "/dashboard/escrow" },
+      { label: "Brand partnerships", href: "/partnership/seller#brands" },
     ],
   },
   {
-    title: "Cities",
+    title: "Legal",
     links: [
-      { label: "Lagos", href: "/services?city=Lagos" },
-      { label: "Abuja", href: "/services?city=Abuja" },
-      { label: "Port Harcourt", href: "/services?city=Port%20Harcourt" },
+      { label: "Terms of Service", href: "#terms" },
+      { label: "Privacy Policy", href: "#privacy" },
+      { label: "Buyer Escrow Protection", href: "/dashboard/escrow" },
     ],
   },
 ];
 
-/* Dark footer band with columnar link groups. */
+/* White footer band conforming to the redesign spec (no cities, no app stores, clean brand mark). */
 export default function SiteFooter() {
+  const currentYear = new Date().getFullYear();
+
   return (
-    <footer className="mt-16 bg-ink text-surface">
-      <div className="mx-auto grid w-full max-w-[1200px] gap-10 px-4 py-12 sm:px-6 md:grid-cols-[1.4fr_repeat(3,1fr)] lg:px-8">
+    <footer className="mt-20 border-t border-hairline bg-surface py-14 text-ink">
+      <div className="mx-auto grid w-full max-w-[1200px] gap-10 px-4 sm:px-6 md:grid-cols-[1.5fr_repeat(3,1fr)] lg:px-8">
         <div>
-          <LuxeBeauWordmark className="text-[22px]" />
-          <p className="mt-3 max-w-xs text-[14px] tracking-[-0.014em] text-stone">
-            Nigeria&apos;s beauty marketplace. Curated products for melanin-rich skin and vetted artisans for every occasion.
+          <div className="flex items-center gap-2.5">
+            <LuxeBeauMark tile size={32} />
+            <LuxeBeauWordmark className="text-[24px]" />
+          </div>
+
+          <p className="mt-4 max-w-sm text-[14px] text-muted leading-relaxed">
+            Beauty designed around everyone. Curated products, vetted artisans, and zero scams with our escrow guarantee.
           </p>
-          <p className="mt-6 text-[12px] tracking-[-0.017em] text-fog">
-            © {new Date().getFullYear()} LuxeBeau. Lagos · Abuja · Port Harcourt
+
+          <p className="mt-6 text-[12px] text-muted">
+            © {currentYear} LuxeBeau. All rights reserved.
           </p>
         </div>
-        {columns.map(col => (
+
+        {columns.map((col) => (
           <nav key={col.title} aria-label={col.title}>
-            <h2 className="t-meta text-fog">{col.title}</h2>
-            <ul className="mt-4 space-y-3">
-              {col.links.map(link => (
+            <h3 className="text-[13px] font-bold uppercase tracking-wider text-ink">
+              {col.title}
+            </h3>
+            <ul className="mt-4 space-y-2.5">
+              {col.links.map((link) => (
                 <li key={link.label}>
                   <Link
                     href={link.href}
-                    className="text-[14px] tracking-[-0.014em] text-surface transition-opacity duration-200 hover:opacity-70"
+                    className="text-[14px] text-muted transition-colors duration-150 hover:text-brand"
                   >
                     {link.label}
                   </Link>
@@ -59,6 +69,11 @@ export default function SiteFooter() {
             </ul>
           </nav>
         ))}
+      </div>
+
+      <div className="mx-auto mt-10 max-w-[1200px] border-t border-hairline px-4 pt-6 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-[12px] text-muted">
+        <span>Curated for her, him and everyone across Nigeria.</span>
+        <span>Secure Escrow Protection Guaranteed</span>
       </div>
     </footer>
   );
