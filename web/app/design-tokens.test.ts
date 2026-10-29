@@ -26,10 +26,11 @@ describe("design tokens", () => {
     expect(layout).not.toMatch(/\bInter\b/);
   });
 
-  it("adds a non-interactive global grain overlay", () => {
+  it("adds a non-interactive purple grain over the whole site", () => {
     const rule = css.match(/body::after\s*\{[^}]*\}/)?.[0] ?? "";
     expect(rule).toContain("feTurbulence");
     expect(rule).toContain("pointer-events: none");
     expect(rule).toContain("mix-blend-mode: multiply");
+    expect(rule).toContain(".54");
   });
 });

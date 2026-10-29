@@ -9,7 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Camera, AlertCircle } from "lucide-react";
+import { Camera, AlertCircle } from "@/components/icons";
 
 interface ScanDialogProps {
   open: boolean;

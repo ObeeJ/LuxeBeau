@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { ImagePlus, Loader2 } from "lucide-react";
+import { ImagePlus, Loader2 } from "@/components/icons";
 import { Photo } from "@/components/site/catalog";
 import { FieldError } from "@/components/site/states";
 import { Button } from "@/components/ui/button";

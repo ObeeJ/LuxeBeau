@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { ArrowRight, Check, ChevronLeft, ChevronRight, Heart, Plus, Search, Star } from "lucide-react";
+import { ArrowRight, Check, ChevronLeft, ChevronRight, Heart, ScanLine, Search, Star } from "@/components/icons";
 import { type Artisan, type Product } from "@/lib/api";
 import { formatNaira } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -12,18 +12,24 @@ import { ScanDialog } from "@/components/site/scan-dialog";
 /* ── Photography ───────────────────────────────────────────────
    Product and artisan photos come from Cloudflare Images. Until a seller
    uploads one, a quiet neutral tile stands in: no colour, no fake art. */
+/* Tinted art: the product's own two colours as a soft radial wash. */
+export const tintArt = (tint: [string, string]) =>
+  `radial-gradient(circle at 50% 38%, ${tint[1]}, ${tint[0]} 72%)`;
+
 export function Photo({
   src,
   alt,
   fallback,
   className,
   sizes = "md",
+  tint,
 }: {
   src?: string;
   alt: string;
   fallback: string;
   className?: string;
   sizes?: "sm" | "md" | "lg";
+  tint?: [string, string];
 }) {
   const [broken, setBroken] = useState(false);
   if (src && !broken) {
@@ -45,9 +51,10 @@ export function Photo({
     <div
       role="img"
       aria-label={alt}
+      style={tint ? { background: tintArt(tint) } : undefined}
       className={cn("flex h-full w-full items-center justify-center rounded-[20px] bg-canvas p-3 text-center transition-transform duration-200 group-hover:scale-[1.04]", className)}
     >
-      {sizes !== "sm" && (
+      {sizes !== "sm" && !tint && (
         <span className={cn("text-muted", sizes === "lg" ? "text-[20px] tracking-[-0.05em]" : "text-[14px] tracking-[-0.014em]")}>
           {fallback}
         </span>
@@ -109,11 +116,41 @@ export function ProductCard({
   const soldOut = product.stock <= 0;
 
   return (
-    <article className="group relative flex flex-col rounded-[28px] bg-surface p-2 shadow-card transition-all duration-200 hover:shadow-float">
-      <div className="relative block aspect-square overflow-hidden rounded-[20px]">
+    <article className="group relative flex flex-col">
+      <div className="relative block aspect-square overflow-hidden rounded-[22px] bg-[#f2f2f2]">
         <Link href={`/shop/${product.slug}`} tabIndex={-1} aria-hidden className="block h-full w-full">
-          <Photo src={product.imageUrl} alt={product.name} fallback={product.brand} />
+          <Photo src={product.imageUrl} alt={product.name} fallback={product.brand} tint={product.tint} className="rounded-[22px]" />
         </Link>
+
+        {/* Add: always visible on phones, slides in over the photo on hover elsewhere; purple once added. */}
+        <button
+          type="button"
+          disabled={soldOut}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (soldOut) return;
+            if (onAdd) onAdd(product);
+            setAdded(true);
+          }}
+          aria-label={soldOut ? `${product.name} is sold out` : `Add ${product.name} to bag`}
+          className={cn(
+            "lb-press absolute bottom-2 right-2 z-10 flex h-[34px] items-center justify-center rounded-full px-3.5 text-[13px] font-semibold shadow-float transition-all duration-200",
+            added
+              ? "bg-brand text-surface opacity-100"
+              : cn(
+                  "bg-surface opacity-100 sm:translate-y-1.5 sm:opacity-0 sm:group-hover:translate-y-0 sm:group-hover:opacity-100 sm:focus-visible:translate-y-0 sm:focus-visible:opacity-100",
+                  soldOut ? "cursor-not-allowed text-muted" : "text-ink",
+                ),
+          )}
+        >
+          {added ? (
+            <span className="flex items-center gap-1"><Check className="h-3.5 w-3.5" aria-hidden /> Added</span>
+          ) : soldOut ? (
+            "Sold out"
+          ) : (
+            "Add"
+          )}
+        </button>
 
         {product.badge && (
           <span className="absolute left-2 top-2 rounded-full bg-surface/90 px-2.5 py-1 text-[12px] font-medium tracking-[-0.017em] shadow-pill">
@@ -143,50 +180,23 @@ export function ProductCard({
         </button>
       </div>
 
-      <div className="flex flex-1 flex-col px-2 pb-1.5 pt-3">
-        <p className="t-meta truncate font-normal text-muted">{product.brand}</p>
-        <h3 className="mt-0.5 line-clamp-2 text-[14px] font-semibold leading-[1.3] tracking-[-0.014em]">
+      <div className="flex flex-1 flex-col pt-3">
+        <div className="flex items-center justify-between gap-2">
+          <p className="truncate text-[12px] font-medium tracking-[-0.017em] text-muted">{product.brand}</p>
+          <Rating rating={product.rating} count={product.reviews} className="shrink-0 text-ink" />
+        </div>
+        <h3 className="mt-1 line-clamp-2 text-[15px] font-semibold leading-[1.25] tracking-[-0.02em]">
           <Link href={`/shop/${product.slug}`} className="after:absolute after:inset-0 hover:underline hover:underline-offset-2">
             {product.name}
           </Link>
         </h3>
-
-        <div className="mt-auto flex items-end justify-between gap-2 pt-3">
-          <div>
-            <p className="text-[16px] font-bold tracking-[-0.031em]">{formatNaira(product.priceNGN)}</p>
-            <Rating rating={product.rating} count={product.reviews} />
-          </div>
-
-          <button
-            disabled={soldOut}
-            onClick={(e) => {
-              e.stopPropagation();
-              if (soldOut) return;
-              if (onAdd) onAdd(product);
-              setAdded(true);
-            }}
-            aria-label={soldOut ? `${product.name} is sold out` : `Add ${product.name} to bag`}
-            className={cn(
-              "lb-press relative z-10 flex h-9 shrink-0 items-center justify-center rounded-full px-3 text-[13px] font-semibold transition-all duration-150 disabled:opacity-40",
-              added
-                ? "bg-brand text-surface shadow-glow"
-                : soldOut
-                ? "border border-hairline bg-canvas text-muted cursor-not-allowed"
-                : "border border-hairline bg-surface text-ink shadow-pill hover:bg-canvas",
-            )}
-          >
-            {added ? (
-              <span className="flex items-center gap-1">
-                <Check className="h-3.5 w-3.5" aria-hidden /> ✓ Added
-              </span>
-            ) : soldOut ? (
-              "Sold out"
-            ) : (
-              <span className="flex items-center gap-1">
-                <Plus className="h-3.5 w-3.5" aria-hidden /> Add
-              </span>
-            )}
-          </button>
+        <div className="mt-2 flex items-center justify-between gap-2">
+          <p className="text-[17px] font-extrabold tracking-[-0.035em]">{formatNaira(product.priceNGN)}</p>
+          {!soldOut && product.stock <= 5 && (
+            <span className="shrink-0 rounded-full bg-brand-wash px-2 py-0.5 text-[11px] font-semibold text-brand-deep">
+              Only {product.stock} left
+            </span>
+          )}
         </div>
       </div>
     </article>
@@ -299,7 +309,10 @@ export function StoreCard({
       href={href}
       className="lb-press group flex flex-col overflow-hidden rounded-[28px] bg-surface shadow-card transition-all duration-200 hover:shadow-float"
     >
-      <div className="relative h-[160px] overflow-hidden bg-gradient-to-tr from-brand-deep/30 to-brand-wash">
+      <div
+        className="relative h-[170px] overflow-hidden bg-gradient-to-tr from-brand-deep/30 to-brand-wash"
+        style={!coverUrl && products[0] ? { background: `linear-gradient(135deg, ${products[0].tint[1]}, ${products[0].tint[0]})` } : undefined}
+      >
         {coverUrl && (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -319,16 +332,16 @@ export function StoreCard({
       </div>
 
       {products.length > 0 && (
-        <div className="grid grid-cols-2 gap-2 p-3">
+        <div className={cn("grid gap-2 p-3", products.length > 1 ? "grid-cols-2" : "grid-cols-1")}>
           {products.slice(0, 2).map((p, idx) => (
             <div key={p.id} className="overflow-hidden rounded-2xl bg-canvas p-1.5">
               <div
                 className={cn(
-                  "aspect-square overflow-hidden rounded-xl",
+                  products.length > 1 ? "aspect-square overflow-hidden rounded-xl" : "aspect-[2/1] overflow-hidden rounded-xl",
                   idx === 0 ? "group-hover:lb-float-a" : "group-hover:lb-float-b",
                 )}
               >
-                <Photo src={p.imageUrl} alt={p.name} fallback={p.brand} sizes="sm" />
+                <Photo src={p.imageUrl} alt={p.name} fallback={p.brand} sizes="sm" tint={p.tint} />
               </div>
               <p className="mt-1.5 truncate text-[12px] font-semibold">{formatNaira(p.priceNGN)}</p>
             </div>
@@ -343,7 +356,7 @@ export function StoreCard({
 export function SectionHeader({ title, href, action }: { title: string; href?: string; action?: React.ReactNode }) {
   const heading = (
     <span className="inline-flex items-center gap-1.5">
-      <span className="t-display">{title}</span>
+      <span className="text-[22px] font-bold tracking-[-0.03em]">{title}</span>
       {href && <ChevronRight className="h-4 w-4 text-muted transition-transform group-hover:translate-x-0.5" aria-hidden />}
     </span>
   );
@@ -359,24 +372,31 @@ export function SectionHeader({ title, href, action }: { title: string; href?: s
 export function CategoryPill({
   label,
   image,
+  tint,
   active,
   onClick,
   href,
 }: {
   label: string;
   image?: string;
+  /** Two colours for the round swatch when there is no photo. */
+  tint?: [string, string];
   active?: boolean;
   onClick?: () => void;
   href?: string;
 }) {
+  const hasIcon = Boolean(image || tint);
   const cls = cn(
-    "lb-press inline-flex h-10 shrink-0 items-center gap-2 rounded-full border text-[14px] font-medium tracking-[-0.014em] shadow-pill transition-all duration-150",
-    image ? "pl-1.5 pr-4" : "px-4",
-    active ? "border-brand bg-brand text-surface" : "border-hairline bg-surface text-ink hover:bg-canvas",
+    "lb-press group inline-flex h-10 shrink-0 items-center gap-2.5 rounded-full text-[14px] font-medium tracking-[-0.014em] transition-all duration-150",
+    hasIcon ? "pr-3" : "px-3",
+    active ? "text-brand" : "text-ink",
   );
+  const swatch = "h-8 w-8 rounded-full object-cover transition-transform duration-300 ease-[cubic-bezier(.34,1.56,.64,1)] group-hover:rotate-[-8deg] group-hover:scale-[1.12]";
   const icon = image ? (
     // eslint-disable-next-line @next/next/no-img-element
-    <img src={image} alt="" className="h-7 w-7 rounded-full object-cover" loading="lazy" />
+    <img src={image} alt="" className={swatch} loading="lazy" />
+  ) : tint ? (
+    <span aria-hidden className={swatch} style={{ background: `radial-gradient(circle at 40% 35%, ${tint[1]}, ${tint[0]})` }} />
   ) : null;
   if (href) return <Link href={href} className={cls}>{icon}{label}</Link>;
   return (
@@ -439,10 +459,13 @@ export function SearchBar({
             if (onScan) onScan();
             setScanOpen(true);
           }}
-          aria-label="Scan a product"
-          className="lb-press flex h-9 items-center gap-1.5 rounded-full bg-brand-wash px-3 text-[13px] font-semibold text-brand-deep hover:bg-brand-wash/80"
+          aria-label="Scan a product to search"
+          title="Scan a product"
+          className="lb-press lb-scan-btn relative flex h-10 items-center gap-1.5 overflow-hidden rounded-full bg-brand-wash pl-3 pr-3.5 text-[14px] font-semibold text-brand-deep hover:bg-brand-wash/80"
         >
-          <span>Scan</span>
+          <ScanLine className="h-5 w-5" strokeWidth={2.2} aria-hidden />
+          <i aria-hidden className="lb-scan-line pointer-events-none absolute left-3 top-1/2 h-0.5 w-5 rounded bg-brand opacity-0" />
+          <span className="hidden sm:inline">Scan</span>
         </button>
 
         <button

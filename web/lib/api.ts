@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { artisanPhoto, categoryPhoto } from "@/lib/photos";
 
 /* Base URL for the Go (Gin) API. Override with NEXT_PUBLIC_API_URL in production. */
 export const API_BASE =
@@ -292,7 +293,7 @@ export function toProduct(p: ApiProduct): Product {
     reviews: p.reviews_count ?? 0,
     badge: p.badge || undefined,
     tint: [p.bg_color || DEFAULT_TINT[0], p.fg_color || DEFAULT_TINT[1]],
-    imageUrl: p.image_url || undefined,
+    imageUrl: p.image_url || categoryPhoto(p.category, p.id),
     stock: p.stock ?? 0,
   };
 }
@@ -384,7 +385,7 @@ export function toArtisan(a: ApiArtisan): Artisan {
     })),
     tint: [a.bg_color || DEFAULT_TINT[0], a.fg_color || DEFAULT_TINT[1]],
     serviceMode: a.service_mode ?? "studio",
-    imageUrl: a.image_url || undefined,
+    imageUrl: a.image_url || artisanPhoto(a.craft || a.specialty || "", a.id),
     location: a.location ?? "",
     cancelWindowHours: a.cancel_window_hours ?? 24,
   };

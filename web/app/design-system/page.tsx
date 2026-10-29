@@ -25,7 +25,7 @@ const sampleProduct: Product = {
   details: ["100% natural", "Melanin-rich formula"],
   rating: 4.9,
   reviews: 142,
-  tint: ["#fff", "#000"],
+  tint: ["#fff", "#2a0b48"],
   stock: 15,
 };
 
@@ -61,7 +61,7 @@ export default function DesignSystemGallery() {
             </div>
             <div className="rounded-2xl p-4 bg-ink text-surface">
               <span className="block font-bold">Ink</span>
-              <span className="text-[12px] opacity-80">#000000</span>
+              <span className="text-[12px] opacity-80">#2a0b48</span>
             </div>
             <div className="rounded-2xl p-4 bg-surface text-ink border border-hairline shadow-soft">
               <span className="block font-bold">Surface</span>

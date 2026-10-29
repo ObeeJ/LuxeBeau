@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Building2 } from "lucide-react";
+import { Loader2, Building2 } from "@/components/icons";
 import SiteShell from "@/components/site/shell";
 import { AlreadyPartner, PartnerFrame, SignInPrompt } from "@/components/site/partner";
 import { FieldError } from "@/components/site/states";

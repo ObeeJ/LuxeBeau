@@ -3,7 +3,7 @@
 import { use, useState } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Check, ChevronLeft, Minus, Plus, ShieldCheck } from "lucide-react";
+import { Check, ChevronLeft, Minus, Plus, ShieldCheck } from "@/components/icons";
 import SiteShell, { Container } from "@/components/site/shell";
 import { Photo, ProductCard, Rating, SectionHeader } from "@/components/site/catalog";
 import { LoadError } from "@/components/site/states";

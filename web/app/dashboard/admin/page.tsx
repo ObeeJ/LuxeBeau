@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { BadgeCheck, Search } from "lucide-react";
+import { BadgeCheck, Search } from "@/components/icons";
 import { Figures, PageHeader, Panel, StatusPill, Table, Tabs } from "@/components/dashboard/widgets";
 import { ApplicationsPanel } from "@/components/dashboard/applications";
 import { Photo } from "@/components/site/catalog";

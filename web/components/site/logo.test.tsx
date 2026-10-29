@@ -26,6 +26,7 @@ describe("Pair logo", () => {
 
   it("wordmark is exactly luxebeau", () => {
     render(<LuxeBeauWordmark />);
-    expect(screen.getByText("luxebeau")).toBeInTheDocument();
+    expect(screen.getByText("luxe")).toBeInTheDocument();
+    expect(screen.getByText("beau")).toBeInTheDocument();
   });
 });

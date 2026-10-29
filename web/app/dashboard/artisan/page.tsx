@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { BadgeCheck } from "lucide-react";
+import { BadgeCheck } from "@/components/icons";
 import { Figures, PageHeader, Panel, RecordList, Tabs } from "@/components/dashboard/widgets";
 import { BookingRow } from "@/components/dashboard/booking-row";
 import { IdentityPanel } from "@/components/dashboard/identity";

@@ -1,4 +1,4 @@
-import { Clock } from "lucide-react";
+import { Clock } from "@/components/icons";
 
 /* Shown in a partner studio until an admin approves the account. Until then
    the API keeps the seller's products / artisan's profile out of public view. */

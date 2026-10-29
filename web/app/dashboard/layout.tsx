@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { LogOut } from "lucide-react";
+import { LogOut } from "@/components/icons";
 import SiteShell, { Container } from "@/components/site/shell";
 import { useAuth } from "@/lib/store";
 import { logout } from "@/lib/queries";

@@ -1,6 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
-import { DEFAULT_PRODUCTS, DEFAULT_ARTISANS, CATEGORY_IMAGE_MAP } from "@/lib/catalog-data";
 import {
   adminEscrowsResponseSchema,
   applicationsResponseSchema,
@@ -49,38 +48,11 @@ import {
 
 const CATALOGUE_STALE = 5 * 60 * 1000; // 5 minutes
 
-async function fetchProducts(search: string): Promise<Product[]> {
-  try {
-    const qs = new URLSearchParams({ limit: "100" });
-    if (search) qs.set("search", search);
-    const data = await apiFetch(`/products?${qs}`, productsResponseSchema);
-    const list = data.products.map(toProduct);
-    if (list.length > 0) {
-      return list.map((p) => {
-        if (!p.imageUrl) {
-          const match = DEFAULT_PRODUCTS.find(
-            (dp) => dp.slug === p.slug || dp.name.toLowerCase() === p.name.toLowerCase(),
-          );
-          return {
-            ...p,
-            imageUrl: match?.imageUrl || CATEGORY_IMAGE_MAP[p.category],
-          };
-        }
-        return p;
-      });
-    }
-  } catch {
-    // Graceful fallback to rich local catalog when backend is offline
-  }
-
-  const normalized = search.trim().toLowerCase();
-  return DEFAULT_PRODUCTS.filter(
-    (p) =>
-      !normalized ||
-      p.name.toLowerCase().includes(normalized) ||
-      p.brand.toLowerCase().includes(normalized) ||
-      p.category.toLowerCase().includes(normalized),
-  );
+async function fetchProducts(search: string) {
+  const qs = new URLSearchParams({ limit: "100" });
+  if (search) qs.set("search", search);
+  const data = await apiFetch(`/products?${qs}`, productsResponseSchema);
+  return data.products.map(toProduct);
 }
 
 /* `search` is matched server-side (name/brand ILIKE, catalog/repository.go). */
@@ -89,16 +61,6 @@ export function useProducts(search = "") {
     queryKey: ["products", search],
     staleTime: CATALOGUE_STALE,
     queryFn: () => fetchProducts(search),
-    initialData: () => {
-      const normalized = search.trim().toLowerCase();
-      return DEFAULT_PRODUCTS.filter(
-        (p) =>
-          !normalized ||
-          p.name.toLowerCase().includes(normalized) ||
-          p.brand.toLowerCase().includes(normalized) ||
-          p.category.toLowerCase().includes(normalized),
-      );
-    },
   });
 }
 
@@ -116,26 +78,9 @@ export function useArtisans() {
     queryKey: ["artisans"],
     staleTime: CATALOGUE_STALE,
     queryFn: async () => {
-      try {
-        const data = await apiFetch("/artisans", artisansResponseSchema);
-        const list = data.artisans.map(toArtisan);
-        if (list.length > 0) {
-          return list.map((a) => {
-            if (!a.imageUrl) {
-              const match = DEFAULT_ARTISANS.find(
-                (da) => da.slug === a.slug || da.name.toLowerCase() === a.name.toLowerCase(),
-              );
-              return { ...a, imageUrl: match?.imageUrl || "/images/artisans/amaka-eze.webp" };
-            }
-            return a;
-          });
-        }
-      } catch {
-        // Fallback to rich local catalog
-      }
-      return DEFAULT_ARTISANS;
+      const data = await apiFetch("/artisans", artisansResponseSchema);
+      return data.artisans.map(toArtisan);
     },
-    initialData: () => DEFAULT_ARTISANS,
   });
 }
 

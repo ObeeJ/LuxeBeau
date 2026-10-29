@@ -14,12 +14,13 @@ describe("Button", () => {
     render(<Button>Go</Button>);
     const btn = screen.getByRole("button", { name: "Go" });
     expect(btn.className).toContain("active:scale-[.96]");
-    expect(btn.className).toContain("active:opacity-60");
+    expect(btn.className).toContain("active:opacity-75");
+    expect(btn.className).toContain("hover:-translate-y-0.5");
   });
 
-  it("supports the dark (ink) variant", () => {
+  it("supports the dark (deep purple) variant", () => {
     render(<Button variant="dark">How it works</Button>);
-    expect(screen.getByRole("button", { name: "How it works" }).className).toContain("bg-ink");
+    expect(screen.getByRole("button", { name: "How it works" }).className).toContain("bg-brand-deep");
   });
 
   it("supports the secondary (white) variant", () => {

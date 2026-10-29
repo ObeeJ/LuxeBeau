@@ -11,7 +11,7 @@
   /* Colors */
   --color-canvas-mist: #fafafa;
   --color-pure-white: #ffffff;
-  --color-ink-black: #14051f;
+  --color-ink-black: #2a0b48;
   --color-faint-border: #ebebeb;
   --color-muted-gray: #6b6b6b;
   --color-cool-stone: #cccccc;
@@ -21,8 +21,8 @@
   --color-brand-purple-deep: #6f16a3;
   --color-brand-purple-wash: #f3e6fb;
   --glow: rgba(138, 31, 199, 0.38);
-  --color-slate-ink: #332f2d;
-  --color-ash-veil: #665a54;
+  --color-slate-ink: #43206f;
+  --color-ash-veil: #66508a;
 
   /* Typography, font families (Geist everywhere) */
   --font-gt-standard: var(--font-geist), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -64,17 +64,18 @@
   --element-gap: 12px;
 
   /* Shadows */
-  --shadow-sm: rgba(0, 0, 0, 0.06) 0px 2px 8px 0px;
-  --shadow-sm-2: rgba(0, 0, 0, 0.1) 0px 4px 6px -1px, rgba(0, 0, 0, 0.1) 0px 2px 4px -2px;
-  --shadow-lg: rgba(0, 0, 0, 0.12) 0px 4px 24px 0px;
+  --shadow-sm: rgba(42, 11, 72, 0.06) 0px 2px 8px 0px;
+  --shadow-sm-2: rgba(42, 11, 72, 0.1) 0px 4px 6px -1px, rgba(42, 11, 72, 0.1) 0px 2px 4px -2px;
+  --shadow-lg: rgba(42, 11, 72, 0.12) 0px 4px 24px 0px;
   --shadow-lg-2: var(--glow) 0px 8px 24px -6px;
-  --shadow-soft-base: rgba(0, 0, 0, 0.06) 0px 4px 24px 0px;
+  --shadow-soft-base: rgba(42, 11, 72, 0.06) 0px 4px 24px 0px;
 }
 
 @theme inline {
   --color-canvas: var(--color-canvas-mist);
   --color-surface: var(--color-pure-white);
   --color-ink: var(--color-ink-black);
+  --color-black: var(--color-ink-black);
   --color-hairline: var(--color-faint-border);
   --color-muted: var(--color-muted-gray);
   --color-stone: var(--color-cool-stone);
@@ -132,6 +133,7 @@ html {
 }
 
 body {
+  position: relative;
   background: var(--color-canvas-mist);
   color: var(--color-ink-black);
   font-family: var(--font-gt-standard);
@@ -139,19 +141,20 @@ body {
   line-height: 1.33;
   letter-spacing: -0.031em;
   -webkit-font-smoothing: antialiased;
+  isolation: isolate;
 }
 
-/* Global grain: fine SVG noise over everything, never interactive.
-   Sits above page content and fixed bars (z 40) but below dialogs (z 50). */
+/* Purple grain over the whole site: fine brand-purple noise, never interactive.
+   Sits above page content and the fixed bars (z 40) but below dialogs (z 50). */
 body::after {
   content: "";
   position: fixed;
   inset: 0;
   z-index: 45;
   pointer-events: none;
-  opacity: 0.085;
+  opacity: 0.12;
   mix-blend-mode: multiply;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .54  0 0 0 0 .12  0 0 0 0 .78  0 0 0 .9 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   background-size: 160px 160px;
 }
 
@@ -269,10 +272,55 @@ select.lb-input {
   transition-timing-function: ease-in-out;
 }
 
+.lb-press {
+  transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.22s cubic-bezier(0.22, 1, 0.36, 1), background-color 0.15s ease, opacity 0.15s ease;
+}
+
+.lb-press:hover {
+  transform: translateY(-1.5px);
+}
+
 .lb-press:active {
   transform: scale(0.96);
-  opacity: 0.6;
+  opacity: 0.75;
 }
+
+/* Icons inside links and buttons grow a little on hover. */
+a svg,
+button svg {
+  transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+a:hover > svg,
+button:hover > svg,
+a:hover > span > svg,
+button:hover > span > svg {
+  transform: scale(1.1);
+}
+
+/* Logo motion. On load, on hover and again on click: the two rings slide in
+   from opposite sides and lock together, while "luxe" and "beau" fly in from
+   the left and right, overshoot a little and settle. Two copies of each
+   keyframe let hover restart the animation. */
+@keyframes lb-wm-l-a { 0% { transform: translateX(-18px); opacity: 0; } 55% { transform: translateX(3px); opacity: 1; } 78% { transform: translateX(-1px); } 100% { transform: none; opacity: 1; } }
+@keyframes lb-wm-r-a { 0% { transform: translateX(18px); opacity: 0; } 55% { transform: translateX(-3px); opacity: 1; } 78% { transform: translateX(1px); } 100% { transform: none; opacity: 1; } }
+@keyframes lb-wm-l-b { 0% { transform: translateX(-18px); opacity: 0; } 55% { transform: translateX(3px); opacity: 1; } 78% { transform: translateX(-1px); } 100% { transform: none; opacity: 1; } }
+@keyframes lb-wm-r-b { 0% { transform: translateX(18px); opacity: 0; } 55% { transform: translateX(-3px); opacity: 1; } 78% { transform: translateX(1px); } 100% { transform: none; opacity: 1; } }
+@keyframes lb-ring-l-a { 0% { transform: translateX(-22px); opacity: 0; } 35% { opacity: 1; } 52% { transform: translateX(9px); opacity: 1; } 76% { transform: translateX(-3px); } 100% { transform: none; opacity: 1; } }
+@keyframes lb-ring-r-a { 0% { transform: translateX(22px); opacity: 0; } 35% { opacity: 0.6; } 52% { transform: translateX(-9px); opacity: 0.6; } 76% { transform: translateX(3px); } 100% { transform: none; opacity: 0.6; } }
+@keyframes lb-ring-l-b { 0% { transform: translateX(-22px); opacity: 0; } 35% { opacity: 1; } 52% { transform: translateX(9px); opacity: 1; } 76% { transform: translateX(-3px); } 100% { transform: none; opacity: 1; } }
+@keyframes lb-ring-r-b { 0% { transform: translateX(22px); opacity: 0; } 35% { opacity: 0.6; } 52% { transform: translateX(-9px); opacity: 0.6; } 76% { transform: translateX(3px); } 100% { transform: none; opacity: 0.6; } }
+.lb-wm-l { display: inline-block; animation: lb-wm-l-a 0.9s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.lb-wm-r { display: inline-block; animation: lb-wm-r-a 0.9s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.lb-ring-l { animation: lb-ring-l-a 1.1s cubic-bezier(0.3, 0.9, 0.3, 1) both; }
+.lb-ring-r { animation: lb-ring-r-a 1.1s cubic-bezier(0.3, 0.9, 0.3, 1) both; }
+.group:hover .lb-wm-l { animation: lb-wm-l-b 0.9s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.group:hover .lb-wm-r { animation: lb-wm-r-b 0.9s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.group:hover .lb-ring-l { animation: lb-ring-l-b 1.1s cubic-bezier(0.3, 0.9, 0.3, 1) both; }
+.group:hover .lb-ring-r { animation: lb-ring-r-b 1.1s cubic-bezier(0.3, 0.9, 0.3, 1) both; }
+.group:active .lb-wm-l { transform: translateX(4px); animation: none; opacity: 1; }
+.group:active .lb-wm-r { transform: translateX(-4px); animation: none; opacity: 1; }
+.group:active .lb-ring-l { transform: translateX(4px); animation: none; opacity: 1; }
+.group:active .lb-ring-r { transform: translateX(-4px); animation: none; opacity: 0.6; }
 
 /* Count / word slides up into place. */
 .lb-num-in {
@@ -357,6 +405,55 @@ select.lb-input {
   to { transform: translateY(7px); }
 }
 
+.lb-scan-btn:hover .lb-scan-line {
+  opacity: 1;
+  animation: lb-scan 1.1s ease-in-out infinite alternate;
+}
+
+/* Cycling image stack on the Explore edit cards (positions 0,1,2 and x = leaving). */
+.lb-stk > span {
+  position: absolute;
+  inset: 0;
+  border-radius: 18px;
+  border: 3px solid #fff;
+  box-shadow: 0 14px 28px rgba(42, 11, 72, 0.25);
+  transition: transform 0.52s cubic-bezier(0.2, 0, 0, 1), opacity 0.52s cubic-bezier(0.2, 0, 0, 1), filter 0.52s cubic-bezier(0.2, 0, 0, 1);
+}
+.lb-stk > span[data-p="0"] { transform: rotate(5deg); z-index: 3; }
+.lb-stk > span[data-p="1"] { transform: translate(-13px, 0) rotate(-5deg); z-index: 2; }
+.lb-stk > span[data-p="2"] { transform: translate(-22px, 0) rotate(-9deg) scale(0.92); z-index: 1; }
+.lb-stk > span[data-p="x"] { transform: translate(12px, -6px) rotate(9deg); opacity: 0; filter: blur(1.5px); z-index: 4; }
+
+/* Rotating headline word: the old word slides up and out. */
+.lb-word-in {
+  animation: lb-num-in 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes lb-num-out {
+  to { opacity: 0; transform: translateY(-100%); }
+}
+.lb-num-out {
+  position: absolute;
+  left: 0;
+  top: 0;
+  animation: lb-num-out 0.45s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* Footer wordmark slow drift right. */
+.lb-wordmark-drift {
+  animation: lb-wordmark-drift 8s ease-in-out infinite alternate;
+}
+
+@keyframes lb-wordmark-drift {
+  from { transform: translateX(0px); opacity: 0.9; }
+  to   { transform: translateX(18px); opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lb-wordmark-drift {
+    animation: none;
+  }
+}
+
 /* Horizontal rails scroll without a visible bar; arrows signal more. */
 .no-scrollbar {
   scrollbar-width: none;
@@ -388,4 +485,68 @@ select.lb-input {
   .lb-press:active {
     transform: none;
   }
+}
+
+/* Footer glass wordmark: translucent purple glass, a bright edge and a slow shimmer. */
+.lb-glass-wm {
+  font-weight: 900;
+  letter-spacing: -0.065em;
+  line-height: 0.82;
+  white-space: nowrap;
+}
+.lb-glass-wm > span {
+  background:
+    linear-gradient(105deg, transparent 38%, rgba(255, 255, 255, 0.95) 50%, transparent 62%),
+    linear-gradient(180deg, rgba(138, 31, 199, 0.34) 0%, rgba(138, 31, 199, 0.08) 70%, rgba(138, 31, 199, 0.02) 100%);
+  background-size: 260% 100%, 100% 100%;
+  background-position: 160% 0, 0 0;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-stroke: 1.5px rgba(138, 31, 199, 0.28);
+  filter: drop-shadow(0 10px 30px rgba(138, 31, 199, 0.18));
+  animation: lb-wm-l-a 0.9s cubic-bezier(0.22, 1, 0.36, 1) both, lb-glass-shimmer 7s ease-in-out 1.2s infinite;
+}
+.lb-glass-wm > .lb-wm-r {
+  animation: lb-wm-r-a 0.9s cubic-bezier(0.22, 1, 0.36, 1) both, lb-glass-shimmer 7s ease-in-out 1.2s infinite;
+}
+@keyframes lb-glass-shimmer {
+  0% { background-position: 160% 0, 0 0; }
+  55%, 100% { background-position: -60% 0, 0 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lb-glass-wm > span { animation: none; }
+}
+
+/* Icon echo: the faded second tone sits offset and glides home on hover. */
+.lb-echo {
+  transform: translate(1.8px, 1.8px);
+  transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+a:hover .lb-echo,
+button:hover .lb-echo,
+.group:hover .lb-echo,
+[role="button"]:hover .lb-echo {
+  transform: translate(0, 0);
+}
+
+/* Scroll-to-top launch: the rings shoot up and drop back in. */
+@keyframes lb-launch {
+  0% { transform: translateY(0); opacity: 1; }
+  45% { transform: translateY(-34px) scale(0.8); opacity: 0; }
+  46% { transform: translateY(30px) scale(0.8); opacity: 0; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+.lb-launch {
+  animation: lb-launch 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .lb-echo, .lb-launch { transition: none; animation: none; }
+}
+
+/* Icon second tone: brand purple by default, white on purple surfaces. */
+.bg-brand,
+.bg-brand-deep,
+.bg-ink {
+  --lb-icon-2: rgba(255, 255, 255, 0.92);
 }

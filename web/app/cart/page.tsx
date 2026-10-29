@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { CheckCircle2, ChevronLeft, Loader2, Minus, Plus, ShieldCheck, X } from "lucide-react";
+import { CheckCircle2, ChevronLeft, Loader2, Minus, Plus, ShieldCheck, X } from "@/components/icons";
 import SiteShell, { Container } from "@/components/site/shell";
 import { Photo } from "@/components/site/catalog";
 import { FieldError } from "@/components/site/states";

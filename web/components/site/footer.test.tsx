@@ -5,7 +5,7 @@ describe("SiteFooter", () => {
   it("renders the wordmark, proper columns, and clean copyright", () => {
     const { container } = render(<SiteFooter />);
 
-    expect(screen.getByText("luxebeau")).toBeInTheDocument();
+    expect(screen.getAllByText(/^(luxe|beau)$/).length).toBeGreaterThanOrEqual(2);
     expect(screen.getByText("Learn more")).toBeInTheDocument();
     expect(screen.getByText("Get started")).toBeInTheDocument();
     expect(screen.getByText("Legal")).toBeInTheDocument();

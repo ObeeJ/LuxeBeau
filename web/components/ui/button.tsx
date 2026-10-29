@@ -8,13 +8,13 @@ import { cn } from "@/lib/utils"
    over .15s). Primary actions are brand purple with a soft glow. Default
    height is 44px; smaller sizes extend their hit area to 44px. */
 const buttonVariants = cva(
-  "relative inline-flex shrink-0 items-center justify-center gap-2 rounded-full text-[15px] font-semibold tracking-[-0.02em] whitespace-nowrap transition-[background-color,box-shadow,opacity,transform] duration-150 ease-in-out outline-none select-none active:scale-[.96] active:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:pointer-events-none disabled:opacity-40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "relative inline-flex shrink-0 items-center justify-center gap-2 rounded-full text-[15px] font-semibold tracking-[-0.02em] whitespace-nowrap transition-all duration-200 ease-out outline-none select-none hover:-translate-y-0.5 active:translate-y-0 active:scale-[.96] active:opacity-75 [&_svg]:transition-transform [&_svg]:duration-200 hover:[&_svg]:scale-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:pointer-events-none disabled:opacity-40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {
         default: "bg-brand text-surface shadow-glow hover:bg-brand-deep",
         secondary: "bg-surface text-ink shadow-soft hover:shadow-float",
-        dark: "bg-ink text-surface hover:bg-slate",
+        dark: "bg-brand-deep text-surface shadow-glow hover:bg-brand",
         outline: "border border-hairline bg-surface text-ink shadow-pill hover:shadow-card",
         ghost: "text-ink hover:bg-canvas",
         destructive: "border border-ink bg-surface text-ink hover:bg-canvas",

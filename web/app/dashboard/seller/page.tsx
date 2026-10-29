@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Plus, X } from "lucide-react";
+import { Plus, X } from "@/components/icons";
 import { Figures, PageHeader, Panel, RecordList, StatusPill, Table, Tabs } from "@/components/dashboard/widgets";
 import { IdentityPanel } from "@/components/dashboard/identity";
 import { PendingApproval } from "@/components/dashboard/pending-approval";

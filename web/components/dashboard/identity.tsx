@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2 } from "@/components/icons";
 import { Panel } from "@/components/dashboard/widgets";
 import { FieldError } from "@/components/site/states";
 import { Button } from "@/components/ui/button";

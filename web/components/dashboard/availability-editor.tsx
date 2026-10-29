@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Loader2, Plus, X } from "lucide-react";
+import { Loader2, Plus, X } from "@/components/icons";
 import { Panel } from "@/components/dashboard/widgets";
 import { EmptyState, FieldError, LoadError } from "@/components/site/states";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -99,7 +99,7 @@ function HoursForm({ initial }: { initial: { weeklyHours: DayHours[]; slotMinute
           return (
             <li key={day} className="flex flex-wrap items-center gap-x-4 gap-y-2 py-3 first:pt-0">
               <label className="flex w-36 cursor-pointer items-center gap-2.5 text-[16px] tracking-[-0.031em]">
-                <input type="checkbox" checked={d.open} onChange={e => setDay(day, { open: e.target.checked })} className="h-4 w-4 accent-[#000]" />
+                <input type="checkbox" checked={d.open} onChange={e => setDay(day, { open: e.target.checked })} className="h-4 w-4 accent-[#2a0b48]" />
                 {label}
               </label>
               {d.open ? (

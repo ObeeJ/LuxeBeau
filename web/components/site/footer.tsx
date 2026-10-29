@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { LuxeBeauMark, LuxeBeauWordmark } from "@/components/site/logo";
+import { LuxeBeauLogo } from "@/components/site/logo";
 
 const columns = [
   {
@@ -28,18 +28,18 @@ const columns = [
   },
 ];
 
-/* White footer band conforming to the redesign spec (no cities, no app stores, clean brand mark). */
+/* Frameless footer: no box, border or band, it sits directly on the page background
+   (no cities, no app stores, clean brand mark). */
 export default function SiteFooter() {
   const currentYear = new Date().getFullYear();
 
   return (
-    <footer className="mt-20 border-t border-hairline bg-surface py-14 text-ink">
-      <div className="mx-auto grid w-full max-w-[1200px] gap-10 px-4 sm:px-6 md:grid-cols-[1.5fr_repeat(3,1fr)] lg:px-8">
+    <footer className="mt-20 text-ink overflow-hidden">
+
+
+      <div className="mx-auto grid w-full max-w-[1200px] gap-10 px-4 pt-12 pb-14 sm:px-6 md:grid-cols-[1.5fr_repeat(3,1fr)] lg:px-8">
         <div>
-          <div className="flex items-center gap-2.5">
-            <LuxeBeauMark tile size={32} />
-            <LuxeBeauWordmark className="text-[24px]" />
-          </div>
+          <LuxeBeauLogo textClassName="text-[24px]" markSize={32} className="gap-2.5" />
 
           <p className="mt-4 max-w-sm text-[14px] text-muted leading-relaxed">
             Beauty designed around everyone. Curated products, vetted artisans, and zero scams with our escrow guarantee.
@@ -71,9 +71,17 @@ export default function SiteFooter() {
         ))}
       </div>
 
-      <div className="mx-auto mt-10 max-w-[1200px] border-t border-hairline px-4 pt-6 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-[12px] text-muted">
+      <div className="mx-auto flex max-w-[1200px] flex-col items-center justify-between gap-4 px-4 pb-6 text-[12px] text-muted sm:flex-row sm:px-6 lg:px-8">
         <span>Curated for her, him and everyone across Nigeria.</span>
         <span>Secure Escrow Protection Guaranteed</span>
+      </div>
+
+      {/* Glass wordmark: translucent purple glass with a slow shimmer; "luxe" and "beau" come together. */}
+      <div aria-hidden className="pointer-events-none mx-auto max-w-[1200px] select-none overflow-hidden px-4 pb-2 pt-4 sm:px-6 lg:px-8">
+        <p className="lb-glass-wm text-center text-[clamp(72px,19vw,260px)]">
+          <span className="lb-wm-l">luxe</span>
+          <span className="lb-wm-r">beau</span>
+        </p>
       </div>
     </footer>
   );

@@ -14,13 +14,18 @@ import {
 import { HeroCard } from "@/components/site/home/hero-card";
 import { EscrowStrip } from "@/components/site/home/escrow-strip";
 import { JoinRow } from "@/components/site/home/join-row";
+import { CategoryGrid, EditCards } from "@/components/site/home/explore";
 import { CardSkeletonGrid, LoadError } from "@/components/site/states";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Cascade } from "@/components/motion/cascade";
 import { useArtisans, useProducts } from "@/lib/queries";
+import { categoryTint } from "@/lib/category-tint";
+import { ARTISAN_COVER } from "@/lib/photos";
 import { type Product } from "@/lib/api";
 import { useCart } from "@/lib/cart";
-import { CATEGORY_IMAGE_MAP } from "@/lib/catalog-data";
+
+/* Six across on wide screens, like the approved mockup; a swipeable rail on phones. */
+const RAIL_ITEM = "w-[44vw] max-w-[190px] shrink-0 snap-start sm:w-[170px] lg:w-[calc((100%-70px)/6)] lg:max-w-none";
 
 export default function Home() {
   const { add } = useCart();
@@ -29,54 +34,78 @@ export default function Home() {
   const list = useMemo(() => products.data ?? [], [products.data]);
   const artisanList = useMemo(() => artisans.data ?? [], [artisans.data]);
 
-  // Floating items for the hero
-  const photographed = useMemo(
-    () => list.filter((p) => p.imageUrl).slice(0, 5),
-    [list],
-  );
 
-  // Dynamic categories from actual inventory
+  // Categories come from the real inventory, busiest first.
   const categories = useMemo(() => {
-    const seen = new Map<string, string | undefined>();
+    const groups = new Map<string, { image?: string; products: Product[] }>();
     for (const p of list) {
-      if (!seen.has(p.category) || (!seen.get(p.category) && p.imageUrl)) {
-        seen.set(p.category, p.imageUrl);
-      }
+      const g = groups.get(p.category) ?? { products: [] };
+      g.products.push(p);
+      if (!g.image && p.imageUrl) g.image = p.imageUrl;
+      groups.set(p.category, g);
     }
-    return [...seen].map(([name, image]) => ({ name, image }));
+    return [...groups]
+      .map(([name, g]) => ({ name, image: g.image, products: g.products }))
+      .sort((a, b) => b.products.length - a.products.length);
   }, [list]);
 
-  // Derived curated rails from real catalogue
-  const topRated = useMemo(
-    () => [...list].sort((a, b) => b.rating - a.rating).slice(0, 8),
-    [list],
+  const editGroups = useMemo(
+    () =>
+      categories.slice(0, 3).map(c => ({
+        title: `The ${c.name.toLowerCase()} edit`,
+        category: c.name,
+        products: c.products,
+      })),
+    [categories],
   );
 
+  const topRated = useMemo(() => [...list].sort((a, b) => b.rating - a.rating).slice(0, 8), [list]);
   const newIn = useMemo(() => list.slice(0, 8), [list]);
+  const loved = useMemo(() => [...list].sort((a, b) => b.reviews - a.reviews).slice(0, 8), [list]);
 
-  // Group real products by brand to showcase stores if data exists
+  // Group real products by brand to showcase stores.
   const stores = useMemo(() => {
     const map = new Map<string, Product[]>();
     for (const p of list) {
       if (!map.has(p.brand)) map.set(p.brand, []);
       map.get(p.brand)!.push(p);
     }
-    return [...map.entries()]
-      .filter(([, prods]) => prods.length > 0)
-      .slice(0, 3)
-      .map(([brand, prods]) => ({
-        name: brand,
-        subtitle: `${prods[0].category} · Verified Seller`,
-        logoUrl: prods[0].imageUrl,
-        coverUrl: prods[0].imageUrl,
-        products: prods,
-      }));
+    return [...map.entries()].slice(0, 3).map(([brand, prods]) => ({
+      name: brand,
+      subtitle: `${prods[0].category} · Verified seller`,
+      logoUrl: prods[0].imageUrl,
+      coverUrl: prods[0].imageUrl,
+      products: prods,
+    }));
   }, [list]);
+
+  const rail = (label: string, items: Product[]) => (
+    <ProductRail label={label}>
+      {items.map((p, idx) => (
+        <div key={p.id} className={RAIL_ITEM}>
+          <Cascade index={idx}>
+            <ProductCard product={p} onAdd={add} />
+          </Cascade>
+        </div>
+      ))}
+    </ProductRail>
+  );
+
+  const railState = (message: string, items: Product[], label: string) =>
+    products.isLoading ? (
+      <CardSkeletonGrid count={4} />
+    ) : products.isError ? (
+      <LoadError onRetry={() => products.refetch()} message={message} />
+    ) : items.length === 0 ? (
+      <p className="text-[16px] text-muted">New products are on the way.</p>
+    ) : (
+      rail(label, items)
+    );
 
   return (
     <SiteShell>
-      {/* Top Search & Category Navigation */}
-      <section aria-label="Search LuxeBeau" className="pb-6 pt-5 md:pt-6">
+      {/* Search and round-swatch category pills */}
+      <section aria-label="Search LuxeBeau" className="pb-5 pt-5 md:pt-5">
         <Container>
           <div className="mx-auto max-w-[540px]">
             <SearchBar placeholder="What are you glowing up with today?" />
@@ -85,96 +114,61 @@ export default function Home() {
           {categories.length > 0 && (
             <nav
               aria-label="Categories"
-              className="no-scrollbar -mx-4 mt-5 flex gap-2.5 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:justify-center sm:px-0"
+              className="no-scrollbar -mx-4 mt-4 flex items-center gap-3 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:justify-center sm:gap-5 sm:px-0"
             >
-              {categories.map((c) => (
+              {categories.map(c => (
                 <CategoryPill
                   key={c.name}
                   label={c.name}
                   image={c.image}
+                  tint={categoryTint(c.name)}
                   href={`/shop?category=${encodeURIComponent(c.name)}`}
                 />
               ))}
-              <CategoryPill label="Book an artisan" href="/services" />
+              <CategoryPill label="Artisans" image={ARTISAN_COVER} tint={categoryTint("artisans")} href="/services" />
             </nav>
           )}
         </Container>
       </section>
 
-      {/* Hero Showcase Card */}
-      <Container className="mb-14">
-        <HeroCard floating={photographed} />
+      {/* Hero */}
+      <Container className="mb-12">
+        <HeroCard />
       </Container>
 
-      {/* Explore Feed */}
-      <Container className="space-y-16 pb-16">
-        {/* Explore Heading */}
-        <div className="flex items-center justify-between border-b border-hairline pb-4">
-          <h2 className="text-[32px] sm:text-[40px] font-extrabold tracking-[-0.045em] text-ink">
-            Explore
-          </h2>
-        </div>
+      {/* Explore feed */}
+      <Container className="space-y-10 pb-16">
+        <h2 className="text-[32px] font-extrabold tracking-[-0.045em] text-ink sm:text-[40px]">Explore</h2>
 
-        {/* Top Rated Rail */}
+        {editGroups.length > 0 && (
+          <section aria-label="Edits">
+            <EditCards groups={editGroups} />
+          </section>
+        )}
+
+        {categories.length > 0 && (
+          <section aria-label="Browse categories">
+            <SectionHeader title="Browse categories" />
+            <CategoryGrid categories={categories.slice(0, 5)} />
+          </section>
+        )}
+
         <section aria-label="Top rated beauty">
           <SectionHeader title="Top rated beauty" href="/shop?sort=rating" />
-          {products.isLoading ? (
-            <CardSkeletonGrid count={4} />
-          ) : products.isError ? (
-            <LoadError
-              onRetry={() => products.refetch()}
-              message="We couldn't load top products. Please try again."
-            />
-          ) : topRated.length === 0 ? (
-            <p className="text-[16px] text-muted">New products are on the way.</p>
-          ) : (
-            <ProductRail label="Top rated beauty">
-              {topRated.map((p, idx) => (
-                <div key={p.id} className="w-[190px] sm:w-[220px] shrink-0 snap-start">
-                  <Cascade index={idx}>
-                    <ProductCard product={p} onAdd={add} />
-                  </Cascade>
-                </div>
-              ))}
-            </ProductRail>
-          )}
+          {railState("We couldn't load top products. Please try again.", topRated, "Top rated beauty")}
         </section>
 
-        {/* Escrow Trust Strip */}
         <section aria-label="Escrow protection">
           <EscrowStrip />
         </section>
 
-        {/* New in / Catalogue Grid */}
-        <section aria-label="New arrivals">
-          <SectionHeader title="New arrivals" href="/shop" />
-          {products.isLoading ? (
-            <CardSkeletonGrid count={4} />
-          ) : products.isError ? (
-            <LoadError
-              onRetry={() => products.refetch()}
-              message="We couldn't load new arrivals. Please try again."
-            />
-          ) : newIn.length === 0 ? (
-            <p className="text-[16px] text-muted">New products are on the way.</p>
-          ) : (
-            <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-4">
-              {newIn.map((p, idx) => (
-                <Cascade key={p.id} index={idx}>
-                  <ProductCard product={p} onAdd={add} />
-                </Cascade>
-              ))}
-            </div>
-          )}
-        </section>
-
-        {/* Trending Stores (if present in catalogue) */}
         {stores.length > 0 && (
           <section aria-label="Trending stores">
             <SectionHeader title="Trending stores" href="/shop" />
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <div className="no-scrollbar -mx-4 flex snap-x snap-mandatory gap-3.5 overflow-x-auto px-4 pb-2 md:mx-0 md:grid md:grid-cols-3 md:overflow-visible md:px-0 md:pb-0">
               {stores.map((s, idx) => (
-                <Cascade key={s.name} index={idx}>
+                <div key={s.name} className="w-[82%] shrink-0 snap-start md:w-auto">
+                <Cascade index={idx}>
                   <StoreCard
                     name={s.name}
                     subtitle={s.subtitle}
@@ -184,28 +178,34 @@ export default function Home() {
                     href={`/shop?q=${encodeURIComponent(s.name)}`}
                   />
                 </Cascade>
+                </div>
               ))}
             </div>
           </section>
         )}
 
-        {/* Book an Artisan Rail */}
+        <section aria-label="New arrivals">
+          <SectionHeader title="New arrivals" href="/shop" />
+          {railState("We couldn't load new arrivals. Please try again.", newIn, "New arrivals")}
+        </section>
+
+        {loved.length > 0 && (
+          <section aria-label="Loved by everyone">
+            <SectionHeader title="Loved by everyone" href="/shop" />
+            {rail("Loved by everyone", loved)}
+          </section>
+        )}
+
         <section aria-label="Book a beauty service">
           <SectionHeader title="Book a beauty artisan" href="/services" />
           {artisans.isLoading ? (
             <div className="flex gap-3 overflow-hidden">
               {Array.from({ length: 4 }).map((_, i) => (
-                <Skeleton
-                  key={i}
-                  className="h-[300px] w-[260px] shrink-0 rounded-[28px] bg-surface"
-                />
+                <Skeleton key={i} className="h-[300px] w-[260px] shrink-0 rounded-[28px] bg-surface" />
               ))}
             </div>
           ) : artisans.isError ? (
-            <LoadError
-              onRetry={() => artisans.refetch()}
-              message="We couldn't load artisans. Please try again."
-            />
+            <LoadError onRetry={() => artisans.refetch()} message="We couldn't load artisans. Please try again." />
           ) : artisanList.length === 0 ? (
             <p className="text-[16px] text-muted">Verified artisans will be listed soon.</p>
           ) : (
@@ -221,7 +221,6 @@ export default function Home() {
           )}
         </section>
 
-        {/* Join Row (Sell / Artisan / Brand partnerships) */}
         <section aria-label="Partner with LuxeBeau">
           <JoinRow />
         </section>

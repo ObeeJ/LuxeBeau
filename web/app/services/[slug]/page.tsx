@@ -3,7 +3,7 @@
 import { use, useMemo, useState } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { BadgeCheck, CheckCircle2, ChevronLeft, Loader2, MapPin } from "lucide-react";
+import { BadgeCheck, CheckCircle2, ChevronLeft, Loader2, MapPin } from "@/components/icons";
 import SiteShell, { Container } from "@/components/site/shell";
 import { Avatar, Rating, visitLabel } from "@/components/site/catalog";
 import { FieldError, LoadError } from "@/components/site/states";

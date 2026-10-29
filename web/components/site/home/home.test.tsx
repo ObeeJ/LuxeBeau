@@ -3,7 +3,6 @@ import { RotatingWord } from "./rotating-word";
 import { HeroCard } from "./hero-card";
 import { EscrowStrip } from "./escrow-strip";
 import { JoinRow } from "./join-row";
-import { type Product } from "@/lib/api";
 
 jest.mock("@/lib/motion", () => {
   const actual = jest.requireActual("@/lib/motion");
@@ -14,22 +13,6 @@ jest.mock("@/lib/motion", () => {
 });
 
 const { usePrefersReducedMotion } = jest.requireMock("@/lib/motion");
-
-const mockProducts: Product[] = Array.from({ length: 5 }).map((_, i) => ({
-  id: `p-${i}`,
-  slug: `prod-${i}`,
-  name: `Product ${i}`,
-  brand: `Brand ${i}`,
-  priceNGN: 5000 + i * 1000,
-  category: "Skincare",
-  blurb: "Blurb",
-  details: [],
-  rating: 4.8,
-  reviews: 50,
-  tint: ["#fff", "#000"],
-  imageUrl: `https://example.com/img-${i}.jpg`,
-  stock: 10,
-}));
 
 describe("Home sections", () => {
   beforeEach(() => {
@@ -70,7 +53,7 @@ describe("Home sections", () => {
 
   describe("HeroCard", () => {
     it("has the required responsive aspect and height tokens and Start shopping link", () => {
-      const { container } = render(<HeroCard floating={mockProducts} />);
+      const { container } = render(<HeroCard />);
       const card = container.firstElementChild as HTMLElement;
       expect(card.className).toContain("aspect-[7/10]");
       expect(card.className).toContain("md:h-[440px]");
@@ -81,10 +64,12 @@ describe("Home sections", () => {
       expect(shopLink).toHaveAttribute("href", "/shop");
     });
 
-    it("hides floating items if fewer than 4 products are provided", () => {
-      const { container } = render(<HeroCard floating={mockProducts.slice(0, 3)} />);
-      expect(container.querySelectorAll(".lb-idle")).toHaveLength(0);
+    it("always shows the sliding photos, even with no products", () => {
+      const { container } = render(<HeroCard />);
+      expect(container.querySelectorAll("img").length).toBe(2);
+      expect(screen.queryByText(/Held safe in escrow/i)).not.toBeInTheDocument();
     });
+
   });
 
   describe("EscrowStrip", () => {
