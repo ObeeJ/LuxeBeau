@@ -95,7 +95,7 @@
   --color-card-foreground: var(--color-ink-black);
   --color-popover: var(--color-pure-white);
   --color-popover-foreground: var(--color-ink-black);
-  --color-primary: var(--color-ink-black);
+  --color-primary: var(--color-brand-purple);
   --color-primary-foreground: var(--color-pure-white);
   --color-secondary: var(--color-canvas-mist);
   --color-secondary-foreground: var(--color-ink-black);
@@ -105,7 +105,7 @@
   --color-destructive: var(--color-ink-black);
   --color-border: var(--color-faint-border);
   --color-input: var(--color-faint-border);
-  --color-ring: var(--color-ink-black);
+  --color-ring: var(--color-brand-purple);
 
   --radius-card: 28px;
   --radius-inner: 20px;
@@ -220,6 +220,7 @@ summary {
 
 .lb-input {
   width: 100%;
+  min-height: 44px;
   border-radius: 9999px;
   border: 1px solid var(--color-faint-border);
   background: var(--color-pure-white);
@@ -249,8 +250,8 @@ select.lb-input {
 
 .lb-input:focus-visible {
   outline: none;
-  border-color: rgba(0, 0, 0, 0.4);
-  box-shadow: var(--shadow-sm);
+  border-color: var(--color-brand-purple);
+  box-shadow: 0 0 0 3px var(--color-brand-purple-wash);
 }
 
 .lb-input[aria-invalid="true"] {
