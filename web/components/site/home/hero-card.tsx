@@ -6,7 +6,7 @@ import { RotatingWord } from "./rotating-word";
 import { type Product } from "@/lib/api";
 import { Photo } from "@/components/site/catalog";
 import { formatNaira } from "@/lib/format";
-import { cn } from "@/lib/utils";
+
 
 interface HeroCardProps {
   floating?: Product[];

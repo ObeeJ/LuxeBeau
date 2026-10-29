@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { ProductCard, ProductRail, SearchBar } from "./catalog";
 import { type Product } from "@/lib/api";
 

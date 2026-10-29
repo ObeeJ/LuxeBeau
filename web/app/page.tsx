@@ -61,7 +61,7 @@ export default function Home() {
       map.get(p.brand)!.push(p);
     }
     return [...map.entries()]
-      .filter(([_, prods]) => prods.length > 0)
+      .filter(([, prods]) => prods.length > 0)
       .slice(0, 3)
       .map(([brand, prods]) => ({
         name: brand,

@@ -1,103 +1,70 @@
-# LuxeBeau UX & Frontend Guide
+# LuxeBeau UX & Design System Guide
 
-The "Velvet Atelier" system: a dark editorial luxury marketplace for the Nigerian
-beauty market. This guide is the source of truth for how the web app looks,
-moves and behaves.
+The approved LuxeBeau design system: a vibrant, light, unisex beauty marketplace for Nigeria.
+Driven by shared tokens, Geist typography, the Pair brand identity, and secure escrow guarantees.
 
-## 1. Design tokens
+## 1. Visual Language & Tokens
 
-All colour, radius and font tokens live in [app/globals.css](app/globals.css)
-under Tailwind v4 `@theme inline`. Never hardcode hex values in components.
+All colour, depth, and font tokens are defined in [app/globals.css](app/globals.css) under Tailwind v4 `@theme inline`. No component should hardcode raw hex values.
 
-| Token group | Use |
-| --- | --- |
-| `velvet-950 / 900 / 800 / 700` | Page canvas, raised surface, card, borders |
-| `royal-600 / 500 / 400` | Brand purple, interactive, hover |
-| `lavender-100 / 200 / 400` | Primary text, secondary text, muted text |
-| `gold-300 / 400 / 500` | Accent text, rules and CTAs, gold on light |
-| `paper-50 / 100 / ink / muted` | Light editorial break sections |
-
-shadcn semantic tokens (`bg-card`, `text-muted-foreground`, `border-border`,
-`ring-ring`, `bg-primary`) are mapped onto these, so every shadcn component
-inherits the palette automatically.
-
-**Fonts:** Fraunces (`font-display`) for headings, Hanken Grotesk (`font-sans`)
-for body. Loaded through `next/font` in [app/layout.tsx](app/layout.tsx).
-
-## 2. Component sourcing
-
-1. Reach for a shadcn primitive first: Button, Input, Label, Textarea, Select,
-   Card, Dialog, Badge, Tabs, Skeleton, Separator. They live in
-   [components/ui](components/ui).
-2. Compose page sections in `components/site` and `components/dashboard`.
-3. Only drop to raw markup for layout shells and the CSS art product tiles.
-
-## 3. Motion
-
-Framer Motion, with one shared easing curve `[0.22, 1, 0.36, 1]`.
-
-- Page load: staggered fade and rise on hero copy.
-- Scroll: use `Reveal` / `RevealGroup` from
-  [components/motion/reveal.tsx](components/motion/reveal.tsx) for sections.
-- Step flows (checkout, booking): `AnimatePresence` slides panels horizontally.
-- Micro: nav underline uses a shared `layoutId`; cart badge pops on change.
-- Respect `prefers-reduced-motion`: globals.css disables all animation when set.
-
-Keep it to one or two animated focal points per view. Motion should explain a
-change, never decorate.
-
-## 4. State and data
-
-| Concern | Tool | Location |
+| Token | Value / Class | Use |
 | --- | --- | --- |
-| Server calls and mutations | TanStack Query | [lib/queries.ts](lib/queries.ts) |
-| Auth session and cart | Zustand (persisted) | [lib/store.ts](lib/store.ts) |
-| Input validation | Zod schemas | [lib/api.ts](lib/api.ts) |
-| Local UI state | `useState` / `useEffect` | per component |
+| Primary Brand | `#8A1FC7` (`bg-brand`, `text-brand`) | Primary buttons, active tabs, wordmark, focal accents |
+| Brand Deep | `#6F16A3` (`bg-brand-deep`, `text-brand-deep`) | Hover/pressed states, deep tone badges |
+| Brand Wash | `#F3E6FB` (`bg-brand-wash`, `text-brand-deep`) | Soft badge backgrounds, callouts, scan button |
+| Glow Shadow | `rgba(138,31,199,.38)` (`shadow-glow`) | Elevated purple controls |
+| Ink | `#000000` (`text-ink`, `bg-ink`) | Headlines, primary text, dark action buttons |
+| Canvas | `#FAFAFA` (`bg-canvas`) | Page background |
+| Surface | `#FFFFFF` (`bg-surface`) | Cards, modals, side dock, top bar |
+| Hairline | `#EBEBEB` (`border-hairline`) | Subtle dividers and card borders |
+| Muted | `#6B6B6B` (`text-muted`) | Secondary metadata, placeholders, subtitles |
 
-The fetch wrapper `apiFetch` attaches the JWT, unwraps the Go API's
-`{ success, data, error }` envelope, and throws a typed `ApiError`. The base URL
-comes from `NEXT_PUBLIC_API_URL` (defaults to `http://localhost:8080/api/v1`).
+### Texture
+- **Global Grain Overlay**: An SVG `feTurbulence` filter (baseFrequency .85, 7% opacity, `mix-blend-mode: multiply`) applied globally on `body::after`. Non-interactive (`pointer-events: none`).
 
-### Wired endpoints
+### Typography
+- **Single Typeface**: `Geist` via `next/font/google` in [app/layout.tsx](app/layout.tsx).
+- **Headlines (`.t-hero`, `.t-display`)**: Font weight 800, tight tracking (`-0.045em`).
+- **Wordmark (`LuxeBeauWordmark`)**: Weight 900, lowercase "luxebeau", tracking `-0.065em`.
+- **Body & Subtitles**: 14px to 16px, weight 400 to 500.
 
-| Action | Hook | Endpoint |
-| --- | --- | --- |
-| Sign in | `useLogin` | `POST /auth/login` |
-| Register | `useRegister` | `POST /auth/register` |
-| Checkout | `useCreateOrder` | `POST /orders` |
-| Book artisan | `useCreateBooking` | `POST /bookings` |
+## 2. Brand Identity: The "Pair" Logo
 
-When the backend is unreachable, order and booking mutations fall back to a
-synthesized reference so the marketplace stays demoable. Real 4xx errors still
-surface to the user.
+- **Symbol (`LuxeBeauMark`)**: Two interlinked rings representing her + him (unisex beauty). The second ring has a `60%` stroke opacity (`stroke-opacity="0.6"`).
+- **Favicon & App Icon**: High-contrast, bold stroke SVG variant rendered via `app/icon.svg` and `app/apple-icon.tsx`.
 
-## 5. UX rules (enforced across the app)
+## 3. Motion System
 
-- **Auth gating:** checkout and booking require a signed-in user. If not signed
-  in, the auth dialog opens and resumes the original action via an `onDone`
-  callback. No dead ends.
-- **Forms:** every field has a visible `Label`. Errors render inline below the
-  field with `role="alert"`. Validation runs on submit through Zod.
-- **Nigerian inputs:** phone validates the `070/080/081/090/091` formats; the
-  city select carries Nigerian cities; copy references Paystack, naira and local
-  context.
-- **Loading:** every async button disables and shows a spinner while pending.
-- **Money:** always `formatNaira` / `formatCompactNaira`. Numeric cells use
-  `tabular-nums` so columns do not jitter.
-- **Feedback:** confirmations and errors use the toast system, never `alert()`.
+Measured timings and curves standardized in [lib/motion.ts](lib/motion.ts):
 
-## 6. Accessibility baseline
+- **Curves**:
+  - `EASE.out`: `[0.22, 1, 0.36, 1]` for entrances.
+  - `EASE.spring`: `[0.34, 1.56, 0.64, 1]` for cart bounces and heart pops.
+  - `EASE.std`: `[0.2, 0, 0, 1]` for continuous flows.
+- **Micro-interactions**:
+  - Press feedback: `active:scale-[.96] active:opacity-60` over 150ms (`.lb-press`).
+  - Staggered entrances: `<Cascade index={i} />` rises 8px with a 45ms step.
+  - Cart counter: Numbers slide up into place (`.lb-num-in`) with a spring bounce on the cart icon.
+- **Accessibility**: All animations automatically collapse or freeze when `prefers-reduced-motion: reduce` is enabled.
 
-- Colour contrast: lavender-400 holds 4.6:1 on the velvet canvas; body text uses
-  lavender-100 / 200.
-- Focus: a gold focus ring is defined globally for keyboard users.
-- Semantics: icon-only buttons carry `aria-label`; selectors use
-  `role="radiogroup"` / `aria-checked`; tables use `scope="col"`.
-- Reduced motion is honoured globally.
+## 4. Components & Layout Architecture
 
-## 7. Writing style
+1. **Shell ([components/site/shell.tsx](components/site/shell.tsx))**:
+   - Desktop: Left floating vertical dock with 46px pill buttons and purple Pair logo tile.
+   - Mobile: Persistent top bar and bottom tab bar with safe-area padding.
+2. **Catalog ([components/site/catalog.tsx](components/site/catalog.tsx))**:
+   - `ProductCard`: Clamped 2-line title, naira formatting, favourite toggle, and 1.6s "✓ Added" confirm state.
+   - `ProductRail`: Horizontal scroll snapping with hover navigation arrows.
+   - `SearchBar`: Centred pill input featuring the interactive `Scan` barcode affordance.
+3. **Escrow Guarantee**:
+   - Visual step strip (`EscrowStrip`) and escrow trust callouts across product detail, hero phone mockup, and checkout bag summary.
+4. **Internal Component Gallery**:
+   - Available at `/design-system` (marked `noindex`) for reviewing all live primitives and states.
 
-Plain, warm, confident. **No dashes** in copy: use commas, full stops or "to"
-for ranges (for example "1 to 4 days"). Spell out numbers under ten in prose.
-Keep it Nigerian and specific (owambe, gele, knotless braids, Lekki, Maitama).
+## 5. Accessibility & Contrast Verification
+
+- **Color Contrast**:
+  - White on `#8A1FC7`: **6.77:1** (exceeds WCAG AAA requirements for large text and AA for normal text).
+  - `#8A1FC7` on White: **6.77:1** (exceeds WCAG AA).
+- **Touch Targets**: Minimum 44px on mobile buttons and inputs.
+- **Keyboard Navigation**: Clear brand purple outline (`outline-brand`) on `:focus-visible`.

@@ -18,13 +18,13 @@ interface ScanDialogProps {
 }
 
 export function ScanDialog({ open, onOpenChange, onDetected }: ScanDialogProps) {
-  const [hasSupport, setHasSupport] = useState<boolean | null>(null);
+  const hasSupport = typeof window !== "undefined" && "BarcodeDetector" in window;
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
   useEffect(() => {
-    if (!open) {
+    if (!open || !hasSupport) {
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((t) => t.stop());
         streamRef.current = null;
@@ -32,13 +32,6 @@ export function ScanDialog({ open, onOpenChange, onDetected }: ScanDialogProps) 
       return;
     }
 
-    // Check BarcodeDetector support
-    if (typeof window === "undefined" || !("BarcodeDetector" in window)) {
-      setHasSupport(false);
-      return;
-    }
-
-    setHasSupport(true);
     let active = true;
 
     navigator.mediaDevices
@@ -55,7 +48,7 @@ export function ScanDialog({ open, onOpenChange, onDetected }: ScanDialogProps) 
         }
       })
       .catch((err) => {
-        setErrorMsg(err?.message || "Unable to access camera.");
+        if (active) setErrorMsg(err?.message || "Unable to access camera.");
       });
 
     return () => {
@@ -65,7 +58,7 @@ export function ScanDialog({ open, onOpenChange, onDetected }: ScanDialogProps) 
         streamRef.current = null;
       }
     };
-  }, [open]);
+  }, [open, hasSupport, onDetected]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
