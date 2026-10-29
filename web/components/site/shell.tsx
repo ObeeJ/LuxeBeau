@@ -38,13 +38,36 @@ function useMounted() {
   return mounted;
 }
 
+/* Purple count bubble; the number slides up whenever it changes. */
 function CountBadge({ count }: { count: number }) {
   if (count <= 0) return null;
+  const label = count > 99 ? "99+" : String(count);
   return (
-    <span className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-ink px-1 text-[11px] leading-none text-surface">
-      {count > 99 ? "99+" : count}
+    <span
+      aria-hidden
+      className="absolute -right-0.5 -top-0.5 flex h-[18px] min-w-[18px] items-center justify-center overflow-hidden rounded-full bg-brand px-1 text-[11px] font-bold leading-none text-surface"
+    >
+      <span key={label} className="lb-num-in block">
+        {label}
+      </span>
     </span>
   );
+}
+
+/* Bounces its child once whenever `count` goes up (cart feedback). */
+function useBounceOnIncrease(count: number) {
+  const [prev, setPrev] = useState(count);
+  const [tick, setTick] = useState(0);
+  if (count !== prev) {
+    if (count > prev) setTick(t => t + 1);
+    setPrev(count);
+  }
+  return tick;
+}
+
+function navLabel(item: NavItem, count: number, mounted: boolean) {
+  if (item.href === "/cart" && mounted && count > 0) return `${item.label}, ${count} ${count === 1 ? "item" : "items"}`;
+  return item.label;
 }
 
 function SideRail() {
@@ -53,41 +76,52 @@ function SideRail() {
   const { count } = useCart();
   const user = useAuth(s => s.user);
   const showAuth = useAuthModal(s => s.show);
+  const bounce = useBounceOnIncrease(count);
 
   return (
-    <aside className="fixed inset-y-0 left-0 z-40 hidden w-16 flex-col items-center bg-surface py-4 md:flex" aria-label="Primary">
-      <Link href="/" aria-label="LuxeBeau home" className="flex h-12 w-12 items-center justify-center">
-        <LuxeBeauMark />
+    <aside className="fixed inset-y-0 left-0 z-40 hidden w-24 flex-col items-center py-5 md:flex" aria-label="Primary">
+      <Link
+        href="/"
+        aria-label="LuxeBeau home"
+        className="lb-press flex h-[58px] w-[58px] items-center justify-center rounded-[18px] bg-brand shadow-glow"
+      >
+        <LuxeBeauMark size={44} className="text-surface" />
       </Link>
-      <nav className="mt-4 flex flex-col items-center gap-1">
+      <nav className="my-auto flex flex-col items-center gap-1 rounded-full bg-surface p-2 shadow-soft">
         {NAV.map(item => {
           const active = item.match(pathname);
           const Icon = item.icon;
+          const isBag = item.href === "/cart";
           return (
             <Link
               key={item.href}
               href={item.href}
-              aria-label={item.label}
+              aria-label={navLabel(item, count, mounted)}
               title={item.label}
               aria-current={active ? "page" : undefined}
               className={cn(
-                "relative flex h-12 w-12 items-center justify-center rounded-[20px] text-ink transition-colors duration-200",
-                active ? "bg-canvas" : "hover:bg-canvas",
+                "lb-press group relative flex h-[46px] w-[46px] items-center justify-center rounded-full transition-colors duration-150",
+                active ? "bg-ink/[0.06] text-ink" : "text-muted hover:text-ink",
               )}
             >
-              <Icon className="h-6 w-6" strokeWidth={1.75} aria-hidden />
-              {item.href === "/cart" && mounted && <CountBadge count={count} />}
+              <Icon
+                key={isBag ? `bag-${bounce}` : undefined}
+                className={cn("h-[22px] w-[22px] transition-transform duration-150 group-hover:scale-110", isBag && bounce > 0 && "lb-bounce")}
+                strokeWidth={active ? 2.25 : 1.9}
+                aria-hidden
+              />
+              {isBag && mounted && <CountBadge count={count} />}
             </Link>
           );
         })}
       </nav>
-      <div className="mt-auto">
+      <div className="flex flex-col items-center rounded-full bg-surface p-2 shadow-soft">
         {mounted && user ? (
           <Link
             href="/dashboard"
             aria-label={`Your account, ${user.name}`}
             title={user.name}
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-canvas text-[11px] text-ink ring-1 ring-hairline"
+            className="lb-press flex h-[46px] w-[46px] items-center justify-center rounded-full bg-brand-wash text-[12px] font-semibold text-brand-deep"
           >
             {initials(user.name)}
           </Link>
@@ -96,9 +130,9 @@ function SideRail() {
             onClick={() => showAuth("signin")}
             aria-label="Sign in"
             title="Sign in"
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-surface text-ink ring-1 ring-hairline transition-colors duration-200 hover:bg-canvas"
+            className="lb-press flex h-[46px] w-[46px] items-center justify-center rounded-full text-muted transition-colors duration-150 hover:text-ink"
           >
-            <CircleUser className="h-5 w-5" strokeWidth={1.75} aria-hidden />
+            <CircleUser className="h-[22px] w-[22px]" strokeWidth={1.9} aria-hidden />
           </button>
         )}
       </div>
@@ -112,20 +146,20 @@ function MobileTopBar() {
   const showAuth = useAuthModal(s => s.show);
 
   return (
-    <header className="sticky top-0 z-40 flex h-14 items-center justify-between bg-surface/95 px-4 backdrop-blur md:hidden">
+    <header className="sticky top-0 z-40 flex h-14 items-center justify-between bg-canvas/90 px-4 backdrop-blur md:hidden">
       <LuxeBeauLogo textClassName="text-[22px]" />
       {mounted && user ? (
         <Link
           href="/dashboard"
           aria-label={`Your account, ${user.name}`}
-          className="flex h-8 w-8 items-center justify-center rounded-full bg-canvas text-[11px] ring-1 ring-hairline"
+          className="lb-press flex h-11 w-11 items-center justify-center rounded-full bg-brand-wash text-[12px] font-semibold text-brand-deep"
         >
           {initials(user.name)}
         </Link>
       ) : (
         <button
           onClick={() => showAuth("signin")}
-          className="h-9 rounded-full border border-hairline bg-surface px-4 text-[14px] tracking-[-0.014em] shadow-pill"
+          className="lb-press h-11 rounded-full bg-surface px-4 text-[14px] font-semibold tracking-[-0.014em] shadow-soft"
         >
           Sign in
         </button>
@@ -138,42 +172,52 @@ function MobileTabBar() {
   const pathname = usePathname();
   const mounted = useMounted();
   const { count } = useCart();
+  const bounce = useBounceOnIncrease(count);
 
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-40 flex h-16 items-stretch justify-around bg-surface pb-[env(safe-area-inset-bottom)] shadow-[0_-1px_0_var(--color-faint-border)] md:hidden"
-      aria-label="Primary"
+      className="fixed inset-x-0 bottom-0 z-40 bg-surface pb-[env(safe-area-inset-bottom)] shadow-[0_-1px_0_var(--color-faint-border)] md:hidden"
+      aria-label="Primary mobile"
     >
-      {NAV.map(item => {
-        const active = item.match(pathname);
-        const Icon = item.icon;
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            aria-current={active ? "page" : undefined}
-            className="flex flex-1 flex-col items-center justify-center gap-0.5"
-          >
-            <span className={cn("relative flex h-8 w-12 items-center justify-center rounded-[20px] transition-colors duration-200", active && "bg-canvas")}>
-              <Icon className="h-[22px] w-[22px]" strokeWidth={1.75} aria-hidden />
-              {item.href === "/cart" && mounted && <CountBadge count={count} />}
-            </span>
-            <span className={cn("text-[11px] tracking-[-0.017em]", active ? "text-ink" : "text-muted")}>{item.label}</span>
-          </Link>
-        );
-      })}
+      <div className="flex h-16 items-stretch justify-around">
+        {NAV.map(item => {
+          const active = item.match(pathname);
+          const Icon = item.icon;
+          const isBag = item.href === "/cart";
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              aria-label={navLabel(item, count, mounted)}
+              aria-current={active ? "page" : undefined}
+              className="lb-press flex flex-1 flex-col items-center justify-center gap-0.5"
+            >
+              <span className={cn("relative flex h-8 w-12 items-center justify-center rounded-full transition-colors duration-150", active && "bg-brand-wash")}>
+                <Icon
+                  key={isBag ? `bag-${bounce}` : undefined}
+                  className={cn("h-[22px] w-[22px]", active ? "text-brand-deep" : "text-ink", isBag && bounce > 0 && "lb-bounce")}
+                  strokeWidth={active ? 2.25 : 1.75}
+                  aria-hidden
+                />
+                {isBag && mounted && <CountBadge count={count} />}
+              </span>
+              <span className={cn("text-[11px] tracking-[-0.017em]", active ? "font-semibold text-brand-deep" : "text-muted")}>{item.label}</span>
+            </Link>
+          );
+        })}
+      </div>
     </nav>
   );
 }
 
-/* Page frame: persistent icon rail (desktop) or top bar + tab bar (mobile),
-   with the footer band at the bottom of every page. */
+/* Page frame: logo tile + floating pill dock (desktop) or top bar + tab bar
+   (mobile), with the footer band at the bottom of every page. */
 export default function SiteShell({ children, footer = true }: { children: React.ReactNode; footer?: boolean }) {
   return (
     <div className="min-h-dvh bg-canvas">
       <SideRail />
       <MobileTopBar />
-      <div className="flex min-h-dvh flex-col pb-16 md:pb-0 md:pl-16">
+      <div className="flex min-h-dvh flex-col pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0 md:pl-24">
         <div className="flex-1">{children}</div>
         {footer && <SiteFooter />}
       </div>
