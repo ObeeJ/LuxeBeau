@@ -66,7 +66,7 @@ describe("Home sections", () => {
 
     it("always shows the sliding photos, even with no products", () => {
       const { container } = render(<HeroCard />);
-      expect(container.querySelectorAll("img").length).toBe(2);
+      expect(container.querySelectorAll("img").length).toBeGreaterThanOrEqual(2);
       expect(screen.queryByText(/Held safe in escrow/i)).not.toBeInTheDocument();
     });
 

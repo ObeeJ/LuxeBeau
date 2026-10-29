@@ -42,7 +42,7 @@ export function RotatingWord({
   return (
     <span
       className={cn(
-        "relative inline-block h-[0.98em] min-w-[2.1em] overflow-hidden whitespace-nowrap align-bottom font-extrabold leading-[0.98] text-brand",
+        "relative inline-block h-[1.02em] min-w-[2.1em] overflow-hidden whitespace-nowrap align-bottom font-extrabold leading-[0.98] text-brand",
         className,
       )}
     >
