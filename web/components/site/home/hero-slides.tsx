@@ -29,7 +29,7 @@ export function HeroSlides({ className = "" }: { className?: string }) {
             alt=""
             loading="lazy"
             decoding="async"
-            className="absolute inset-0 h-full w-full object-cover object-[50%_22%] transition-transform duration-[900ms] ease-[cubic-bezier(.22,1,.36,1)]"
+            className="absolute inset-0 h-full w-full object-cover object-[50%_30%] transition-transform duration-[900ms] ease-[cubic-bezier(.22,1,.36,1)]"
             style={{ transform: `translateX(${offset}%)` }}
           />
         );

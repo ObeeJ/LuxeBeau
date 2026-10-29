@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { create } from "zustand";
 import { Loader2 } from "@/components/icons";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { LuxeBeauMark } from "@/components/site/logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -239,6 +240,9 @@ export function AuthDialog() {
     <Dialog open={open} onOpenChange={o => (o ? null : close())}>
       <DialogContent className="max-h-[92dvh] overflow-y-auto sm:max-w-[400px]">
         <DialogHeader className="text-left">
+          <span className="group mb-1 inline-flex w-fit">
+            <LuxeBeauMark tile size={48} />
+          </span>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>

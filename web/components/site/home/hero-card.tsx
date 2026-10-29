@@ -4,26 +4,19 @@ import Link from "next/link";
 import { Play } from "@/components/icons";
 import { RotatingWord } from "./rotating-word";
 import { HeroSlides } from "./hero-slides";
-import { HERO_PHOTOS } from "@/lib/photos";
 
-/* Hero: the two portraits fill the whole card and slide past each other behind
+/* Hero: one portrait at a time fills the card and slides to the next behind
    a dark-purple overlay; the headline and actions sit in the centre. */
 export function HeroCard() {
   return (
     <div className="relative isolate flex aspect-[7/10] items-center justify-center overflow-hidden rounded-[40px] bg-ink shadow-soft md:aspect-auto md:h-[440px] xl:aspect-[2.75/1] xl:h-auto xl:max-h-[685px]">
-      <HeroSlides className="absolute inset-0 -z-20 h-full w-full md:hidden" />
-      <div aria-hidden className="absolute inset-0 -z-20 hidden grid-cols-2 md:grid">
-        {HERO_PHOTOS.map(src => (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img key={src} src={src} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover object-[50%_28%]" />
-        ))}
-      </div>
+      <HeroSlides className="absolute inset-0 -z-20 h-full w-full" />
       <div
         aria-hidden
         className="absolute inset-0 -z-10"
         style={{
           background:
-            "radial-gradient(ellipse 72% 85% at 50% 52%, rgba(42,11,72,.66) 0%, rgba(42,11,72,.4) 58%, rgba(42,11,72,.1) 100%), linear-gradient(180deg, rgba(138,31,199,.22) 0%, rgba(42,11,72,0) 38%, rgba(42,11,72,.5) 100%)",
+            "radial-gradient(ellipse 72% 85% at 50% 52%, rgba(42,11,72,.55) 0%, rgba(42,11,72,.32) 58%, rgba(42,11,72,.06) 100%), linear-gradient(180deg, rgba(138,31,199,.22) 0%, rgba(42,11,72,0) 38%, rgba(42,11,72,.4) 100%)",
         }}
       />
 
@@ -32,7 +25,7 @@ export function HeroCard() {
           Beauty is all about
           <RotatingWord
             words={["you", "her", "him", "us"]}
-            className="block w-full pr-[0.14em] text-center text-[1.28em] font-black italic leading-[1.02] tracking-[-0.06em] text-[#d9c2ff] [text-shadow:0_0_36px_rgba(217,194,255,.55)]"
+            className="block w-full pr-[0.14em] text-center text-[1.28em] font-black italic leading-[1.02] tracking-[-0.06em] text-[#d9c2ff]"
           />
         </h1>
         <p className="mt-4 max-w-[520px] text-[16px] leading-snug tracking-[-0.02em] text-surface/90 sm:text-[17px]">
