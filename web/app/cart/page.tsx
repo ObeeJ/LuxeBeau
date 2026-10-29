@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { CheckCircle2, ChevronLeft, Loader2, Minus, Plus, X } from "lucide-react";
+import { CheckCircle2, ChevronLeft, Loader2, Minus, Plus, ShieldCheck, X } from "lucide-react";
 import SiteShell, { Container } from "@/components/site/shell";
 import { Photo } from "@/components/site/catalog";
 import { FieldError } from "@/components/site/states";
@@ -107,19 +107,19 @@ export default function CartPage() {
     return (
       <SiteShell>
         <Container className="pt-10">
-          <div className="mx-auto max-w-md rounded-[28px] bg-surface p-6 shadow-card sm:p-8">
-            <CheckCircle2 className="h-8 w-8" strokeWidth={1.5} aria-hidden />
+          <div className="mx-auto max-w-md rounded-[32px] bg-surface p-6 shadow-soft sm:p-8">
+            <CheckCircle2 className="h-8 w-8 text-brand" strokeWidth={1.75} aria-hidden />
             <h1 className="t-display mt-4">Order {placed.id} placed</h1>
-            <p className="mt-2 text-[16px] text-muted">
+            <p className="mt-2 text-[15px] text-muted">
               {placed.paymentStatus === "paid"
                 ? "Paid from your wallet. We've emailed your receipt."
-                : "We've emailed your order details. We'll start packing as soon as the payment is confirmed."}
+                : "We've emailed your order details. Your payment is held safe in escrow until you confirm delivery."}
             </p>
             <dl className="mt-5 divide-y divide-hairline text-[14px] tracking-[-0.014em]">
               <div className="flex justify-between py-2.5"><dt className="text-muted">Delivery</dt><dd>{placed.deliveryFeeNGN ? formatNaira(placed.deliveryFeeNGN) : "Free"}</dd></div>
-              <div className="flex justify-between py-2.5"><dt className="text-muted">Total</dt><dd>{formatNaira(placed.totalNGN)}</dd></div>
+              <div className="flex justify-between py-2.5"><dt className="text-muted">Total</dt><dd className="font-bold">{formatNaira(placed.totalNGN)}</dd></div>
             </dl>
-            <div className="mt-6 flex flex-wrap gap-2">
+            <div className="mt-6 flex flex-wrap gap-2.5">
               <Button asChild><Link href="/dashboard">Track order</Link></Button>
               <Button asChild variant="outline"><Link href="/shop">Keep shopping</Link></Button>
             </div>
@@ -134,7 +134,7 @@ export default function CartPage() {
       <SiteShell>
         <Container className="pt-8 md:pt-12">
           <PageHeader title="Your bag" />
-          <div className="mt-6 rounded-[28px] bg-surface p-8 text-center shadow-card">
+          <div className="mt-6 rounded-[32px] bg-surface p-8 text-center shadow-soft">
             <p className="text-[16px] text-muted">Your bag is empty.</p>
             <Button asChild className="mt-4"><Link href="/shop">Start shopping</Link></Button>
           </div>
@@ -145,12 +145,12 @@ export default function CartPage() {
 
   const summary = (
     <dl className="divide-y divide-hairline text-[14px] tracking-[-0.014em]">
-      <div className="flex justify-between py-2.5"><dt className="text-muted">Subtotal</dt><dd className="tabular-nums">{formatNaira(subtotalNGN)}</dd></div>
+      <div className="flex justify-between py-2.5"><dt className="text-muted">Subtotal</dt><dd className="tabular-nums font-semibold">{formatNaira(subtotalNGN)}</dd></div>
       <div className="flex justify-between py-2.5">
         <dt className="text-muted">Delivery</dt>
-        <dd className="tabular-nums">{fee ? formatNaira(fee) : "Free"}</dd>
+        <dd className="tabular-nums font-semibold">{fee ? formatNaira(fee) : "Free"}</dd>
       </div>
-      <div className="flex justify-between py-2.5 text-[16px] tracking-[-0.031em]"><dt>Total</dt><dd className="tabular-nums">{formatNaira(total)}</dd></div>
+      <div className="flex justify-between py-2.5 text-[16px] font-bold tracking-[-0.031em]"><dt>Total</dt><dd className="tabular-nums text-brand">{formatNaira(total)}</dd></div>
     </dl>
   );
 
@@ -158,41 +158,47 @@ export default function CartPage() {
     <SiteShell>
       <Container className="pt-8 md:pt-12">
         {checkout ? (
-          <button onClick={() => setCheckout(false)} className="inline-flex items-center gap-1 text-[14px] tracking-[-0.014em] text-muted hover:text-ink">
-            <ChevronLeft className="h-4 w-4" aria-hidden /> Bag
+          <button onClick={() => setCheckout(false)} className="lb-press inline-flex items-center gap-1 text-[14px] font-medium tracking-[-0.014em] text-muted hover:text-ink">
+            <ChevronLeft className="h-4 w-4" aria-hidden /> Back to Bag
           </button>
         ) : null}
         <PageHeader title={checkout ? "Checkout" : "Your bag"} subtitle={checkout ? undefined : `${count} item${count === 1 ? "" : "s"}`} />
 
         <div className="mt-6 grid gap-6 lg:grid-cols-[1.5fr_1fr] lg:gap-10">
           {!checkout ? (
-            <ul className="divide-y divide-hairline rounded-[28px] bg-surface px-4 shadow-card sm:px-5">
+            <ul className="divide-y divide-hairline rounded-[32px] bg-surface px-4 shadow-soft sm:px-6">
               {detailed.map(({ product, qty }) => (
-                <li key={product.id} className="flex gap-3 py-4">
-                  <Link href={`/shop/${product.slug}`} className="h-20 w-20 shrink-0 sm:h-24 sm:w-24">
-                    <Photo src={product.imageUrl} alt={product.name} fallback="" sizes="sm" className="rounded-[16px]" />
+                <li key={product.id} className="flex gap-4 py-5">
+                  <Link href={`/shop/${product.slug}`} className="h-20 w-20 shrink-0 overflow-hidden rounded-[18px] sm:h-24 sm:w-24">
+                    <Photo src={product.imageUrl} alt={product.name} fallback={product.brand} sizes="sm" className="rounded-[18px]" />
                   </Link>
                   <div className="flex min-w-0 flex-1 flex-col">
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
-                        <p className="text-[12px] tracking-[-0.017em] text-muted">{product.brand}</p>
-                        <Link href={`/shop/${product.slug}`} className="line-clamp-2 text-[14px] tracking-[-0.014em] hover:underline">{product.name}</Link>
+                        <p className="text-[12px] font-medium tracking-[-0.017em] text-muted">{product.brand}</p>
+                        <Link href={`/shop/${product.slug}`} className="line-clamp-2 text-[14px] font-semibold tracking-[-0.014em] hover:underline">
+                          {product.name}
+                        </Link>
                       </div>
-                      <button onClick={() => remove(product.id)} className="-mr-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted hover:bg-canvas hover:text-ink" aria-label={`Remove ${product.name}`}>
+                      <button
+                        onClick={() => remove(product.id)}
+                        className="lb-press -mr-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted hover:bg-canvas hover:text-ink"
+                        aria-label={`Remove ${product.name}`}
+                      >
                         <X className="h-4 w-4" aria-hidden />
                       </button>
                     </div>
-                    <div className="mt-auto flex items-center justify-between gap-2 pt-2">
+                    <div className="mt-auto flex items-center justify-between gap-2 pt-3">
                       <div className="flex h-9 items-center rounded-full border border-hairline px-1" role="group" aria-label={`Quantity of ${product.name}`}>
-                        <button onClick={() => setQty(product.id, qty - 1)} className="flex h-7 w-7 items-center justify-center rounded-full hover:bg-canvas" aria-label="Decrease">
+                        <button onClick={() => setQty(product.id, qty - 1)} className="lb-press flex h-7 w-7 items-center justify-center rounded-full hover:bg-canvas" aria-label="Decrease">
                           <Minus className="h-3.5 w-3.5" aria-hidden />
                         </button>
-                        <span className="w-6 text-center text-[14px] tabular-nums">{qty}</span>
-                        <button onClick={() => setQty(product.id, qty + 1)} className="flex h-7 w-7 items-center justify-center rounded-full hover:bg-canvas" aria-label="Increase">
+                        <span className="w-6 text-center text-[14px] font-semibold tabular-nums">{qty}</span>
+                        <button onClick={() => setQty(product.id, qty + 1)} className="lb-press flex h-7 w-7 items-center justify-center rounded-full hover:bg-canvas" aria-label="Increase">
                           <Plus className="h-3.5 w-3.5" aria-hidden />
                         </button>
                       </div>
-                      <span className="text-[16px] tabular-nums tracking-[-0.031em]">{formatNaira(product.priceNGN * qty)}</span>
+                      <span className="text-[16px] font-bold tabular-nums tracking-[-0.031em]">{formatNaira(product.priceNGN * qty)}</span>
                     </div>
                   </div>
                 </li>
@@ -200,8 +206,8 @@ export default function CartPage() {
             </ul>
           ) : (
             <form id="checkout" onSubmit={placeOrder} noValidate className="space-y-8">
-              <section aria-label="Delivery" className="rounded-[28px] bg-surface p-5 shadow-card sm:p-6">
-                <h2 className="t-sub">Delivery</h2>
+              <section aria-label="Delivery" className="rounded-[32px] bg-surface p-5 shadow-soft sm:p-6">
+                <h2 className="t-sub font-bold">Delivery address</h2>
                 <div className="mt-4 grid gap-4 sm:grid-cols-2">
                   <div>
                     <Label htmlFor="name">Full name</Label>
@@ -232,8 +238,8 @@ export default function CartPage() {
                 </div>
               </section>
 
-              <section aria-label="Payment" className="rounded-[28px] bg-surface p-5 shadow-card sm:p-6">
-                <h2 className="t-sub">Payment</h2>
+              <section aria-label="Payment" className="rounded-[32px] bg-surface p-5 shadow-soft sm:p-6">
+                <h2 className="t-sub font-bold">Payment method</h2>
                 <div className="mt-3 overflow-hidden rounded-[20px] border border-hairline" role="radiogroup" aria-label="Payment method">
                   {PAY_METHODS.map((m, i) => {
                     const selected = pay === m.id;
@@ -245,12 +251,12 @@ export default function CartPage() {
                         role="radio"
                         aria-checked={selected}
                         onClick={() => setPay(m.id)}
-                        className={cn("flex w-full items-center gap-3 px-4 py-3 text-left transition-colors duration-150 hover:bg-canvas", i > 0 && "border-t border-hairline")}
+                        className={cn("lb-press flex w-full items-center gap-3 px-4 py-3 text-left transition-colors duration-150 hover:bg-canvas", i > 0 && "border-t border-hairline")}
                       >
-                        <span className={cn("flex h-5 w-5 shrink-0 items-center justify-center rounded-full border", selected ? "border-ink" : "border-stone")} aria-hidden>
-                          {selected && <span className="h-2.5 w-2.5 rounded-full bg-ink" />}
+                        <span className={cn("flex h-5 w-5 shrink-0 items-center justify-center rounded-full border", selected ? "border-brand" : "border-stone")} aria-hidden>
+                          {selected && <span className="h-2.5 w-2.5 rounded-full bg-brand" />}
                         </span>
-                        <span className="flex-1 text-[16px] tracking-[-0.031em]">{m.label}</span>
+                        <span className="flex-1 text-[15px] font-medium tracking-[-0.031em]">{m.label}</span>
                         {hint && <span className="text-[12px] text-muted">{hint}</span>}
                       </button>
                     );
@@ -262,16 +268,30 @@ export default function CartPage() {
             </form>
           )}
 
-          <aside className="h-fit rounded-[28px] bg-surface p-5 shadow-card sm:p-6 lg:sticky lg:top-8" aria-label="Order summary">
+          <aside className="h-fit rounded-[32px] bg-surface p-5 shadow-soft sm:p-6 lg:sticky lg:top-8" aria-label="Order summary">
             {summary}
-            {fee > 0 && <p className="mt-1 text-[12px] text-muted">Free delivery from {formatNaira(10000)}.</p>}
+            {fee > 0 && <p className="mt-1 text-[12px] text-muted">Free delivery on orders of {formatNaira(10000)} or more.</p>}
+
+            {/* Escrow Guarantee Callout beside pay button */}
+            <div className="mt-4 rounded-2xl bg-brand-wash p-3 text-[12px] text-brand-deep">
+              <p className="font-bold flex items-center gap-1.5">
+                <ShieldCheck className="h-4 w-4 text-brand" />
+                LuxeBeau Escrow Protection
+              </p>
+              <p className="mt-1 opacity-90 leading-tight">
+                Your payment is held securely in escrow. Sellers are only paid after you inspect and confirm your package.
+              </p>
+            </div>
+
             {checkout ? (
               <Button type="submit" form="checkout" size="lg" disabled={createOrder.isPending || walletShort} className="mt-5 w-full">
                 {createOrder.isPending && <Loader2 className="animate-spin" aria-hidden />}
                 Place order · {formatNaira(total)}
               </Button>
             ) : (
-              <Button onClick={startCheckout} size="lg" className="mt-5 w-full">Checkout</Button>
+              <Button onClick={startCheckout} size="lg" className="mt-5 w-full">
+                Checkout
+              </Button>
             )}
           </aside>
         </div>
