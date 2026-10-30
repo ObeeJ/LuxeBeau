@@ -4,12 +4,15 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "opennextjs-cloudflare build",
     "start": "next start",
     "test": "jest",
-    "lint": "eslint"
+    "lint": "eslint",
+    "deploy": "opennextjs-cloudflare build && wrangler pages deploy",
+    "preview": "opennextjs-cloudflare build && wrangler pages dev"
   },
   "dependencies": {
+    "@opennextjs/cloudflare": "^1.20.14",
     "@paper-design/shaders-react": "^0.0.76",
     "@radix-ui/react-dialog": "^1.1.16",
     "@radix-ui/react-label": "^2.1.9",
@@ -68,6 +71,10 @@
       "js-yaml@^4": "^4.3.2",
       "form-data@^4": "^4.0.6",
       "handlebars@^4": "^4.7.10"
-    }
+    },
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "workerd"
+    ]
   }
 }
