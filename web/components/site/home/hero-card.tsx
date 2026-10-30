@@ -29,7 +29,7 @@ export function HeroCard() {
           />
         </h1>
         <p className="mt-4 max-w-[520px] text-[16px] leading-snug tracking-[-0.02em] text-surface/90 sm:text-[17px]">
-          Shop beauty for her, him and everyone, or book an artisan, with every payment held in escrow until you confirm.
+          Shop beauty for her, him and everyone, or book an artisan, with your payment held safely until you confirm.
         </p>
         <div className="mt-6 flex flex-wrap items-center justify-center gap-2.5">
           <Link
