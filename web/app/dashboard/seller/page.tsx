@@ -28,7 +28,7 @@ import { type ApiProduct } from "@/lib/api";
 import { formatNaira } from "@/lib/format";
 import { getFriendlyErrorMessage } from "@/lib/errors";
 
-const CATEGORIES = ["Skincare", "Haircare", "Makeup", "Fragrance", "Body"] as const;
+const CATEGORIES = ["Skincare", "Haircare", "Makeup", "Fragrance", "Body", "Nails", "Grooming", "Jewellery"] as const;
 
 type Editing = { mode: "new" } | { mode: "edit"; product: ApiProduct } | null;
 type Tab = "products" | "orders" | "profile" | "verification";

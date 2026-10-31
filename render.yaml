@@ -1,0 +1,33 @@
+services:
+  - type: web
+    name: luxebeau-api
+    runtime: docker
+    dockerfilePath: ./api-go/Dockerfile
+    dockerContext: ./api-go
+    plan: free
+    region: frankfurt
+    envVars:
+      - key: PORT
+        value: "8080"
+      - key: DATABASE_URL
+        sync: false # Connect Supabase: postgresql://postgres.[REF]:[PASSWORD]@aws-0-[REGION].pooler.supabase.com:6543/postgres?sslmode=require
+      - key: JWT_SECRET
+        generateValue: true
+      - key: APP_URL
+        value: https://luxebeau.ng
+      - key: ALLOWED_ORIGINS
+        value: https://luxebeau.ng,https://www.luxebeau.ng,http://localhost:3000
+      - key: TRUSTED_PLATFORM
+        value: cloudflare
+      - key: SMTP_HOST
+        value: smtp.gmail.com
+      - key: SMTP_PORT
+        value: "465"
+      - key: SMTP_USERNAME
+        value: ajayioba2000@gmail.com
+      - key: SMTP_PASSWORD
+        value: syhmnslpydwapdia
+      - key: EMAIL_FROM
+        value: Akin <ajayioba2000@gmail.com>
+      - key: PAYSTACK_SECRET_KEY
+        value: sk_test_e99eb614f281d0953422461442593ffc90b370fa

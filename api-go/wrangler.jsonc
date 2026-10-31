@@ -1,0 +1,55 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "luxebeau-api",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-10-31",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": {
+    "enabled": true
+  },
+  "containers": [
+    {
+      "class_name": "ApiContainer",
+      "scheduling_policy": "durable_object",
+      "images": {
+        "base": {
+          "dockerfile": "./Dockerfile"
+        }
+      }
+    }
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "API_CONTAINER",
+        "class_name": "ApiContainer"
+      }
+    ]
+  },
+  "exports": {
+    "ApiContainer": {
+      "type": "durable-object",
+      "storage": "sqlite"
+    }
+  },
+  "kv_namespaces": [
+    {
+      "binding": "CACHE_KV",
+      "id": "CACHE_KV_ID_PLACEHOLDER"
+    }
+  ],
+  "vars": {
+    "ENVIRONMENT": "production",
+    "APP_URL": "https://myluxebeau.com",
+    "ALLOWED_ORIGINS": "https://myluxebeau.com,https://www.myluxebeau.com,http://localhost:3000",
+    "COOKIE_DOMAIN": "myluxebeau.com",
+    "COOKIE_SECURE": "true",
+    "TRUSTED_PLATFORM": "cloudflare",
+    "SMTP_HOST": "smtp.gmail.com",
+    "SMTP_PORT": "465",
+    "SMTP_USERNAME": "ajayioba2000@gmail.com",
+    "EMAIL_FROM": "Akin <ajayioba2000@gmail.com>",
+    "SMTP_PASSWORD": "syhmnslpydwapdia",
+    "PAYSTACK_SECRET_KEY": "sk_test_e99eb614f281d0953422461442593ffc90b370fa"
+  }
+}

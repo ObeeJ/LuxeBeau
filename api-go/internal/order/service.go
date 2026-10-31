@@ -31,123 +31,102 @@ func (s *orderService) CreateCheckout(ctx context.Context, buyerID string, items
 	Qty       int  `json:"qty"`
 }, address, city, state, phone, payMethod string) (*domain.Order, error) {
 
-	tx := s.db.Begin()
-	if tx.Error != nil {
-		return nil, tx.Error
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			tx.Rollback()
-		}
-	}()
+	var order *domain.Order
+	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var orderItems []domain.OrderItem
+		var subtotal int64
 
-	var orderItems []domain.OrderItem
-	var subtotal int64
-
-	for _, item := range items {
-		// Defence in depth: a non-positive quantity would add stock and make
-		// the total negative (crediting a wallet payment).
-		if item.Qty < 1 || item.Qty > 100 {
-			tx.Rollback()
-			return nil, fmt.Errorf("invalid quantity for product %d", item.ProductID)
-		}
-		var prod domain.Product
-		// Lock the row for update to prevent race conditions (native GORM v2 clause).
-		// Only products from admin-approved sellers can be bought.
-		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
-			Where("seller_id IN (?)", tx.Model(&domain.User{}).Select("id").Where("verified = ?", true)).
-			First(&prod, item.ProductID).Error; err != nil {
-			tx.Rollback()
-			return nil, fmt.Errorf("product %d not found", item.ProductID)
-		}
-		if prod.Stock < item.Qty {
-			tx.Rollback()
-			return nil, fmt.Errorf("insufficient stock for %s (available: %d, requested: %d)", prod.Name, prod.Stock, item.Qty)
-		}
-
-		// Decrement stock
-		prod.Stock -= item.Qty
-		if err := tx.Save(&prod).Error; err != nil {
-			tx.Rollback()
-			return nil, fmt.Errorf("failed to update stock: %w", err)
+		for _, item := range items {
+			// Defence in depth: a non-positive quantity would add stock and make
+			// the total negative (crediting a wallet payment).
+			if item.Qty < 1 || item.Qty > 100 {
+				return fmt.Errorf("invalid quantity for product %d", item.ProductID)
+			}
+			var prod domain.Product
+			// Lock the row for update to prevent race conditions.
+			// Only products from admin-approved sellers can be bought.
+			if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+				Where("seller_id IN (?)", tx.Model(&domain.User{}).Select("id").Where("verified = ?", true)).
+				First(&prod, item.ProductID).Error; err != nil {
+				return fmt.Errorf("product %d not found", item.ProductID)
+			}
+			if prod.Stock < item.Qty {
+				return fmt.Errorf("insufficient stock for %s (available: %d, requested: %d)", prod.Name, prod.Stock, item.Qty)
+			}
+			prod.Stock -= item.Qty
+			if err := tx.Save(&prod).Error; err != nil {
+				return fmt.Errorf("failed to update stock: %w", err)
+			}
+			subtotal += prod.Price * int64(item.Qty)
+			orderItems = append(orderItems, domain.OrderItem{
+				ProductID: item.ProductID,
+				Qty:       item.Qty,
+				Price:     prod.Price,
+			})
 		}
 
-		lineTotal := prod.Price * int64(item.Qty)
-		subtotal += lineTotal
+		// Calculate delivery fee (free above ₦10,000 = 1,000,000 kobo)
+		var deliveryFee int64
+		if subtotal < 1000000 {
+			deliveryFee = 150000 // ₦1,500
+		}
 
-		orderItems = append(orderItems, domain.OrderItem{
-			ProductID: item.ProductID,
-			Qty:       item.Qty,
-			Price:     prod.Price,
-		})
-	}
+		orderID, err := newOrderID()
+		if err != nil {
+			return err
+		}
 
-	// Calculate delivery fee (free above ₦10,000 = 1,000,000 kobo)
-	var deliveryFee int64
-	if subtotal < 1000000 {
-		deliveryFee = 150000 // ₦1,500
-	}
+		o := &domain.Order{
+			ID:             orderID,
+			BuyerID:        buyerID,
+			Items:          orderItems,
+			Subtotal:       subtotal,
+			DeliveryFee:    deliveryFee,
+			Total:          subtotal + deliveryFee,
+			PaymentMethod:  payMethod,
+			PaymentStatus:  "pending",
+			ShippingStatus: "pending",
+			Address:        address,
+			City:           city,
+			State:          state,
+			Phone:          phone,
+		}
 
-	orderID, err := newOrderID()
+		if payMethod == "wallet" {
+			// Conditional UPDATE: debit only if balance is sufficient.
+			// Avoids the read-then-write race of the old pattern.
+			res := tx.Model(&domain.Wallet{}).
+				Where("user_id = ? AND balance >= ?", buyerID, o.Total).
+				Update("balance", gorm.Expr("balance - ?", o.Total))
+			if res.Error != nil {
+				return fmt.Errorf("failed to deduct wallet balance: %w", res.Error)
+			}
+			if res.RowsAffected == 0 {
+				return fmt.Errorf("insufficient wallet balance")
+			}
+			o.PaymentStatus = "paid"
+		}
+
+		if err := tx.Create(o).Error; err != nil {
+			return fmt.Errorf("failed to create order: %w", err)
+		}
+
+		// A wallet order is paid at checkout, so its money goes into escrow in the
+		// same transaction. Other payment methods are held when the payment is
+		// confirmed (ConfirmPayment).
+		if o.PaymentStatus == "paid" {
+			if _, err := escrow.HoldOrder(tx, o); err != nil {
+				return fmt.Errorf("failed to hold order payment: %w", err)
+			}
+		}
+
+		order = o
+		return nil
+	})
 	if err != nil {
-		tx.Rollback()
 		return nil, err
 	}
-
-	order := &domain.Order{
-		ID:             orderID,
-		BuyerID:        buyerID,
-		Items:          orderItems,
-		Subtotal:       subtotal,
-		DeliveryFee:    deliveryFee,
-		Total:          subtotal + deliveryFee,
-		PaymentMethod:  payMethod,
-		PaymentStatus:  "pending",
-		ShippingStatus: "pending",
-		Address:        address,
-		City:           city,
-		State:          state,
-		Phone:          phone,
-	}
-
-	if payMethod == "wallet" {
-		var wallet domain.Wallet
-		if err := tx.Where("user_id = ?", buyerID).First(&wallet).Error; err != nil {
-			tx.Rollback()
-			return nil, fmt.Errorf("wallet not found for buyer")
-		}
-		if wallet.Balance < order.Total {
-			tx.Rollback()
-			return nil, fmt.Errorf("insufficient wallet balance (available: %d kobo, required: %d kobo)", wallet.Balance, order.Total)
-		}
-		wallet.Balance -= order.Total
-		if err := tx.Save(&wallet).Error; err != nil {
-			tx.Rollback()
-			return nil, fmt.Errorf("failed to deduct wallet balance: %w", err)
-		}
-		order.PaymentStatus = "paid"
-	}
-
-	if err := tx.Create(order).Error; err != nil {
-		tx.Rollback()
-		return nil, fmt.Errorf("failed to create order: %w", err)
-	}
-
-	// A wallet order is paid at checkout, so its money goes into escrow in the
-	// same transaction. Other payment methods are held when the payment is
-	// confirmed (ConfirmPayment).
-	if order.PaymentStatus == "paid" {
-		if _, err := escrow.HoldOrder(tx, order); err != nil {
-			tx.Rollback()
-			return nil, fmt.Errorf("failed to hold order payment: %w", err)
-		}
-	}
-
-	if err := tx.Commit().Error; err != nil {
-		return nil, fmt.Errorf("failed to commit transaction: %w", err)
-	}
-
-	s.logger.Info("Order created", slog.String("id", orderID), slog.String("buyer", buyerID), slog.Int64("total", order.Total))
+	s.logger.Info("Order created", slog.String("id", order.ID), slog.String("buyer", buyerID), slog.Int64("total", order.Total))
 	return order, nil
 }
 

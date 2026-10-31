@@ -9,6 +9,7 @@ const TINTS: Record<string, [string, string]> = {
   makeup: ["#d6336c", "#ffe0ea"],
   body: ["#c8a27a", "#fbefe3"],
   nails: ["#b4235a", "#ffc4d6"],
+  jewellery: ["#c8860a", "#fff3d1"],
   artisans: ["#6f16a3", "#e9d6ff"],
 };
 

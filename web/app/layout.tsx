@@ -26,7 +26,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en-NG" className={geist.variable}>
+    <html lang="en-NG" className={geist.variable} suppressHydrationWarning>
       <body>
         <Providers>{children}</Providers>
       </body>

@@ -31,16 +31,30 @@ func (h *Handler) Initiate(c *gin.Context) {
 		response.BadRequest(c, "Enter a valid amount, bank code and 10-digit account number.")
 		return
 	}
+	// Idempotency-Key header lets clients safely retry without double-debiting.
+	idempotencyKey := c.GetHeader("Idempotency-Key")
+	if idempotencyKey == "" {
+		response.BadRequest(c, "Idempotency-Key header is required.")
+		return
+	}
+	if len(idempotencyKey) > 80 {
+		response.BadRequest(c, "Idempotency-Key must be 80 characters or fewer.")
+		return
+	}
 	uid, _ := c.Get("userID")
 	w, err := h.service.Initiate(c.Request.Context(), WithdrawInput{
-		UserID:        uid.(string),
-		Amount:        req.Amount,
-		BankCode:      req.BankCode,
-		AccountNumber: req.AccountNumber,
-		AccountName:   req.AccountName,
+		UserID:         uid.(string),
+		Amount:         req.Amount,
+		BankCode:       req.BankCode,
+		AccountNumber:  req.AccountNumber,
+		AccountName:    req.AccountName,
+		IdempotencyKey: idempotencyKey,
 	})
 	switch err {
 	case nil:
+	case ErrDuplicateWithdrawal:
+		response.Conflict(c, "This withdrawal was already submitted. Check your withdrawal history.")
+		return
 	case ErrInsufficientBalance:
 		response.Conflict(c, "Your wallet balance is too low for this withdrawal.")
 		return

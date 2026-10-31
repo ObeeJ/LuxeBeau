@@ -8,8 +8,8 @@
     "start": "next start",
     "test": "jest",
     "lint": "eslint",
-    "deploy": "opennextjs-cloudflare build && wrangler pages deploy",
-    "preview": "opennextjs-cloudflare build && wrangler pages dev"
+    "deploy": "opennextjs-cloudflare build && wrangler pages deploy --project-name luxebeau",
+    "preview": "opennextjs-cloudflare build && wrangler pages dev --project-name luxebeau"
   },
   "dependencies": {
     "@opennextjs/cloudflare": "^1.20.14",

@@ -19,6 +19,7 @@ const BY_CATEGORY: Record<string, string[]> = {
   hair: ["hair-products", "hair-tools", "hair-wig", "hair-updo", "hair-man"].map(p),
   grooming: ["grooming-mask-man", "grooming-bath", "hair-man", "bath-routine"].map(p),
   nails: ["nails-red", "nails-tech", "nails-watch-rings"].map(p),
+  jewellery: ["nails-watch-rings"].map(p),
 };
 
 /* Same seed always gives the same photo, so a product never changes picture. */

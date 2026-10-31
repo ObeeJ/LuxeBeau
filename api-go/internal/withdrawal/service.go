@@ -17,9 +17,9 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
-	"github.com/google/uuid"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
@@ -27,10 +27,11 @@ import (
 )
 
 var (
-	ErrInsufficientBalance = errors.New("insufficient wallet balance")
-	ErrKYCRequired         = errors.New("identity verification required before withdrawing")
-	ErrMinAmount           = errors.New("minimum withdrawal is ₦1,000")
-	ErrNotFound            = errors.New("withdrawal not found")
+	ErrInsufficientBalance  = errors.New("insufficient wallet balance")
+	ErrKYCRequired          = errors.New("identity verification required before withdrawing")
+	ErrMinAmount            = errors.New("minimum withdrawal is ₦1,000")
+	ErrNotFound             = errors.New("withdrawal not found")
+	ErrDuplicateWithdrawal  = errors.New("duplicate withdrawal: this idempotency key was already used")
 )
 
 const minWithdrawalKobo = 100_000 // ₦1,000
@@ -52,11 +53,12 @@ func NewService(db *gorm.DB, paystackSecret string, logger *slog.Logger) *Servic
 
 // WithdrawInput is what the partner submits.
 type WithdrawInput struct {
-	UserID        string
-	Amount        int64  // kobo
-	BankCode      string // e.g. "058" for GTBank
-	AccountNumber string
-	AccountName   string // partner confirms this matches their account
+	UserID         string
+	Amount         int64  // kobo
+	BankCode       string // e.g. "058" for GTBank
+	AccountNumber  string
+	AccountName    string // partner confirms this matches their account
+	IdempotencyKey string // caller-supplied; enforced unique in DB
 }
 
 // Initiate debits the wallet and queues the payout. It returns immediately;
@@ -81,11 +83,14 @@ func (s *Service) Initiate(ctx context.Context, in WithdrawInput) (*domain.Withd
 		BankCode:       in.BankCode,
 		AccountNumber:  in.AccountNumber,
 		AccountName:    in.AccountName,
-		IdempotencyKey: uuid.NewString(),
+		IdempotencyKey: in.IdempotencyKey,
 		State:          domain.WithdrawalPending,
 	}
 
 	// Debit wallet and create withdrawal row atomically.
+	// The uniqueIndex on idempotency_key means a duplicate key returns a DB
+	// constraint error — caller receives ErrDuplicateWithdrawal so they know
+	// the original request already succeeded.
 	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		res := tx.Model(&domain.Wallet{}).
 			Where("user_id = ? AND balance >= ?", in.UserID, in.Amount).
@@ -96,7 +101,14 @@ func (s *Service) Initiate(ctx context.Context, in WithdrawInput) (*domain.Withd
 		if res.RowsAffected == 0 {
 			return ErrInsufficientBalance
 		}
-		return tx.Create(w).Error
+		if err := tx.Create(w).Error; err != nil {
+			// Postgres unique_violation = SQLSTATE 23505
+			if strings.Contains(err.Error(), "23505") || strings.Contains(err.Error(), "unique") {
+				return ErrDuplicateWithdrawal
+			}
+			return err
+		}
+		return nil
 	})
 	if err != nil {
 		return nil, err

@@ -76,6 +76,11 @@ func main() {
 		&domain.LedgerEntry{},
 		&domain.EmailOTP{},
 		&domain.RefreshToken{},
+		&domain.Withdrawal{},
+		&domain.DeliveryZone{},
+		&domain.InfluencerPackage{},
+		&domain.InfluencerReferral{},
+		&domain.InfluencerCommission{},
 	); err != nil {
 		logger.Error("Auto-migration failed", slog.Any("error", err))
 		os.Exit(1)
