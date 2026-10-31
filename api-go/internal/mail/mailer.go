@@ -54,7 +54,7 @@ func New(cfg Config, logger *slog.Logger) *Mailer {
 
 func NewWithSender(sender Sender, from, appURL string, logger *slog.Logger) *Mailer {
 	if from == "" {
-		from = "LuxeBeau <no-reply@luxebeau.ng>"
+		from = "LuxeBeau <no-reply@myluxebeau.com>"
 	}
 	pages := map[string]*template.Template{}
 	for _, name := range []string{"verify_code", "order_placed", "booking"} {
