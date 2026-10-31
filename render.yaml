@@ -14,9 +14,9 @@ services:
       - key: JWT_SECRET
         generateValue: true
       - key: APP_URL
-        value: https://luxebeau.ng
+        value: https://myluxebeau.com
       - key: ALLOWED_ORIGINS
-        value: https://luxebeau.ng,https://www.luxebeau.ng,http://localhost:3000
+        value: https://myluxebeau.com,https://www.myluxebeau.com,http://localhost:3000
       - key: TRUSTED_PLATFORM
         value: cloudflare
       - key: SMTP_HOST
