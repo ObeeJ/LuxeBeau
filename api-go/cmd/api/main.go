@@ -50,7 +50,12 @@ func main() {
 	}
 
 	// ── Database (GORM + Supabase PostgreSQL) ───────────────
-	db, err := gorm.Open(postgres.Open(dbURL), &gorm.Config{})
+	db, err := gorm.Open(postgres.New(postgres.Config{
+		DSN:                  dbURL,
+		PreferSimpleProtocol: true, // disables prepared statement caching to support Supabase PgBouncer transaction pooling
+	}), &gorm.Config{
+		PrepareStmt: false,
+	})
 	if err != nil {
 		logger.Error("Failed to connect to database", slog.Any("error", err))
 		os.Exit(1)

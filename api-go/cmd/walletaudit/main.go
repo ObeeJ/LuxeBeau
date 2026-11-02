@@ -39,7 +39,10 @@ func main() {
 		fmt.Fprintln(os.Stderr, "DATABASE_URL is required (this tool never guesses which database to audit)")
 		os.Exit(2)
 	}
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
+	db, err := gorm.Open(postgres.New(postgres.Config{
+		DSN:                  dsn,
+		PreferSimpleProtocol: true,
+	}), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent), PrepareStmt: false})
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "cannot connect:", err)
 		os.Exit(1)

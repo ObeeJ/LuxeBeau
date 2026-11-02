@@ -1,6 +1,7 @@
 # Go Binaries and Build Artifacts
-api
 /api
+/server
+/walletaudit
 *.exe
 *.exe~
 *.dll

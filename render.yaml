@@ -16,7 +16,7 @@ services:
       - key: APP_URL
         value: https://myluxebeau.com
       - key: ALLOWED_ORIGINS
-        value: https://myluxebeau.com,https://www.myluxebeau.com,https://luxebeau.ajayioba2000.workers.dev,http://localhost:3000
+        value: https://myluxebeau.com,https://www.myluxebeau.com,https://luxebeau.ajayioba2000.workers.dev,https://luxebeau.pages.dev,http://localhost:3000
       - key: TRUSTED_PLATFORM
         value: cloudflare
       - key: SMTP_HOST
