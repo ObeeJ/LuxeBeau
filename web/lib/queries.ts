@@ -360,6 +360,17 @@ export async function fetchSessionUser(): Promise<User | null> {
   }
 }
 
+export function useUpdateProfile() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { name?: string; phone?: string; jurisdiction?: string }) =>
+      apiFetch("/me/profile", sessionUserSchema, { method: "PATCH", body: input }),
+    onSuccess: ({ user }) => {
+      qc.setQueryData(["me"], user);
+    },
+  });
+}
+
 export function useLogin() {
   return useMutation({
     mutationFn: (input: LoginInput) =>
@@ -481,6 +492,8 @@ export interface OnboardArtisanInput {
 
 export interface OnboardSellerInput {
   cac_number: string;
+  city?: string;
+  state?: string;
 }
 
 export function useOnboardArtisan() {

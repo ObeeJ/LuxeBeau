@@ -7,12 +7,13 @@ import SiteShell from "@/components/site/shell";
 import { AlreadyPartner, PartnerFrame, SignInPrompt } from "@/components/site/partner";
 import { FieldError } from "@/components/site/states";
 import { useAuth } from "@/lib/store";
-import { useOnboardSeller } from "@/lib/queries";
+import { useOnboardSeller, useUpdateProfile } from "@/lib/queries";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getFriendlyErrorMessage } from "@/lib/errors";
+import { NG_STATES } from "@/lib/data";
 
 export default function SellerOnboarding() {
   const router = useRouter();
@@ -20,8 +21,11 @@ export default function SellerOnboarding() {
   const status = useAuth((s) => s.status);
   const updateUser = useAuth((s) => s.updateUser);
   const onboardSeller = useOnboardSeller();
+  const updateProfile = useUpdateProfile();
 
   const [cacNumber, setCacNumber] = useState("");
+  const [city, setCity] = useState("");
+  const [state, setState] = useState("");
   const [error, setError] = useState("");
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -41,6 +45,10 @@ export default function SellerOnboarding() {
             cac_number: cac,
             ...(user?.role !== "seller" && { verified: false }),
           });
+          // Fire-and-forget location update; non-blocking.
+          if (city.trim() || state.trim()) {
+            updateProfile.mutate({ jurisdiction: [city.trim(), state.trim()].filter(Boolean).join(", ") });
+          }
           router.push("/dashboard/seller");
         },
         onError: (err) =>
@@ -88,18 +96,45 @@ export default function SellerOnboarding() {
               Signed in as {user.email}
             </p>
 
-            <div className="mt-5">
-              <Label htmlFor="cac">CAC Registration Number (RC or BN)</Label>
-              <Input
-                id="cac"
-                value={cacNumber}
-                onChange={(e) => setCacNumber(e.target.value)}
-                placeholder="RC 1234567"
-                autoComplete="off"
-                className="mt-1.5"
-                aria-invalid={Boolean(error)}
-              />
-              <FieldError>{error}</FieldError>
+            <div className="mt-5 space-y-4">
+              <div>
+                <Label htmlFor="cac">CAC Registration Number (RC or BN)</Label>
+                <Input
+                  id="cac"
+                  value={cacNumber}
+                  onChange={(e) => setCacNumber(e.target.value)}
+                  placeholder="RC 1234567"
+                  autoComplete="off"
+                  className="mt-1.5"
+                  aria-invalid={Boolean(error)}
+                />
+                <FieldError>{error}</FieldError>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <Label htmlFor="seller-state">State</Label>
+                  <select
+                    id="seller-state"
+                    value={state}
+                    onChange={e => setState(e.target.value)}
+                    className="lb-input mt-1.5 h-11"
+                  >
+                    <option value="">Select state</option>
+                    {NG_STATES.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <Label htmlFor="seller-city">City / Area</Label>
+                  <Input
+                    id="seller-city"
+                    value={city}
+                    onChange={e => setCity(e.target.value)}
+                    placeholder="Ikeja"
+                    className="mt-1.5"
+                  />
+                </div>
+              </div>
             </div>
 
             <Button

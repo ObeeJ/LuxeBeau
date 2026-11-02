@@ -18,10 +18,12 @@ type User struct {
 	Phone         string     `gorm:"type:varchar(20)" json:"phone"`
 	Role          string     `gorm:"type:varchar(20);default:'buyer'" json:"role"`
 	Status        string     `gorm:"type:varchar(20);default:'active'" json:"status"`         // active, suspended
-	Jurisdiction  string     `gorm:"type:varchar(80)" json:"jurisdiction"`                    // Nigerian state the user operates in
+	CountryCode   string     `gorm:"type:varchar(2);default:'NG'" json:"country_code"`        // ISO 3166-1 alpha-2
+	Jurisdiction  string     `gorm:"type:varchar(80)" json:"jurisdiction"`                    // state / region within country
 	Verified      bool       `gorm:"type:boolean;default:false" json:"verified"`              // quality-checked / verified badge
 	CACNumber     string     `gorm:"type:varchar(30)" json:"cac_number"`                      // business registration (sellers/artisans)
 	KYCStatus     string     `gorm:"type:varchar(20);default:'unverified'" json:"kyc_status"` // unverified, pending, verified, failed
+	KYCProvider   string     `gorm:"type:varchar(30)" json:"-"`                               // prembly, smile, stripe, manual
 	CreatedAt     time.Time  `json:"created_at"`
 	UpdatedAt     time.Time  `json:"updated_at"`
 }

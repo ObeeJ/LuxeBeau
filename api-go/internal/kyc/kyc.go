@@ -1,11 +1,15 @@
-// Package kyc isolates identity verification (NIN/BVN) behind a provider
-// interface so the rest of the app never depends on Prembly directly. The real
-// Prembly client is a clean stub today: with no API key configured it returns a
-// deterministic "pending" result, so the flow is wired end-to-end and only the
-// network call needs filling in once credentials exist.
+// Package kyc isolates identity verification behind a Provider interface so
+// the rest of the app never depends on any single vendor. Providers are routed
+// by the user's country code (ISO 3166-1 alpha-2).
 //
-// SECURITY: raw NIN/BVN values are never persisted. Only the resulting status
-// (and, in future, a provider reference) is stored on the user record.
+// Tier map:
+//   NG          → Prembly (NIN / BVN)
+//   GH,KE,ZA,EG → Smile Identity (national ID / passport)
+//   GB,US,CA,AU → Stripe Identity (passport / driving licence liveness)
+//   *           → Manual review (admin uploads document)
+//
+// SECURITY: raw document numbers are never persisted. Only the resulting
+// status and provider name are stored on the user record.
 package kyc
 
 import (
@@ -18,27 +22,33 @@ import (
 	"luxebeau/internal/domain"
 )
 
+// Kind is the document type the user is submitting.
 type Kind string
 
 const (
-	NIN Kind = "nin"
-	BVN Kind = "bvn"
+	NIN      Kind = "nin"       // Nigeria National ID Number
+	BVN      Kind = "bvn"       // Nigeria Bank Verification Number
+	NationalID Kind = "national_id" // Generic national ID (non-NG)
+	Passport Kind = "passport"  // International passport
 )
 
 // Result is the normalised outcome of a verification attempt.
 type Result struct {
-	Status    string `json:"status"` // verified, pending, failed
-	Reference string `json:"reference,omitempty"`
+	Status    string `json:"status"`              // verified, pending, failed
+	Reference string `json:"reference,omitempty"` // provider's own reference
+	Provider  string `json:"provider"`
 }
 
-// Provider abstracts the identity vendor (Prembly).
+// Provider abstracts an identity vendor.
 type Provider interface {
 	Verify(ctx context.Context, kind Kind, value string) (Result, error)
 	Name() string
+	// SupportedKinds returns the document types this provider accepts.
+	SupportedKinds() []Kind
 }
 
-// PremblyProvider talks to Prembly's Identity Pass API. Without an API key it
-// degrades to a stub that returns "pending" (queued for manual review).
+// ── Prembly (Nigeria: NIN / BVN) ─────────────────────────────────────────────
+
 type PremblyProvider struct {
 	apiKey string
 	appID  string
@@ -50,49 +60,171 @@ func NewPremblyProvider(apiKey, appID string, logger *slog.Logger) *PremblyProvi
 }
 
 func (p *PremblyProvider) Name() string { return "prembly" }
+func (p *PremblyProvider) SupportedKinds() []Kind { return []Kind{NIN, BVN} }
 
 func (p *PremblyProvider) Verify(ctx context.Context, kind Kind, value string) (Result, error) {
 	if p.apiKey == "" {
-		// No credentials yet: accept the submission and queue it for review.
 		p.logger.Info("KYC stub: no Prembly key, queuing for manual review", slog.String("kind", string(kind)))
-		return Result{Status: "pending"}, nil
+		return Result{Status: "pending", Provider: p.Name()}, nil
 	}
-	// TODO: real Prembly call once keys are provisioned, e.g.
-	//   POST https://api.prembly.com/identitypass/verification/{nin|bvn}
+	// TODO: POST https://api.prembly.com/identitypass/verification/{nin|bvn}
 	//   headers: x-api-key, app-id; body: {number: value}
-	// Map the vendor response to Result{Status,Reference}.
 	p.logger.Info("KYC verify via Prembly", slog.String("kind", string(kind)))
-	return Result{Status: "pending"}, nil
+	return Result{Status: "pending", Provider: p.Name()}, nil
 }
 
-// Service runs a verification and records only the status on the user.
-type Service struct {
-	provider Provider
-	db       *gorm.DB
-	logger   *slog.Logger
+// ── Smile Identity (Ghana, Kenya, South Africa, Egypt + 30 more African countries) ──
+
+type SmileProvider struct {
+	apiKey    string
+	partnerId string
+	logger    *slog.Logger
 }
 
-func NewService(provider Provider, db *gorm.DB, logger *slog.Logger) *Service {
-	return &Service{provider: provider, db: db, logger: logger}
+func NewSmileProvider(apiKey, partnerId string, logger *slog.Logger) *SmileProvider {
+	return &SmileProvider{apiKey: apiKey, partnerId: partnerId, logger: logger}
 }
 
-func (s *Service) Submit(ctx context.Context, userID string, kind Kind, value string) (Result, error) {
-	value = strings.TrimSpace(value)
-	// Mark pending immediately so the UI reflects the in-flight state.
-	s.setStatus(ctx, userID, "pending")
+func (p *SmileProvider) Name() string { return "smile" }
+func (p *SmileProvider) SupportedKinds() []Kind { return []Kind{NationalID, Passport} }
 
-	res, err := s.provider.Verify(ctx, kind, value)
-	if err != nil {
-		s.setStatus(ctx, userID, "failed")
-		return Result{Status: "failed"}, err
+func (p *SmileProvider) Verify(ctx context.Context, kind Kind, value string) (Result, error) {
+	if p.apiKey == "" {
+		p.logger.Info("KYC stub: no Smile Identity key, queuing for manual review", slog.String("kind", string(kind)))
+		return Result{Status: "pending", Provider: p.Name()}, nil
 	}
-	s.setStatus(ctx, userID, res.Status)
+	// TODO: Smile Identity Web API v2 — ID verification endpoint
+	//   POST https://testapi.smileidentity.com/v1/id_verification
+	p.logger.Info("KYC verify via Smile Identity", slog.String("kind", string(kind)))
+	return Result{Status: "pending", Provider: p.Name()}, nil
+}
+
+// ── Stripe Identity (UK, US, CA, AU — passport / driving licence liveness) ───
+
+type StripeProvider struct {
+	secretKey string
+	logger    *slog.Logger
+}
+
+func NewStripeProvider(secretKey string, logger *slog.Logger) *StripeProvider {
+	return &StripeProvider{secretKey: secretKey, logger: logger}
+}
+
+func (p *StripeProvider) Name() string { return "stripe" }
+func (p *StripeProvider) SupportedKinds() []Kind { return []Kind{Passport, NationalID} }
+
+func (p *StripeProvider) Verify(ctx context.Context, kind Kind, value string) (Result, error) {
+	if p.secretKey == "" {
+		p.logger.Info("KYC stub: no Stripe key, queuing for manual review", slog.String("kind", string(kind)))
+		return Result{Status: "pending", Provider: p.Name()}, nil
+	}
+	// TODO: Stripe Identity — create VerificationSession, return client_secret
+	//   to the frontend for the Stripe.js modal, then webhook confirms result.
+	p.logger.Info("KYC verify via Stripe Identity", slog.String("kind", string(kind)))
+	return Result{Status: "pending", Provider: p.Name()}, nil
+}
+
+// ── Manual review (fallback for all other countries) ─────────────────────────
+
+type ManualProvider struct {
+	logger *slog.Logger
+}
+
+func NewManualProvider(logger *slog.Logger) *ManualProvider {
+	return &ManualProvider{logger: logger}
+}
+
+func (p *ManualProvider) Name() string { return "manual" }
+func (p *ManualProvider) SupportedKinds() []Kind { return []Kind{Passport, NationalID} }
+
+func (p *ManualProvider) Verify(ctx context.Context, kind Kind, value string) (Result, error) {
+	p.logger.Info("KYC queued for manual review", slog.String("kind", string(kind)))
+	// Manual review: admin will verify via the admin console and mark verified.
+	return Result{Status: "pending", Provider: p.Name()}, nil
+}
+
+// ── Router ────────────────────────────────────────────────────────────────────
+
+// smileCountries are African markets covered by Smile Identity.
+var smileCountries = map[string]bool{
+	"GH": true, "KE": true, "ZA": true, "EG": true,
+	"TZ": true, "UG": true, "RW": true, "ET": true,
+	"CI": true, "SN": true, "CM": true,
+}
+
+// stripeCountries are Western markets where Stripe Identity is available.
+var stripeCountries = map[string]bool{
+	"GB": true, "US": true, "CA": true, "AU": true,
+	"DE": true, "FR": true, "NL": true, "IE": true,
+}
+
+// ProviderRouter selects the right provider for a given country code.
+type ProviderRouter struct {
+	prembly *PremblyProvider
+	smile   *SmileProvider
+	stripe  *StripeProvider
+	manual  *ManualProvider
+}
+
+func NewProviderRouter(prembly *PremblyProvider, smile *SmileProvider, stripe *StripeProvider, manual *ManualProvider) *ProviderRouter {
+	return &ProviderRouter{prembly: prembly, smile: smile, stripe: stripe, manual: manual}
+}
+
+func (r *ProviderRouter) For(countryCode string) Provider {
+	cc := strings.ToUpper(strings.TrimSpace(countryCode))
+	switch {
+	case cc == "NG":
+		return r.prembly
+	case smileCountries[cc]:
+		return r.smile
+	case stripeCountries[cc]:
+		return r.stripe
+	default:
+		return r.manual
+	}
+}
+
+// KindsFor returns the document types accepted for a given country.
+func (r *ProviderRouter) KindsFor(countryCode string) []Kind {
+	return r.For(countryCode).SupportedKinds()
+}
+
+// ── Service ───────────────────────────────────────────────────────────────────
+
+type Service struct {
+	router *ProviderRouter
+	db     *gorm.DB
+	logger *slog.Logger
+}
+
+func NewService(router *ProviderRouter, db *gorm.DB, logger *slog.Logger) *Service {
+	return &Service{router: router, db: db, logger: logger}
+}
+
+func (s *Service) Submit(ctx context.Context, userID, countryCode string, kind Kind, value string) (Result, error) {
+	value = strings.TrimSpace(value)
+	provider := s.router.For(countryCode)
+
+	s.setStatus(ctx, userID, "pending", provider.Name())
+
+	res, err := provider.Verify(ctx, kind, value)
+	if err != nil {
+		s.setStatus(ctx, userID, "failed", provider.Name())
+		return Result{Status: "failed", Provider: provider.Name()}, err
+	}
+	s.setStatus(ctx, userID, res.Status, provider.Name())
 	return res, nil
 }
 
-func (s *Service) setStatus(ctx context.Context, userID, status string) {
+// KindsFor exposes the accepted document types for a country to the handler.
+func (s *Service) KindsFor(countryCode string) []Kind {
+	return s.router.KindsFor(countryCode)
+}
+
+func (s *Service) setStatus(ctx context.Context, userID, status, providerName string) {
+	updates := map[string]any{"kyc_status": status, "kyc_provider": providerName}
 	if err := s.db.WithContext(ctx).Model(&domain.User{}).
-		Where("id = ?", userID).Update("kyc_status", status).Error; err != nil {
+		Where("id = ?", userID).Updates(updates).Error; err != nil {
 		s.logger.Warn("failed to update kyc status", slog.String("user", userID), slog.Any("error", err))
 	}
 }

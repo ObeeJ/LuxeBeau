@@ -10,10 +10,14 @@ import { EmptyState, LoadError } from "@/components/site/states";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/store";
-import { useMyBookings, useMyOrders, useWallet } from "@/lib/queries";
+import { useMyBookings, useMyOrders, useUpdateProfile, useWallet } from "@/lib/queries";
 import { formatNaira, lagosToday } from "@/lib/format";
 import { type MyBooking, type MyOrder } from "@/lib/api";
 import { useAuthModal } from "@/components/auth/auth-dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { FieldError } from "@/components/site/states";
+import { NG_STATES } from "@/lib/data";
 
 type Tab = "orders" | "bookings" | "account";
 
@@ -64,6 +68,32 @@ export default function DashboardHome() {
   const orders = useMyOrders(enabled);
   const bookings = useMyBookings(enabled);
   const wallet = useWallet(enabled);
+  const updateProfile = useUpdateProfile();
+  const [editName, setEditName] = useState("");
+  const [editPhone, setEditPhone] = useState("");
+  const [editState, setEditState] = useState("");
+  const [editing, setEditing] = useState(false);
+  const [profileError, setProfileError] = useState("");
+  const updateUser = useAuth(s => s.updateUser);
+
+  const startEdit = () => {
+    setEditName(user?.name ?? "");
+    setEditPhone(user?.phone ?? "");
+    setEditState(user?.jurisdiction ?? "");
+    setProfileError("");
+    setEditing(true);
+  };
+
+  const saveProfile = (e: React.FormEvent) => {
+    e.preventDefault();
+    updateProfile.mutate(
+      { name: editName.trim() || undefined, phone: editPhone.trim() || undefined, jurisdiction: editState || undefined },
+      {
+        onSuccess: ({ user: u }) => { updateUser(u); setEditing(false); },
+        onError: () => setProfileError("Couldn't save. Please try again."),
+      },
+    );
+  };
 
   if (status === "loading") return <ListSkeleton />;
 
@@ -149,25 +179,54 @@ export default function DashboardHome() {
 
       {tab === "account" && (
         <Panel aria-label="Account details">
-          <dl className="divide-y divide-hairline text-[14px] tracking-[-0.014em]">
-            {[
-              ["Name", user.name],
-              ["Email", user.email],
-              ["Phone", user.phone || "Not added"],
-              ["Wallet balance", wallet.data ? formatNaira(wallet.data.balanceNGN) : "Unavailable"],
-            ].map(([k, v]) => (
-              <div key={k} className="flex justify-between gap-4 py-3">
-                <dt className="text-muted">{k}</dt>
-                <dd className="text-right">{v}</dd>
+          {editing ? (
+            <form onSubmit={saveProfile} className="space-y-4">
+              <div>
+                <Label htmlFor="edit-name">Name</Label>
+                <Input id="edit-name" value={editName} onChange={e => setEditName(e.target.value)} className="mt-1.5" />
               </div>
-            ))}
-          </dl>
-          {user.role === "buyer" && (
-            <p className="mt-5 text-[14px] tracking-[-0.014em] text-muted">
-              Selling beauty products or offering services?{" "}
-              <Link href="/partnership/seller" className="text-ink underline underline-offset-4">Sell on LuxeBeau</Link> or{" "}
-              <Link href="/partnership/artisan" className="text-ink underline underline-offset-4">join as an artisan</Link>.
-            </p>
+              <div>
+                <Label htmlFor="edit-phone">Phone</Label>
+                <Input id="edit-phone" value={editPhone} onChange={e => setEditPhone(e.target.value)} placeholder="0803 123 4567" className="mt-1.5" />
+              </div>
+              <div>
+                <Label htmlFor="edit-state">State</Label>
+                <select id="edit-state" value={editState} onChange={e => setEditState(e.target.value)} className="lb-input mt-1.5 h-11">
+                  <option value="">Select state</option>
+                  {NG_STATES.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+              <FieldError>{profileError}</FieldError>
+              <div className="flex gap-2">
+                <Button type="submit" disabled={updateProfile.isPending} size="sm">Save</Button>
+                <Button type="button" variant="outline" size="sm" onClick={() => setEditing(false)}>Cancel</Button>
+              </div>
+            </form>
+          ) : (
+            <>
+              <dl className="divide-y divide-hairline text-[14px] tracking-[-0.014em]">
+                {[
+                  ["Name", user.name],
+                  ["Email", user.email],
+                  ["Phone", user.phone || "Not added"],
+                  ["State", user.jurisdiction || "Not added"],
+                  ["Wallet balance", wallet.data ? formatNaira(wallet.data.balanceNGN) : "Unavailable"],
+                ].map(([k, v]) => (
+                  <div key={k} className="flex justify-between gap-4 py-3">
+                    <dt className="text-muted">{k}</dt>
+                    <dd className="text-right">{v}</dd>
+                  </div>
+                ))}
+              </dl>
+              <Button variant="outline" size="sm" className="mt-4" onClick={startEdit}>Edit profile</Button>
+              {user.role === "buyer" && (
+                <p className="mt-5 text-[14px] tracking-[-0.014em] text-muted">
+                  Selling beauty products or offering services?{" "}
+                  <Link href="/partnership/seller" className="text-ink underline underline-offset-4">Sell on LuxeBeau</Link> or{" "}
+                  <Link href="/partnership/artisan" className="text-ink underline underline-offset-4">join as an artisan</Link>.
+                </p>
+              )}
+            </>
           )}
         </Panel>
       )}

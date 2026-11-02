@@ -148,7 +148,11 @@ func main() {
 	adminRepo := admin.NewGormRepository(db)
 	adminService := admin.NewService(adminRepo, logger)
 	premblyProvider := kyc.NewPremblyProvider(os.Getenv("PREMBLY_API_KEY"), os.Getenv("PREMBLY_APP_ID"), logger)
-	kycService := kyc.NewService(premblyProvider, db, logger)
+	smileProvider := kyc.NewSmileProvider(os.Getenv("SMILE_API_KEY"), os.Getenv("SMILE_PARTNER_ID"), logger)
+	stripeProvider := kyc.NewStripeProvider(os.Getenv("STRIPE_SECRET_KEY"), logger)
+	manualProvider := kyc.NewManualProvider(logger)
+	kycRouter := kyc.NewProviderRouter(premblyProvider, smileProvider, stripeProvider, manualProvider)
+	kycService := kyc.NewService(kycRouter, db, logger)
 
 	// Handlers (HTTP presentation layer)
 	authHandler := auth.NewAuthHandler(authService, auth.CookieConfig{
@@ -255,6 +259,7 @@ func main() {
 	{
 		// Auth
 		protected.GET("/auth/me", authHandler.Me)
+		protected.PATCH("/me/profile", authHandler.UpdateProfile)
 
 		// Bookings (Rate Limited to 2 req/sec burst 5 to protect scheduler state)
 		protected.POST("/bookings", rateLimiter.RateLimit(2, 5), bookingHandler.CreateBooking)
@@ -272,6 +277,7 @@ func main() {
 		protected.GET("/me/bookings", bookingHandler.ListMyBookings)
 
 		// Identity verification (NIN/BVN via Prembly)
+		protected.GET("/me/kyc/kinds", kycHandler.Kinds)
 		protected.POST("/me/kyc", kycHandler.Submit)
 		protected.POST("/me/artisan-onboard", bookingHandler.OnboardArtisan)
 		protected.POST("/me/seller-onboard", bookingHandler.OnboardSeller)

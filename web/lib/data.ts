@@ -59,3 +59,13 @@ export const adminQueue = [
   { id: "V-298", name: "Damilare Cuts", type: "Artisan, Barber", city: "Ibadan", submitted: "2026-06-09", status: "Awaiting review" },
   { id: "V-296", name: "Òrékélèwà Cosmetics", type: "Seller, Makeup", city: "Lagos", submitted: "2026-06-08", status: "Approved" },
 ];
+
+/* Nigerian states for location selects. */
+export const NG_STATES = [
+  "Abia", "Adamawa", "Akwa Ibom", "Anambra", "Bauchi", "Bayelsa", "Benue",
+  "Borno", "Cross River", "Delta", "Ebonyi", "Edo", "Ekiti", "Enugu",
+  "FCT", "Gombe", "Imo", "Jigawa", "Kaduna", "Kano", "Katsina", "Kebbi",
+  "Kogi", "Kwara", "Lagos", "Nasarawa", "Niger", "Ogun", "Ondo", "Osun",
+  "Oyo", "Plateau", "Rivers", "Sokoto", "Taraba", "Yobe", "Zamfara",
+] as const;
+export type NgState = typeof NG_STATES[number];

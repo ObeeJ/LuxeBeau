@@ -18,10 +18,9 @@ import { deliveryFeeNGN, deliverySchema, type OrderResult } from "@/lib/api";
 import { useAuthModal } from "@/components/auth/auth-dialog";
 import { getFriendlyErrorMessage } from "@/lib/errors";
 import { cn } from "@/lib/utils";
+import { NG_STATES } from "@/lib/data";
 
 type PayMethod = "wallet" | "card" | "transfer" | "ussd";
-
-const NG_STATES = ["Lagos", "FCT Abuja", "Rivers", "Oyo", "Kano", "Enugu", "Edo", "Ogun", "Kaduna", "Delta", "Anambra", "Other"];
 
 /* pay_method values accepted by POST /orders. Only the wallet settles at
    checkout; the others are confirmed later by the payment provider. */

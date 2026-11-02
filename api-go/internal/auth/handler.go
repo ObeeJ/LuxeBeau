@@ -268,6 +268,48 @@ func (h *AuthHandler) Me(c *gin.Context) {
 	response.OK(c, gin.H{"user": user})
 }
 
+type updateProfileRequest struct {
+	Name         string `json:"name" binding:"omitempty,max=100"`
+	Phone        string `json:"phone" binding:"omitempty,max=20"`
+	Jurisdiction string `json:"jurisdiction" binding:"omitempty,max=80"`
+}
+
+// UpdateProfile: PATCH /me/profile — lets any signed-in user update their
+// own name, phone and state (jurisdiction). Role and status are immutable here.
+func (h *AuthHandler) UpdateProfile(c *gin.Context) {
+	var req updateProfileRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid profile data.")
+		return
+	}
+	userID := c.GetString("userID")
+	updates := map[string]any{}
+	if req.Name != "" {
+		updates["name"] = strings.TrimSpace(req.Name)
+	}
+	if req.Phone != "" {
+		updates["phone"] = strings.TrimSpace(req.Phone)
+	}
+	if req.Jurisdiction != "" {
+		updates["jurisdiction"] = strings.TrimSpace(req.Jurisdiction)
+	}
+	if len(updates) == 0 {
+		response.BadRequest(c, "No fields to update.")
+		return
+	}
+	var user domain.User
+	if err := h.service.db.WithContext(c.Request.Context()).First(&user, "id = ?", userID).Error; err != nil {
+		response.InternalError(c, "Could not load your profile.")
+		return
+	}
+	if err := h.service.db.WithContext(c.Request.Context()).Model(&user).Updates(updates).Error; err != nil {
+		h.logger.Error("update profile failed", slog.Any("error", err))
+		response.InternalError(c, "We couldn't save your profile. Please try again.")
+		return
+	}
+	response.OK(c, gin.H{"user": &user})
+}
+
 // AuthMiddleware authenticates the access-token cookie (or a Bearer header
 // for non-browser clients) and loads the current user.
 func AuthMiddleware(service *Service) gin.HandlerFunc {

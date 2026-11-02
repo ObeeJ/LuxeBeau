@@ -17,9 +17,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getFriendlyErrorMessage } from "@/lib/errors";
 import { cn } from "@/lib/utils";
+import { NG_STATES } from "@/lib/data";
 
 const SPECIALTIES = ["Haircare", "Skincare", "Makeup", "Nails", "Grooming"] as const;
-const CITIES = ["Lagos", "Abuja", "Port Harcourt", "Ibadan"] as const;
 const MODES = [
   { id: "studio", label: "At my studio" },
   { id: "home", label: "At the client's place" },
@@ -47,7 +47,7 @@ function ArtisanForm({ existing }: { existing?: Artisan }) {
   const [studio, setStudio] = useState(existing?.studio ?? "");
   const [priceFrom, setPriceFrom] = useState(existing ? String(existing.fromNGN) : "");
   const [location, setLocation] = useState(existing?.location ?? "");
-  const [city, setCity] = useState<string>(existing?.city || CITIES[0]);
+  const [city, setCity] = useState(existing?.city ?? "");
   const [area, setArea] = useState(existing?.area ?? "");
   const [bio, setBio] = useState(existing?.bio ?? "");
   const [mode, setMode] = useState<Artisan["serviceMode"]>(existing?.serviceMode ?? "studio");
@@ -128,14 +128,12 @@ function ArtisanForm({ existing }: { existing?: Artisan }) {
         </div>
       </fieldset>
 
-      <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-3">
         <Field id="price_from" label="Starting price (₦)" error={errors.price_from}>
           <Input id="price_from" inputMode="numeric" value={priceFrom} onChange={e => setPriceFrom(e.target.value)} placeholder="15000" aria-invalid={Boolean(errors.price_from)} />
         </Field>
         <Field id="city" label="City">
-          <select id="city" value={city} onChange={e => setCity(e.target.value)} className="lb-input h-11">
-            {CITIES.map(c => <option key={c} value={c}>{c}</option>)}
-          </select>
+          <Input id="city" value={city} onChange={e => setCity(e.target.value)} placeholder="Lagos" />
         </Field>
         <Field id="area" label="Area" error={errors.area}>
           <Input id="area" value={area} onChange={e => setArea(e.target.value)} placeholder="Lekki Phase 1" aria-invalid={Boolean(errors.area)} />
