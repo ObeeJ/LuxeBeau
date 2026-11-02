@@ -87,7 +87,7 @@ export default function StorePage({ params }: { params: Promise<{ slug: string }
                 </span>
               )}
               <span className="inline-flex items-center gap-1.5 rounded-full bg-surface/20 px-3 py-1.5 text-[13px] font-medium backdrop-blur-sm">
-                <ShieldCheck className="h-3.5 w-3.5" aria-hidden /> Payments held in escrow
+                <ShieldCheck className="h-3.5 w-3.5" aria-hidden /> Payments held in trust
               </span>
             </div>
           </div>
@@ -118,7 +118,7 @@ export default function StorePage({ params }: { params: Promise<{ slug: string }
                 {products.length === 1 ? "product" : "products"} in the catalogue.
               </p>
               <p>
-                Every order from this store is paid into escrow. {brand} is paid after you confirm delivery, or on the
+                Every order from this store is paid into trust. {brand} is paid after you confirm delivery, or on the
                 release date shown on your order.
               </p>
             </div>

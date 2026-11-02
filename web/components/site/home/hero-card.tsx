@@ -43,7 +43,7 @@ export function HeroCard() {
             className="lb-press hidden h-12 items-center gap-2 rounded-full bg-surface px-5 text-[15px] font-semibold text-ink shadow-pill sm:inline-flex"
           >
             <Play className="h-3.5 w-3.5 fill-ink" aria-hidden />
-            How escrow works
+            How trust works
           </Link>
         </div>
       </div>

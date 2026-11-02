@@ -9,7 +9,7 @@ describe("PartnerFrame", () => {
         body="List your beauty products."
         points={[
           "Zero upfront listing fees.",
-          "Automatic escrow settlements on delivery.",
+          "Automatic trust settlements on delivery.",
           "Reach shoppers nationwide.",
         ]}
       >
@@ -19,7 +19,7 @@ describe("PartnerFrame", () => {
 
     expect(screen.getByText("Sell on LuxeBeau")).toBeInTheDocument();
     expect(screen.getByText("Zero upfront listing fees.")).toBeInTheDocument();
-    expect(screen.getByText("Automatic escrow settlements on delivery.")).toBeInTheDocument();
+    expect(screen.getByText("Automatic trust settlements on delivery.")).toBeInTheDocument();
     expect(screen.getByText("Reach shoppers nationwide.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Apply to Sell" })).toBeInTheDocument();
   });

@@ -89,7 +89,7 @@ export default function DesignSystemGallery() {
             <div>
               <p className="text-[12px] text-muted font-mono">Body (Geist 400/500)</p>
               <p className="text-[15px] text-muted mt-1 leading-relaxed max-w-xl">
-                Every order is protected by our escrow guarantee. Sellers and beauty artisans only get paid when you receive exactly what you ordered.
+                Every order is protected by our trust guarantee. Sellers and beauty artisans only get paid when you receive exactly what you ordered.
               </p>
             </div>
           </div>
@@ -168,7 +168,7 @@ export default function DesignSystemGallery() {
               <span className="flex h-5 w-5 items-center justify-center rounded-full bg-brand text-[11px] font-bold">
                 ✓
               </span>
-              <span>Added to bag · protected in escrow</span>
+              <span>Added to bag · protected in trust</span>
             </div>
           </div>
         </section>

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { BadgeCheck, CheckCircle2, CircleHelp, Naira } from "@/components/icons";
 
 const STEPS = [
-  { icon: Naira, label: "You pay into escrow" },
+  { icon: Naira, label: "You pay into trust" },
   { icon: BadgeCheck, label: "Verified seller delivers" },
   { icon: CheckCircle2, label: "You confirm, they get paid" },
 ];
@@ -12,7 +12,7 @@ const STEPS = [
 export function EscrowStrip() {
   return (
     <div className="rounded-[32px] bg-surface p-4 shadow-soft transition-shadow duration-200 hover:shadow-float sm:p-5 lg:flex lg:items-center lg:gap-6">
-      <ul className="grid flex-1 gap-3 sm:grid-cols-3 sm:gap-4" aria-label="How escrow works">
+      <ul className="grid flex-1 gap-3 sm:grid-cols-3 sm:gap-4" aria-label="How trust works">
         {STEPS.map(({ icon: Icon, label }, i) => (
           <li key={label} className="relative flex items-center gap-3 rounded-2xl bg-canvas p-3.5">
             <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-brand-wash text-brand">

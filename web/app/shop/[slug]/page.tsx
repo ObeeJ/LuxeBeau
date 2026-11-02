@@ -84,11 +84,11 @@ export default function ProductPage({ params }: { params: Promise<{ slug: string
               </p>
             )}
 
-            {/* Escrow Guarantee Highlight */}
+            {/* Trust Guarantee Highlight */}
             <div className="mt-6 flex items-center gap-2.5 rounded-2xl bg-brand-wash p-3.5 text-[13px] text-brand-deep">
               <ShieldCheck className="h-5 w-5 shrink-0 text-brand" />
               <span>
-                <strong>Held in Escrow:</strong> Your money is protected. The seller is only paid after you inspect and accept your package.
+                <strong>Held in Trust:</strong> Your money is protected. The seller is only paid after you inspect and accept your package.
               </span>
             </div>
 

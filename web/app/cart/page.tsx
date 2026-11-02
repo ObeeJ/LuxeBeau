@@ -113,7 +113,7 @@ export default function CartPage() {
             <p className="mt-2 text-[15px] text-muted">
               {placed.paymentStatus === "paid"
                 ? "Paid from your wallet. We've emailed your receipt."
-                : "We've emailed your order details. Your payment is held safe in escrow until you confirm delivery."}
+                : "We've emailed your order details. Your payment is held safe until you confirm delivery."}
             </p>
             <dl className="mt-5 divide-y divide-hairline text-[14px] tracking-[-0.014em]">
               <div className="flex justify-between py-2.5"><dt className="text-muted">Delivery</dt><dd>{placed.deliveryFeeNGN ? formatNaira(placed.deliveryFeeNGN) : "Free"}</dd></div>
@@ -272,14 +272,14 @@ export default function CartPage() {
             {summary}
             {fee > 0 && <p className="mt-1 text-[12px] text-muted">Free delivery on orders of {formatNaira(10000)} or more.</p>}
 
-            {/* Escrow Guarantee Callout beside pay button */}
+            {/* Trust Guarantee Callout beside pay button */}
             <div className="mt-4 rounded-2xl bg-brand-wash p-3 text-[12px] text-brand-deep">
               <p className="font-bold flex items-center gap-1.5">
                 <ShieldCheck className="h-4 w-4 text-brand" />
-                LuxeBeau Escrow Protection
+                LuxeBeau Trust Protection
               </p>
               <p className="mt-1 opacity-90 leading-tight">
-                Your payment is held securely in escrow. Sellers are only paid after you inspect and confirm your package.
+                Your payment is held securely. Sellers are only paid after you inspect and confirm your package.
               </p>
             </div>
 

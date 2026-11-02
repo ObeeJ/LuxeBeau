@@ -665,7 +665,7 @@ export function toEscrow(e: ApiEscrow): Escrow {
   return {
     id: e.id,
     kind: e.kind,
-    title: e.title ?? "Escrow",
+    title: e.title ?? "Trust",
     amountNGN: koboToNaira(e.amount),
     state: e.state,
     rail: e.settlement_rail ?? "wallet",

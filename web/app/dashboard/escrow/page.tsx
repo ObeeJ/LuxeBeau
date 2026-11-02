@@ -48,8 +48,8 @@ export default function EscrowCenter() {
   if (!user) {
     return (
       <div className="mx-auto max-w-sm rounded-[28px] bg-surface p-6 text-center shadow-card sm:p-8">
-        <h1 className="t-display">Escrow</h1>
-        <p className="mt-2 text-[16px] text-muted">Sign in to see payments held in escrow.</p>
+        <h1 className="t-display">Trust</h1>
+        <p className="mt-2 text-[16px] text-muted">Sign in to see payments held in trust.</p>
         <Button onClick={() => showAuth("signin")} size="lg" className="mt-5">Sign in</Button>
       </div>
     );
@@ -70,9 +70,9 @@ export default function EscrowCenter() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Escrow"
+        title="Trust"
         subtitle="Funds are held and only released when the buyer confirms delivery."
-        action={canSell && <Button onClick={() => setShowForm(true)}><Plus aria-hidden /> New escrow link</Button>}
+        action={canSell && <Button onClick={() => setShowForm(true)}><Plus aria-hidden /> New trust link</Button>}
       />
 
       {escrows.isLoading ? (
@@ -80,12 +80,12 @@ export default function EscrowCenter() {
           {Array.from({ length: 2 }).map((_, i) => <Skeleton key={i} className="h-40 w-full rounded-[28px] bg-surface" />)}
         </div>
       ) : escrows.isError ? (
-        <LoadError onRetry={() => escrows.refetch()} message="We could not load your escrows." />
+        <LoadError onRetry={() => escrows.refetch()} message="We could not load your trust payments." />
       ) : (
         <div className="grid gap-6 lg:grid-cols-2">
           <Panel title="Paying">
             {buying.length === 0 ? (
-              <EmptyState>No escrow payments yet.</EmptyState>
+              <EmptyState>No trust payments yet.</EmptyState>
             ) : (
               <RecordList>
                 {buying.map(e => (
@@ -97,7 +97,7 @@ export default function EscrowCenter() {
                     status={<StatusPill status={e.state} />}
                     actions={
                       e.state === "pending" ? (
-                        <Button size="sm" onClick={() => act(fund, e.id, "Funds secured in escrow.")} disabled={fund.isPending}>Fund from wallet</Button>
+                        <Button size="sm" onClick={() => act(fund, e.id, "Funds secured in trust.")} disabled={fund.isPending}>Fund from wallet</Button>
                       ) : e.state === "funded" ? (
                         <>
                           <Button size="sm" onClick={() => act(release, e.id, "Funds released to the seller.")} disabled={release.isPending}>Confirm received</Button>
@@ -124,7 +124,7 @@ export default function EscrowCenter() {
           {canSell && (
             <Panel title="Receiving">
               {selling.length === 0 ? (
-                <EmptyState>No incoming escrows yet. Create an escrow link to sell safely to anyone.</EmptyState>
+                <EmptyState>No incoming trust payments yet. Create a trust link to sell safely to anyone.</EmptyState>
               ) : (
                 <RecordList>
                   {selling.map(e => (
@@ -149,8 +149,8 @@ export default function EscrowCenter() {
           onClose={() => setShowForm(false)}
           onSubmit={input =>
             createEscrow.mutate(input, {
-              onSuccess: () => { toast("Escrow link created.", "success"); setShowForm(false); },
-              onError: e => toast(getFriendlyErrorMessage(e, "We couldn't create your escrow link. Please try again."), "error"),
+              onSuccess: () => { toast("Trust link created.", "success"); setShowForm(false); },
+              onError: e => toast(getFriendlyErrorMessage(e, "We couldn't create your trust link. Please try again."), "error"),
             })
           }
         />
@@ -193,10 +193,10 @@ function EscrowLinkForm({ pending, onClose, onSubmit }: { pending: boolean; onCl
   );
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-end bg-black/40 sm:place-items-center sm:p-4" role="dialog" aria-modal="true" aria-label="New escrow link" onKeyDown={e => e.key === "Escape" && onClose()}>
+    <div className="fixed inset-0 z-50 grid place-items-end bg-black/40 sm:place-items-center sm:p-4" role="dialog" aria-modal="true" aria-label="New trust link" onKeyDown={e => e.key === "Escape" && onClose()}>
       <form onSubmit={submit} noValidate className="max-h-[92dvh] w-full max-w-md overflow-y-auto rounded-t-[28px] bg-surface p-5 shadow-float sm:rounded-[28px] sm:p-6">
         <div className="flex items-center justify-between">
-          <h2 className="t-display">New escrow link</h2>
+          <h2 className="t-display">New trust link</h2>
           <button type="button" onClick={onClose} aria-label="Close" className="flex h-9 w-9 items-center justify-center rounded-full transition-colors duration-200 hover:bg-canvas"><X className="h-5 w-5" aria-hidden /></button>
         </div>
         <p className="mt-1 text-[14px] tracking-[-0.014em] text-muted">We hold the buyer&apos;s funds and release them to you once they confirm delivery.</p>

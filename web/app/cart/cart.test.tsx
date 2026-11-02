@@ -51,7 +51,7 @@ describe("Cart and Checkout flow", () => {
     expect(link).toHaveAttribute("href", "/shop");
   });
 
-  it("calls showAuth when a signed-out user attempts to check out, and displays escrow notice", () => {
+  it("calls showAuth when a signed-out user attempts to check out, and displays trust notice", () => {
     mockUseCart.mockReturnValue({
       detailed: [
         {
@@ -81,7 +81,7 @@ describe("Cart and Checkout flow", () => {
     render(<CartPage />);
 
     const aside = screen.getByRole("complementary", { name: "Order summary" });
-    expect(within(aside).getByText(/LuxeBeau Escrow Protection/i)).toBeInTheDocument();
+    expect(within(aside).getByText(/LuxeBeau Trust Protection/i)).toBeInTheDocument();
 
     const checkoutBtn = screen.getByRole("button", { name: /Checkout/i });
     fireEvent.click(checkoutBtn);

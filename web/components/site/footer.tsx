@@ -6,7 +6,7 @@ const columns = [
     title: "Learn more",
     links: [
       { label: "What is LuxeBeau?", href: "/shop" },
-      { label: "How escrow works", href: "/dashboard/escrow" },
+      { label: "How trust works", href: "/dashboard/escrow" },
       { label: "Book artisans", href: "/services" },
     ],
   },
@@ -42,7 +42,7 @@ export default function SiteFooter() {
           <LuxeBeauLogo textClassName="text-[24px]" markSize={32} className="gap-2.5" />
 
           <p className="mt-4 max-w-sm text-[14px] text-muted leading-relaxed">
-            Beauty designed around everyone. Curated products and artisans, with payments held in escrow until you confirm delivery.
+            Beauty designed around everyone. Curated products and artisans, with payments held in trust until you confirm delivery.
           </p>
 
           <p className="mt-6 text-[12px] text-muted">
@@ -73,7 +73,7 @@ export default function SiteFooter() {
 
       <div className="mx-auto flex max-w-[1200px] flex-col items-center justify-between gap-4 px-4 pb-6 text-[12px] text-muted sm:flex-row sm:px-6 lg:px-8">
         <span>Curated for her, him and everyone.</span>
-        <span>Payments held in escrow until delivery</span>
+        <span>Payments held in trust until delivery</span>
       </div>
 
       {/* Glass wordmark: translucent purple glass with a slow shimmer; "luxe" and "beau" come together. */}

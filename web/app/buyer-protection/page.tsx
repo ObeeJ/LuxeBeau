@@ -7,7 +7,7 @@ export default function BuyerProtectionPage() {
   return (
     <LegalPage title="Buyer protection" updated="29 October 2026">
       <section>
-        <h2>How escrow works</h2>
+        <h2>How trust works</h2>
         <ol className="list-decimal space-y-1.5 pl-5">
           <li>You pay for your order. The money is held, not sent to the seller.</li>
           <li>The seller prepares and delivers your order and marks it as delivered.</li>

@@ -164,7 +164,7 @@ export default function Home() {
           {railState("We couldn't load top products. Please try again.", topRated, "Top rated beauty")}
         </section>
 
-        <section aria-label="Escrow protection">
+        <section aria-label="Trust protection">
           <EscrowStrip />
         </section>
 

@@ -19,7 +19,7 @@ interface NavItem {
    destinations a user cannot open. */
 const NAV: NavItem[] = [
   { href: "/dashboard", label: "Account", show: () => true },
-  { href: "/dashboard/escrow", label: "Escrow", show: () => true },
+  { href: "/dashboard/escrow", label: "Trust", show: () => true },
   { href: "/dashboard/seller", label: "Seller studio", show: r => r === "seller" || r === "admin" },
   { href: "/dashboard/artisan", label: "Artisan studio", show: r => r === "artisan" },
   { href: "/dashboard/admin", label: "Admin", show: r => r === "admin" },

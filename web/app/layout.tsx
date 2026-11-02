@@ -17,7 +17,7 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   title: "LuxeBeau, Nigeria's Luxury Beauty Marketplace",
   description:
-    "Shop skincare, hair, grooming, fragrance and makeup for everyone, and book vetted beauty artisans. Your money is held in escrow until your order arrives.",
+    "Shop skincare, hair, grooming, fragrance and makeup for everyone, and book vetted beauty artisans. Your money is held in trust until your order arrives.",
 };
 
 export default function RootLayout({

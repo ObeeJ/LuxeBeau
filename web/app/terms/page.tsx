@@ -22,9 +22,9 @@ export default function TermsPage() {
         </ul>
       </section>
       <section>
-        <h2>Buying and escrow</h2>
+        <h2>Buying and trust</h2>
         <ul>
-          <li>When you pay for an order, the money is held in escrow. It is not paid to the seller straight away.</li>
+          <li>When you pay for an order, the money is held in trust. It is not paid to the seller straight away.</li>
           <li>The money is released to the seller when you confirm delivery, or automatically after the release date shown on your order if you do nothing.</li>
           <li>If something is wrong, raise a dispute before the release date. See Buyer protection for how that works.</li>
         </ul>

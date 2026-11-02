@@ -121,7 +121,7 @@ export default function AdminDashboard() {
           { id: "orders", label: "Orders" },
           { id: "bookings", label: "Bookings" },
           { id: "products", label: "Products" },
-          { id: "escrows", label: "Escrow" },
+          { id: "escrows", label: "Trust" },
         ]}
       />
 
@@ -262,15 +262,15 @@ export default function AdminDashboard() {
 
       {tab === "escrows" && (
         <Panel
-          aria-label="Escrow"
+          aria-label="Trust"
           action={
-            <Filter label="Escrow state" value={escrowState} onChange={setEscrowState} options={[["all", "All states"], ["pending", "Pending"], ["funded", "Funded"], ["disputed", "Disputed"], ["released", "Released"], ["refunded", "Refunded"]]} />
+            <Filter label="Trust state" value={escrowState} onChange={setEscrowState} options={[["all", "All states"], ["pending", "Pending"], ["funded", "Funded"], ["disputed", "Disputed"], ["released", "Released"], ["refunded", "Refunded"]]} />
           }
         >
           {escrows.isLoading ? <Loading /> : escrows.isError ? (
-            <LoadError onRetry={() => escrows.refetch()} message="We couldn't load escrows." />
-          ) : (escrows.data ?? []).length === 0 ? <EmptyState>No escrows in this state.</EmptyState> : (
-            <Table head={["Escrow", "Title", "State", "Amount", ""]} minWidth={720}>
+            <LoadError onRetry={() => escrows.refetch()} message="We couldn't load trust payments." />
+          ) : (escrows.data ?? []).length === 0 ? <EmptyState>No trust payments in this state.</EmptyState> : (
+            <Table head={["Trust", "Title", "State", "Amount", ""]} minWidth={720}>
               {(escrows.data ?? []).map(e => (
                 <tr key={e.id}>
                   <td className="py-3 pr-4 tabular-nums">{e.id}</td>

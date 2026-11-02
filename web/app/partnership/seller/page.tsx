@@ -61,8 +61,8 @@ export default function SellerOnboarding() {
         body="List your beauty, hair or grooming products for buyers across Nigeria."
         points={[
           "List products with photos, prices and inventory from your seller studio.",
-          "Automatic escrow settlements paid straight into your bank on delivery.",
-          "Sell to customers anywhere with direct escrow payment links.",
+          "Automatic trust settlements paid straight into your bank on delivery.",
+          "Sell to customers anywhere with direct trust payment links.",
           "Verified badge after CAC registration review for instant buyer trust.",
         ]}
       >
