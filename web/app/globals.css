@@ -144,7 +144,7 @@ body {
   isolation: isolate;
 }
 
-/* Purple grain over the whole site: fine brand-purple noise, never interactive.
+/* Neutral editorial paper grain over the whole site: fine charcoal noise, never interactive.
    Sits above page content and the fixed bars (z 40) but below dialogs (z 50). */
 body::after {
   content: "";
@@ -152,9 +152,9 @@ body::after {
   inset: 0;
   z-index: 45;
   pointer-events: none;
-  opacity: 0.12;
+  opacity: 0.08;
   mix-blend-mode: multiply;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .54  0 0 0 0 .12  0 0 0 0 .78  0 0 0 .9 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .18  0 0 0 0 .18  0 0 0 0 .18  0 0 0 .9 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   background-size: 160px 160px;
 }
 
