@@ -1,13 +1,33 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "luxebeau",
+  "main": ".open-next/worker.js",
   "compatibility_date": "2025-01-01",
   "compatibility_flags": ["nodejs_compat"],
-  "pages_build_output_dir": ".open-next/assets",
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "observability": {
+    "logs": {
+      "enabled": true,
+      "head_sampling_rate": 1,
+      "invocation_logs": true,
+      "persist": true
+    },
+    "traces": {
+      "enabled": true,
+      "head_sampling_rate": 1,
+      "persist": true
+    },
+    "issue_detection": {
+      "enabled": true
+    }
+  },
   "kv_namespaces": [
     {
       "binding": "NEXT_CACHE_WORKERS_KV",
-      "id": "WEB_KV_CACHE_ID_PLACEHOLDER"
+      "id": "709499a3651f42cfb3c584a1a99a713c"
     }
   ],
   "r2_buckets": [
@@ -21,7 +41,16 @@
     }
   ],
   "vars": {
-    "NEXT_PUBLIC_API_URL": "https://api.myluxebeau.com/api/v1",
+    "NEXT_PUBLIC_API_URL": "https://luxebeau-api.onrender.com/api/v1",
     "NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY": "pk_test_8f297ae20d9fcad597746b3989cca684e971d9f8"
+  },
+  "env": {
+    "dev": {
+      "name": "luxebeau-dev",
+      "vars": {
+        "NEXT_PUBLIC_API_URL": "https://luxebeau-api.onrender.com/api/v1",
+        "NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY": "pk_test_8f297ae20d9fcad597746b3989cca684e971d9f8"
+      }
+    }
   }
 }

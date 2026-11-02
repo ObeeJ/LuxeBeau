@@ -153,6 +153,33 @@ func Run(db *gorm.DB, logger *slog.Logger) error {
 	})
 }
 
+// SeedPlatformWallet ensures the platform's own wallet row exists. It is
+// idempotent and must be called on every startup, before any escrow release
+// can credit the platform fee.
+func SeedPlatformWallet(db *gorm.DB, logger *slog.Logger) error {
+	var count int64
+	if err := db.Model(&domain.Wallet{}).Where("user_id = ?", domain.PlatformWalletID).Count(&count).Error; err != nil {
+		return err
+	}
+	if count > 0 {
+		return nil
+	}
+	return db.Transaction(func(tx *gorm.DB) error {
+		// Insert a platform user row to satisfy the FK on wallets.user_id.
+		// This account has no password and no role that grants API access.
+		if err := tx.Exec(`INSERT INTO users (id, name, email, password_hash, role, status, kyc_status, created_at, updated_at)
+			VALUES (?, 'LuxeBeau Platform', 'platform@luxebeau.internal', '', 'platform', 'active', 'verified', NOW(), NOW())
+			ON CONFLICT (id) DO NOTHING`, domain.PlatformWalletID).Error; err != nil {
+			return err
+		}
+		if err := tx.Create(&domain.Wallet{UserID: domain.PlatformWalletID}).Error; err != nil {
+			return err
+		}
+		logger.Info("Platform wallet created", slog.String("user_id", domain.PlatformWalletID))
+		return nil
+	})
+}
+
 // MinDemoPasswordLen is the shortest SEED_DEMO_PASSWORD accepted.
 const MinDemoPasswordLen = 12
 

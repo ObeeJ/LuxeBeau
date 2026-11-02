@@ -1,0 +1,9 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "luxebeau-keep-awake",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-01-01",
+  "triggers": {
+    "crons": ["*/5 * * * *"]
+  }
+}

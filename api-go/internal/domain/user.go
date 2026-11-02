@@ -33,6 +33,10 @@ type UserRepository interface {
 	Update(ctx context.Context, user *User) error
 }
 
+// PlatformWalletID is the well-known user_id for the platform's own wallet.
+// It is seeded at startup and credited with every escrow fee on release.
+const PlatformWalletID = "00000000-0000-0000-0000-000000000000"
+
 type Wallet struct {
 	ID        uint      `gorm:"primaryKey;autoIncrement" json:"id"`
 	UserID    string    `gorm:"type:uuid;not null;uniqueIndex" json:"user_id"`

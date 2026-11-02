@@ -1,0 +1,16 @@
+# AI tool directories & caches
+.agents/
+.claude/
+.grok/
+.kiro/
+.qoder/
+.qwen/
+skills-lock.json
+
+# Environment files
+.env
+.env.local
+
+# OS files
+.DS_Store
+Thumbs.db

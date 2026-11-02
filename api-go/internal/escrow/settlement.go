@@ -69,7 +69,13 @@ func (w *WalletSettlement) Hold(ctx context.Context, tx *gorm.DB, e *domain.Escr
 }
 
 func (w *WalletSettlement) Release(ctx context.Context, tx *gorm.DB, e *domain.Escrow, net, fee int64) error {
-	return adjust(tx.WithContext(ctx), e.PayeeID, net)
+	if err := adjust(tx.WithContext(ctx), e.PayeeID, net); err != nil {
+		return err
+	}
+	if fee > 0 {
+		return adjust(tx.WithContext(ctx), domain.PlatformWalletID, fee)
+	}
+	return nil
 }
 
 func (w *WalletSettlement) Refund(ctx context.Context, tx *gorm.DB, e *domain.Escrow) error {
@@ -88,7 +94,13 @@ func (HeldSettlement) Name() string { return domain.RailHeld }
 func (HeldSettlement) Hold(ctx context.Context, tx *gorm.DB, e *domain.Escrow) error { return nil }
 
 func (HeldSettlement) Release(ctx context.Context, tx *gorm.DB, e *domain.Escrow, net, fee int64) error {
-	return adjust(tx.WithContext(ctx), e.PayeeID, net)
+	if err := adjust(tx.WithContext(ctx), e.PayeeID, net); err != nil {
+		return err
+	}
+	if fee > 0 {
+		return adjust(tx.WithContext(ctx), domain.PlatformWalletID, fee)
+	}
+	return nil
 }
 
 func (HeldSettlement) Refund(ctx context.Context, tx *gorm.DB, e *domain.Escrow) error {

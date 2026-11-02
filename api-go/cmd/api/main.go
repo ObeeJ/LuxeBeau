@@ -96,6 +96,11 @@ func main() {
 	if err := seed.RetireDefaultPassword(db, logger); err != nil {
 		logger.Error("Demo password rotation failed", slog.Any("error", err))
 	}
+	// Ensure the platform wallet row exists so escrow fee credits never fail.
+	if err := seed.SeedPlatformWallet(db, logger); err != nil {
+		logger.Error("Platform wallet seed failed", slog.Any("error", err))
+		os.Exit(1)
+	}
 
 	// ── Dependency Injection Wiring ─────────────────────────
 	// Repositories (data access layer)
@@ -163,6 +168,12 @@ func main() {
 	escrowHandler := escrow.NewHandler(escrowService, logger)
 
 	// ── Router ──────────────────────────────────────────────
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	// Struct-based rate limiter: cleanup goroutine respects SIGTERM.
+	rateLimiter := middleware.NewIPRateLimiter(ctx)
+
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
 	// Client IPs drive rate limits, so only trust forwarding headers from a
@@ -181,6 +192,12 @@ func main() {
 	// ── Health Check ────────────────────────────────────────
 	r.GET("/healthz", func(c *gin.Context) {
 		c.JSON(200, gin.H{"status": "ok", "service": "luxebeau-api"})
+	})
+	r.GET("/", func(c *gin.Context) {
+		c.JSON(200, gin.H{"status": "ok", "service": "luxebeau-api", "health": "/healthz"})
+	})
+	r.HEAD("/", func(c *gin.Context) {
+		c.Status(200)
 	})
 
 	// ── Payment webhooks ────────────────────────────────────
@@ -207,14 +224,14 @@ func main() {
 	v1 := r.Group("/api/v1", middleware.CSRF())
 	{
 		// Auth (rate limited per client IP)
-		authLimit := middleware.RateLimiter(1, 5)
+		authLimit := rateLimiter.RateLimit(1, 5)
 		v1.POST("/auth/register", authLimit, authHandler.Register)
 		v1.POST("/auth/verify-email", authLimit, authHandler.VerifyEmail)
 		v1.POST("/auth/resend-code", authLimit, authHandler.ResendCode)
 		v1.POST("/auth/login", authLimit, authHandler.Login)
 		v1.POST("/auth/google", authLimit, authHandler.Google)
 		v1.POST("/auth/verify-login", authLimit, authHandler.VerifyLogin)
-		v1.POST("/auth/refresh", middleware.RateLimiter(2, 10), authHandler.Refresh)
+		v1.POST("/auth/refresh", rateLimiter.RateLimit(2, 10), authHandler.Refresh)
 		v1.POST("/auth/logout", authHandler.Logout)
 
 		// Public Catalog
@@ -224,7 +241,7 @@ func main() {
 		// Public Artisans
 		v1.GET("/artisans", bookingHandler.ListArtisans)
 		v1.GET("/artisans/:id", bookingHandler.GetArtisanProfile)
-		v1.GET("/artisans/:id/availability", middleware.RateLimiter(5, 20), bookingHandler.Availability)
+		v1.GET("/artisans/:id/availability", rateLimiter.RateLimit(5, 20), bookingHandler.Availability)
 	}
 
 	// ── Protected Routes ────────────────────────────────────
@@ -235,9 +252,9 @@ func main() {
 		protected.GET("/auth/me", authHandler.Me)
 
 		// Bookings (Rate Limited to 2 req/sec burst 5 to protect scheduler state)
-		protected.POST("/bookings", middleware.RateLimiter(2, 5), bookingHandler.CreateBooking)
+		protected.POST("/bookings", rateLimiter.RateLimit(2, 5), bookingHandler.CreateBooking)
 		protected.PATCH("/bookings/:id/confirm", bookingHandler.ConfirmBooking)
-		protected.POST("/bookings/:id/cancel", middleware.RateLimiter(2, 10), bookingHandler.CancelBooking)
+		protected.POST("/bookings/:id/cancel", rateLimiter.RateLimit(2, 10), bookingHandler.CancelBooking)
 		protected.PATCH("/bookings/:id/complete", auth.RequireRole("artisan", "admin"), bookingHandler.CompleteBooking)
 		protected.PATCH("/bookings/:id/no-show", auth.RequireRole("artisan", "admin"), bookingHandler.MarkNoShow)
 
@@ -268,7 +285,7 @@ func main() {
 		}
 
 		// Photo uploads (direct to Cloudflare Images) for partners
-		protected.POST("/me/uploads/image", auth.RequireRole("seller", "artisan", "admin"), middleware.RateLimiter(1, 10), images.UploadHandler(logger))
+		protected.POST("/me/uploads/image", auth.RequireRole("seller", "artisan", "admin"), rateLimiter.RateLimit(1, 10), images.UploadHandler(logger))
 
 		// ── Escrow (held funds + B2B2C escrow links) ─────────
 		protected.GET("/escrows", escrowHandler.List)
@@ -314,8 +331,6 @@ func main() {
 	}
 
 	// ── Background work ─────────────────────────────────────
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
 	bookingJobs := booking.NewMaintenance(db, mailer, logger)
 	go jobs.Run(ctx, 5*time.Minute, logger,
 		jobs.Task{Name: "escrow auto-release", Run: escrowService.SweepAutoReleases},

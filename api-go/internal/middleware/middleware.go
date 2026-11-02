@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"context"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -122,45 +123,53 @@ type clientLimiter struct {
 	lastSeen time.Time
 }
 
-var (
-	limiters = make(map[string]*clientLimiter)
+// IPRateLimiter holds per-(route,IP) token-bucket state. Create one with
+// NewIPRateLimiter and pass its RateLimit method as a Gin middleware.
+// NOTE: state is in-process memory. Replace with a Redis-backed sliding window
+// before running more than one API instance.
+type IPRateLimiter struct {
 	mu       sync.Mutex
-)
-
-func init() {
-	// Start clean up worker for dead rate limiters
-	go func() {
-		for {
-			time.Sleep(1 * time.Minute)
-			mu.Lock()
-			for key, cl := range limiters {
-				if time.Since(cl.lastSeen) > 5*time.Minute {
-					delete(limiters, key)
-				}
-			}
-			mu.Unlock()
-		}
-	}()
+	limiters map[string]*clientLimiter
 }
 
-// RateLimiter returns a middleware that limits requests by IP.
-// r: number of operations allowed per second
-// b: bucket size (maximum burst)
-func RateLimiter(r rate.Limit, b int) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		// One bucket per route and client, so a tight limit on one endpoint
-		// never inherits a looser bucket created by another.
-		key := c.FullPath() + "|" + c.ClientIP()
-		mu.Lock()
-		cl, exists := limiters[key]
-		if !exists {
-			cl = &clientLimiter{
-				limiter: rate.NewLimiter(r, b),
+func NewIPRateLimiter(ctx context.Context) *IPRateLimiter {
+	rl := &IPRateLimiter{limiters: make(map[string]*clientLimiter)}
+	go rl.cleanup(ctx)
+	return rl
+}
+
+func (rl *IPRateLimiter) cleanup(ctx context.Context) {
+	ticker := time.NewTicker(time.Minute)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			rl.mu.Lock()
+			for key, cl := range rl.limiters {
+				if time.Since(cl.lastSeen) > 5*time.Minute {
+					delete(rl.limiters, key)
+				}
 			}
-			limiters[key] = cl
+			rl.mu.Unlock()
+		}
+	}
+}
+
+// RateLimiter returns a middleware that limits requests by (route, IP).
+// r: tokens per second; b: burst size.
+func (rl *IPRateLimiter) RateLimit(r rate.Limit, b int) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		key := c.FullPath() + "|" + c.ClientIP()
+		rl.mu.Lock()
+		cl, exists := rl.limiters[key]
+		if !exists {
+			cl = &clientLimiter{limiter: rate.NewLimiter(r, b)}
+			rl.limiters[key] = cl
 		}
 		cl.lastSeen = time.Now()
-		mu.Unlock()
+		rl.mu.Unlock()
 
 		if !cl.limiter.Allow() {
 			c.JSON(http.StatusTooManyRequests, gin.H{
@@ -173,7 +182,10 @@ func RateLimiter(r rate.Limit, b int) gin.HandlerFunc {
 			c.Abort()
 			return
 		}
-
 		c.Next()
 	}
 }
+
+// RateLimiter is kept for backward compatibility in tests. Production code
+// should use NewIPRateLimiter and call RateLimit on the returned struct so the
+// cleanup goroutine respects the server's shutdown context.
