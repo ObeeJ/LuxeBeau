@@ -176,6 +176,54 @@ func (h *AuthHandler) ResendCode(c *gin.Context) {
 	response.Success(c, http.StatusAccepted, gin.H{"message": "If that email needs verifying, a new code is on its way."})
 }
 
+type forgotPasswordRequest struct {
+	Email string `json:"email" binding:"required,email"`
+}
+
+type resetPasswordRequest struct {
+	Email    string `json:"email" binding:"required,email"`
+	Code     string `json:"code" binding:"required,len=6,numeric"`
+	Password string `json:"password" binding:"required,min=8,max=72"`
+}
+
+func (h *AuthHandler) ForgotPassword(c *gin.Context) {
+	var req forgotPasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Enter a valid email address.")
+		return
+	}
+	err := h.service.ForgotPassword(c.Request.Context(), req.Email)
+	if errors.Is(err, ErrTooManyCodes) {
+		response.Fail(c, http.StatusTooManyRequests, "TOO_MANY_REQUESTS", "Please wait a minute before requesting another code.")
+		return
+	}
+	if err != nil && !errors.Is(err, ErrInvalidInput) {
+		h.logger.Warn("forgot password failed", slog.Any("error", err))
+	}
+	response.Success(c, http.StatusOK, gin.H{"message": "If that email has an account, a password recovery code is on its way."})
+}
+
+func (h *AuthHandler) ResetPassword(c *gin.Context) {
+	var req resetPasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Enter your email, the 6-digit code, and a new password with at least 8 characters.")
+		return
+	}
+	user, err := h.service.ResetPassword(c.Request.Context(), req.Email, req.Code, req.Password)
+	switch {
+	case errors.Is(err, ErrAccountSuspended):
+		response.Fail(c, http.StatusForbidden, "ACCOUNT_SUSPENDED", "This account has been suspended.")
+		return
+	case errors.Is(err, ErrInvalidInput):
+		response.BadRequest(c, "Password must be at least 8 characters.")
+		return
+	case err != nil:
+		response.Fail(c, http.StatusBadRequest, "INVALID_CODE", "That recovery code is incorrect or has expired.")
+		return
+	}
+	h.signedIn(c, http.StatusOK, user)
+}
+
 type loginRequest struct {
 	Email    string `json:"email" binding:"required,email"`
 	Password string `json:"password" binding:"required,max=72"`

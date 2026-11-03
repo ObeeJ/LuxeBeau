@@ -435,6 +435,20 @@ export function useGoogleSignIn() {
   });
 }
 
+export function useForgotPassword() {
+  return useMutation({
+    mutationFn: (input: ForgotPasswordInput) =>
+      apiFetch("/auth/forgot-password", messageResponseSchema, { method: "POST", body: input }),
+  });
+}
+
+export function useResetPassword() {
+  return useMutation({
+    mutationFn: (input: ResetPasswordInput) =>
+      apiFetch("/auth/reset-password", sessionUserSchema, { method: "POST", body: input }),
+  });
+}
+
 export async function logout() {
   try {
     await apiFetch("/auth/logout", z.object({ message: z.string() }), { method: "POST" });

@@ -44,6 +44,7 @@ var (
 type CodeSender interface {
 	SendVerificationCode(ctx context.Context, to, name, code string) error
 	SendLoginCode(ctx context.Context, to, name, code string) error
+	SendPasswordResetCode(ctx context.Context, to, name, code string) error
 }
 
 // Service owns identity: registration, email verification, password and
@@ -384,6 +385,58 @@ func (s *Service) RefreshSession(ctx context.Context, refreshToken string) (*dom
 
 func (s *Service) EndSession(ctx context.Context, refreshToken string) {
 	s.tokens.Revoke(ctx, refreshToken)
+}
+
+// ForgotPassword sends an OTP for password recovery. Always returns nil if user not found to prevent email enumeration.
+func (s *Service) ForgotPassword(ctx context.Context, email string) error {
+	email, err := normaliseEmail(email)
+	if err != nil {
+		return ErrInvalidInput
+	}
+	user, err := s.repo.GetByEmail(ctx, email)
+	if err != nil {
+		return nil
+	}
+	code, err := s.otp.Issue(ctx, user.ID, PurposePasswordReset)
+	if err != nil {
+		if errors.Is(err, ErrTooManyCodes) {
+			return ErrTooManyCodes
+		}
+		return err
+	}
+	if err := s.codes.SendPasswordResetCode(ctx, user.Email, user.Name, code); err != nil {
+		s.logger.Warn("password reset email failed", slog.String("user_id", user.ID), slog.Any("error", err))
+	}
+	return nil
+}
+
+// ResetPassword consumes a password reset OTP and sets the new password.
+func (s *Service) ResetPassword(ctx context.Context, email, code, newPassword string) (*domain.User, error) {
+	email, err := normaliseEmail(email)
+	if err != nil {
+		return nil, ErrInvalidCode
+	}
+	if len(newPassword) < minPasswordChars || len(newPassword) > 72 {
+		return nil, ErrInvalidInput
+	}
+	user, err := s.repo.GetByEmail(ctx, email)
+	if err != nil {
+		return nil, ErrInvalidCode
+	}
+	if err := s.otp.Verify(ctx, user.ID, PurposePasswordReset, code); err != nil {
+		return nil, err
+	}
+	hash, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcryptCost)
+	if err != nil {
+		return nil, err
+	}
+	user.PasswordHash = string(hash)
+	user.FailedLogins = 0
+	user.LockedUntil = nil
+	if err := s.repo.Update(ctx, user); err != nil {
+		return nil, err
+	}
+	return user, nil
 }
 
 // Authenticate validates an access token and loads the current user, so a

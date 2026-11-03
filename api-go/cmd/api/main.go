@@ -283,6 +283,8 @@ func main() {
 		v1.POST("/auth/verify-email", authLimit, authHandler.VerifyEmail)
 		v1.POST("/auth/resend-code", authLimit, authHandler.ResendCode)
 		v1.POST("/auth/login", authLimit, authHandler.Login)
+		v1.POST("/auth/forgot-password", authLimit, authHandler.ForgotPassword)
+		v1.POST("/auth/reset-password", authLimit, authHandler.ResetPassword)
 		v1.POST("/auth/google", authLimit, authHandler.Google)
 		v1.POST("/auth/verify-login", authLimit, authHandler.VerifyLogin)
 		v1.POST("/auth/refresh", rateLimiter.RateLimit(2, 10), authHandler.Refresh)

@@ -125,6 +125,19 @@ func (m *Mailer) SendLoginCode(ctx context.Context, to, name, code string) error
 	}, text)
 }
 
+// SendPasswordResetCode sends a 6-digit recovery code.
+func (m *Mailer) SendPasswordResetCode(ctx context.Context, to, name, code string) error {
+	text := fmt.Sprintf("Hi %s,\n\nYour LuxeBeau password reset code is %s.\nIt expires in 10 minutes.\n\nIf you did not request this, you can safely ignore this email.\n", firstName(name), code)
+	return m.send(ctx, to, "verify_code", page{
+		Subject:    fmt.Sprintf("%s is your LuxeBeau password reset code", code),
+		Preheader:  "Password reset code. It expires in 10 minutes.",
+		FooterNote: "You received this because a password reset was requested for your LuxeBeau account.",
+		Data: map[string]string{"Name": firstName(name), "Code": code, "Heading": "Password Reset",
+			"Intro":    "enter this code to verify your identity and set a new password.",
+			"Footnote": "The code expires in 10 minutes. If you didn't request a password reset, you can safely ignore this email."},
+	}, text)
+}
+
 // OrderLine is one product in an order confirmation.
 type OrderLine struct {
 	Name, Brand, Total string

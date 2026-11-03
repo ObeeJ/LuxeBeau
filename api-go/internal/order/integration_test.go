@@ -47,6 +47,7 @@ type noopCodes struct{}
 
 func (noopCodes) SendVerificationCode(context.Context, string, string, string) error { return nil }
 func (noopCodes) SendLoginCode(context.Context, string, string, string) error        { return nil }
+func (noopCodes) SendPasswordResetCode(context.Context, string, string, string) error { return nil }
 
 func TestE2EPaymentIntegration(t *testing.T) {
 	// 1. Setup SQLite in-memory DB

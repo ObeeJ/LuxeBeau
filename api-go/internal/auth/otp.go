@@ -17,8 +17,9 @@ import (
 )
 
 const (
-	PurposeVerifyEmail = "verify_email"
-	PurposeAdminLogin  = "admin_login"
+	PurposeVerifyEmail   = "verify_email"
+	PurposeAdminLogin    = "admin_login"
+	PurposePasswordReset = "password_reset"
 
 	otpTTL         = 10 * time.Minute
 	otpMaxAttempts = 5

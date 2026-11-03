@@ -45,6 +45,10 @@ func (c *captureSender) SendLoginCode(ctx context.Context, to, name, code string
 	return c.SendVerificationCode(ctx, to, name, "login:"+code)
 }
 
+func (c *captureSender) SendPasswordResetCode(ctx context.Context, to, name, code string) error {
+	return c.SendVerificationCode(ctx, to, name, "reset:"+code)
+}
+
 func (c *captureSender) last(to string) string {
 	c.mu.Lock()
 	defer c.mu.Unlock()
