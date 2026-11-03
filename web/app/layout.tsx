@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist } from "next/font/google";
 import "./globals.css";
 import Providers from "./providers";
+import { FaviconAnimator } from "@/components/site/favicon-animator";
 
 /* Geist is the single typeface: 800 for headlines, 900 for the wordmark. */
 const geist = Geist({
@@ -28,6 +29,7 @@ export default function RootLayout({
   return (
     <html lang="en-NG" className={geist.variable} suppressHydrationWarning>
       <body>
+        <FaviconAnimator />
         <Providers>{children}</Providers>
       </body>
     </html>

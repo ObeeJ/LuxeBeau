@@ -94,14 +94,14 @@ export function FeaturedSpotlight() {
       aria-label="Curated Merchant Spotlight"
       className="group relative isolate overflow-hidden rounded-[36px] border border-hairline/90 bg-surface p-7 sm:p-9 shadow-[0_16px_50px_rgba(42,11,72,0.06)] transition-all duration-300 hover:border-brand/35 hover:shadow-[0_20px_60px_rgba(138,31,199,0.12)]"
     >
-      {/* Heatmap Attention Gradient Aura: draws focal eye gaze to the card */}
+      {/* Heatmap Attention Gradient Aura: Pure LuxeBeau brand purple depth */}
       <div
         aria-hidden
         className="pointer-events-none absolute -right-24 -top-24 h-96 w-96 rounded-full bg-brand/5 blur-3xl transition-opacity duration-500 group-hover:bg-brand/10"
       />
       <div
         aria-hidden
-        className="pointer-events-none absolute -bottom-24 -left-24 h-80 w-80 rounded-full bg-amber-500/5 blur-3xl transition-opacity duration-500 group-hover:bg-amber-500/10"
+        className="pointer-events-none absolute -bottom-24 -left-24 h-80 w-80 rounded-full bg-brand-wash/40 blur-3xl transition-opacity duration-500 group-hover:bg-brand-wash/60"
       />
 
       {/* Top Editorial Row (Clean luxury header, no glowing dots or generic pills) */}
@@ -208,7 +208,7 @@ export function FeaturedSpotlight() {
               <ArrowRight className="h-4 w-4" aria-hidden />
             </Link>
 
-            {/* Shopify-Style Pricing & ROI Dialog */}
+            {/* LuxeBeau Design System: Pricing & Market Benchmark Dialog */}
             <Dialog>
               <DialogTrigger asChild>
                 <button
@@ -221,23 +221,23 @@ export function FeaturedSpotlight() {
                 </button>
               </DialogTrigger>
 
-              <DialogContent className="w-[95vw] sm:max-w-4xl lg:max-w-5xl max-h-[92vh] overflow-y-auto rounded-[36px] bg-surface p-7 sm:p-10 shadow-float border border-hairline/80">
-                <DialogHeader className="text-center sm:text-left space-y-2">
+              <DialogContent className="w-[94vw] sm:max-w-4xl lg:max-w-5xl max-h-[90vh] overflow-y-auto rounded-[32px] bg-surface p-6 sm:p-9 shadow-float border border-hairline">
+                <DialogHeader className="text-center sm:text-left space-y-1.5">
                   <div className="flex items-center gap-2">
                     <span className="text-[11px] font-bold uppercase tracking-[0.08em] text-brand">
-                      LuxeBeau Growth & Advertising
+                      Spotlight Advertising
                     </span>
                   </div>
-                  <DialogTitle className="text-[28px] font-black tracking-[-0.04em] text-ink sm:text-[34px] leading-tight">
+                  <DialogTitle className="text-[26px] sm:text-[32px] font-black tracking-[-0.03em] text-ink leading-tight">
                     Promote Your Brand Beneath the Hero
                   </DialogTitle>
-                  <DialogDescription className="text-[15px] text-muted">
-                    Reach 100% of luxury beauty buyers with permanent homepage hero placement and built-in escrow checkout.
+                  <DialogDescription className="text-[14px] text-muted max-w-2xl leading-relaxed">
+                    Reach verified Nigerian luxury beauty buyers with permanent homepage hero placement and built-in escrow checkout.
                   </DialogDescription>
                 </DialogHeader>
 
-                {/* Shopify-Style Billing Cycle Toggle */}
-                <div className="mt-7 flex items-center justify-center">
+                {/* Billing Cycle Segmented Control: Matching Landing Page Filter Aesthetic */}
+                <div className="mt-6 flex items-center justify-center">
                   <div className="inline-flex items-center rounded-full bg-canvas p-1 border border-hairline">
                     <button
                       type="button"
@@ -245,7 +245,7 @@ export function FeaturedSpotlight() {
                       className={cn(
                         "rounded-full px-5 py-2 text-[13px] font-semibold transition-all duration-200 cursor-pointer",
                         billingCycle === "monthly"
-                          ? "bg-surface text-ink shadow-sm"
+                          ? "bg-brand text-surface shadow-glow"
                           : "text-muted hover:text-ink"
                       )}
                     >
@@ -257,44 +257,54 @@ export function FeaturedSpotlight() {
                       className={cn(
                         "inline-flex items-center gap-1.5 rounded-full px-5 py-2 text-[13px] font-semibold transition-all duration-200 cursor-pointer",
                         billingCycle === "annual"
-                          ? "bg-brand text-surface shadow-sm"
+                          ? "bg-brand text-surface shadow-glow"
                           : "text-muted hover:text-ink"
                       )}
                     >
                       <span>Annual Commitment</span>
-                      <span className={cn(
-                        "rounded-full px-2 py-0.5 text-[10px] font-bold",
-                        billingCycle === "annual" ? "bg-surface/20 text-surface" : "bg-brand/10 text-brand"
-                      )}>
+                      <span
+                        className={cn(
+                          "rounded-full px-2 py-0.5 text-[10px] font-bold",
+                          billingCycle === "annual"
+                            ? "bg-surface/20 text-surface"
+                            : "bg-brand-wash text-brand"
+                        )}
+                      >
                         Save 33% · 4 Mos Free
                       </span>
                     </button>
                   </div>
                 </div>
 
-                {/* Shopify 3-Tier Grid Layout */}
-                <div className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-3">
-                  {/* Tier 1: Weekly Sprint */}
-                  <div className="flex flex-col justify-between rounded-[28px] border border-hairline bg-canvas/70 p-6 transition-all hover:bg-surface hover:shadow-soft">
+                {/* 3-Tier Grid Layout: Responsive, Single Brand Color Only */}
+                <div className="mt-7 grid grid-cols-1 md:grid-cols-3 gap-5 items-stretch">
+                  {/* Tier 1: Starter Boost */}
+                  <div className="min-w-0 flex flex-col justify-between rounded-[28px] border border-hairline bg-canvas p-6 transition-all hover:border-brand/40 hover:bg-surface">
                     <div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-[12px] font-bold uppercase tracking-[0.06em] text-muted">
-                          Starter Boost
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="shrink-0 rounded-full bg-surface border border-hairline px-3 py-1 text-[11px] font-bold text-muted">
+                          7-Day Sprint
                         </span>
-                        <span className="text-[11px] font-semibold text-muted">7 Days</span>
+                        <span className="text-[11px] font-semibold text-muted">
+                          Trial Tier
+                        </span>
                       </div>
 
-                      <div className="mt-4">
-                        <span className="text-[34px] font-extrabold tracking-tight text-ink">₦5,000</span>
-                        <span className="text-[13px] text-muted ml-1">/ sprint</span>
-                      </div>
-                      <p className="mt-1 text-[12px] font-medium text-brand">~₦714 per day</p>
+                      <h4 className="mt-3 text-[20px] font-extrabold tracking-tight text-ink">
+                        Starter Boost
+                      </h4>
 
-                      <p className="mt-4 text-[13px] leading-relaxed text-muted">
+                      <div className="mt-3 flex items-baseline gap-1.5 flex-wrap">
+                        <span className="text-[34px] font-black tracking-tight text-ink">₦5,000</span>
+                        <span className="text-[13px] font-medium text-muted">/ sprint</span>
+                      </div>
+                      <p className="mt-0.5 text-[12px] font-semibold text-brand">~₦714 per day</p>
+
+                      <p className="mt-3 text-[13px] leading-relaxed text-muted">
                         Ideal for testing new product launches, flash weekend sales, and early traction.
                       </p>
 
-                      <ul className="mt-6 space-y-2.5 border-t border-hairline/80 pt-5 text-[12px] text-ink">
+                      <ul className="mt-5 space-y-2.5 border-t border-hairline/80 pt-4 text-[12px] text-ink">
                         <li className="flex items-center gap-2">
                           <Check className="h-4 w-4 text-brand shrink-0" /> Fixed homepage hero placement
                         </li>
@@ -309,37 +319,39 @@ export function FeaturedSpotlight() {
 
                     <Link
                       href="/partnership/seller?plan=7_days"
-                      className="lb-press mt-8 inline-flex h-11 w-full items-center justify-center rounded-full border border-hairline bg-surface text-[13px] font-semibold text-ink shadow-sm hover:bg-canvas transition-colors"
+                      className="lb-press mt-6 inline-flex h-11 w-full items-center justify-center rounded-full border border-hairline bg-surface text-[13px] font-semibold text-ink shadow-sm hover:bg-canvas transition-colors"
                     >
-                      Choose Starter
+                      Select Starter
                     </Link>
                   </div>
 
-                  {/* Tier 2: Monthly Growth (Shopify Hero Highlighted Plan) */}
-                  <div className="relative flex flex-col justify-between rounded-[28px] border-2 border-brand bg-surface p-6 shadow-float">
-                    <span className="absolute -top-3 right-6 rounded-full bg-brand px-3 py-1 text-[10px] font-extrabold uppercase tracking-wider text-surface shadow-sm">
-                      Most Popular
-                    </span>
-
+                  {/* Tier 2: Monthly Growth (Featured Brand Highlight) */}
+                  <div className="min-w-0 flex flex-col justify-between rounded-[28px] border-2 border-brand bg-brand-wash/20 p-6 shadow-soft transition-all">
                     <div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-[12px] font-bold uppercase tracking-[0.06em] text-brand">
-                          Monthly Growth
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="shrink-0 rounded-full bg-surface border border-brand/30 px-3 py-1 text-[11px] font-bold text-brand">
+                          30-Day Pass
                         </span>
-                        <span className="text-[11px] font-semibold text-brand">30 Days</span>
+                        <span className="rounded-full bg-brand px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-surface shadow-sm">
+                          Most Popular
+                        </span>
                       </div>
 
-                      <div className="mt-4">
-                        <span className="text-[34px] font-extrabold tracking-tight text-brand">₦15,000</span>
-                        <span className="text-[13px] text-muted ml-1">/ month</span>
-                      </div>
-                      <p className="mt-1 text-[12px] font-medium text-emerald-700">₦500/day · Saves 25%</p>
+                      <h4 className="mt-3 text-[20px] font-extrabold tracking-tight text-ink">
+                        Monthly Growth
+                      </h4>
 
-                      <p className="mt-4 text-[13px] leading-relaxed text-muted">
+                      <div className="mt-3 flex items-baseline gap-1.5 flex-wrap">
+                        <span className="text-[34px] font-black tracking-tight text-brand">₦15,000</span>
+                        <span className="text-[13px] font-medium text-muted">/ month</span>
+                      </div>
+                      <p className="mt-0.5 text-[12px] font-semibold text-brand">₦500/day · Saves 25% vs weekly</p>
+
+                      <p className="mt-3 text-[13px] leading-relaxed text-muted">
                         Full month continuous visibility for established sellers and active beauty salons.
                       </p>
 
-                      <ul className="mt-6 space-y-2.5 border-t border-hairline/80 pt-5 text-[12px] text-ink">
+                      <ul className="mt-5 space-y-2.5 border-t border-hairline/80 pt-4 text-[12px] text-ink">
                         <li className="flex items-center gap-2">
                           <Check className="h-4 w-4 text-brand shrink-0" /> 30 days continuous hero spot
                         </li>
@@ -357,87 +369,107 @@ export function FeaturedSpotlight() {
 
                     <Link
                       href="/partnership/seller?plan=30_days"
-                      className="lb-press mt-8 inline-flex h-11 w-full items-center justify-center rounded-full bg-brand text-[13px] font-semibold text-surface shadow-glow hover:bg-brand-deep transition-all"
+                      className="lb-press mt-6 inline-flex h-11 w-full items-center justify-center rounded-full bg-brand text-[13px] font-semibold text-surface shadow-glow hover:bg-brand-deep transition-all"
                     >
-                      Choose Monthly Growth
+                      Select Monthly Growth
                     </Link>
                   </div>
 
-                  {/* Tier 3: Annual Flagship (Shopify Best Value Tier) */}
-                  <div className="flex flex-col justify-between rounded-[28px] border border-amber-300 bg-gradient-to-b from-surface to-amber-50/40 p-6 transition-all hover:shadow-soft">
+                  {/* Tier 3: Annual Flagship (Pure LuxeBeau Brand Palette - No Amber/Yellow) */}
+                  <div className="min-w-0 flex flex-col justify-between rounded-[28px] border border-hairline bg-canvas p-6 transition-all hover:border-brand/40 hover:bg-surface">
                     <div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-[12px] font-bold uppercase tracking-[0.06em] text-amber-800">
-                          Annual Flagship
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="shrink-0 rounded-full bg-surface border border-hairline px-3 py-1 text-[11px] font-bold text-muted">
+                          365-Day Flagship
                         </span>
-                        <span className="text-[11px] font-bold text-amber-800">365 Days</span>
+                        <span className="rounded-full bg-brand-wash px-2.5 py-0.5 text-[10px] font-bold text-brand">
+                          Save 33%
+                        </span>
                       </div>
 
-                      <div className="mt-4">
-                        <span className="text-[34px] font-extrabold tracking-tight text-ink">
+                      <h4 className="mt-3 text-[20px] font-extrabold tracking-tight text-ink">
+                        Annual Partnership
+                      </h4>
+
+                      <div className="mt-3 flex items-baseline gap-1.5 flex-wrap">
+                        <span className="text-[34px] font-black tracking-tight text-ink">
                           {billingCycle === "annual" ? "₦10,000" : "₦120,000"}
                         </span>
-                        <span className="text-[13px] text-muted ml-1">
+                        <span className="text-[13px] font-medium text-muted">
                           {billingCycle === "annual" ? "/ mo" : "/ year"}
                         </span>
                       </div>
-                      <p className="mt-1 text-[12px] font-semibold text-amber-800">
+                      <p className="mt-0.5 text-[12px] font-semibold text-brand">
                         {billingCycle === "annual"
-                          ? "Billed annually at ₦120,000 · Save ₦60k"
-                          : "4 Months Free (33% Discount)"}
+                          ? "~₦328/day · Billed annually at ₦120,000"
+                          : "~₦328/day · 4 Months completely free"}
                       </p>
 
-                      <p className="mt-4 text-[13px] leading-relaxed text-muted">
+                      <p className="mt-3 text-[13px] leading-relaxed text-muted">
                         Year-round dominant presence for flagship beauty houses seeking continuous market leadership.
                       </p>
 
-                      <ul className="mt-6 space-y-2.5 border-t border-hairline/80 pt-5 text-[12px] text-ink">
+                      <ul className="mt-5 space-y-2.5 border-t border-hairline/80 pt-4 text-[12px] text-ink">
                         <li className="flex items-center gap-2">
-                          <Check className="h-4 w-4 text-amber-700 shrink-0" /> 365 days permanent hero banner
+                          <Check className="h-4 w-4 text-brand shrink-0" /> 365 days permanent hero banner
                         </li>
                         <li className="flex items-center gap-2">
-                          <Check className="h-4 w-4 text-amber-700 shrink-0" /> Saves ₦60,000 every year
+                          <Check className="h-4 w-4 text-brand shrink-0" /> Saves ₦60,000 every year
                         </li>
                         <li className="flex items-center gap-2">
-                          <Check className="h-4 w-4 text-amber-700 shrink-0" /> Guaranteed premier badge tier
+                          <Check className="h-4 w-4 text-brand shrink-0" /> Guaranteed premier badge tier
                         </li>
                         <li className="flex items-center gap-2">
-                          <Check className="h-4 w-4 text-amber-700 shrink-0" /> Dedicated account manager support
+                          <Check className="h-4 w-4 text-brand shrink-0" /> Dedicated account manager support
                         </li>
                       </ul>
                     </div>
 
                     <Link
                       href="/partnership/seller?plan=annual"
-                      className="lb-press mt-8 inline-flex h-11 w-full items-center justify-center rounded-full border border-amber-400 bg-surface text-[13px] font-semibold text-amber-900 shadow-sm hover:bg-amber-50 transition-colors"
+                      className="lb-press mt-6 inline-flex h-11 w-full items-center justify-center rounded-full border border-brand/50 bg-brand-wash/30 text-[13px] font-semibold text-brand shadow-sm hover:bg-brand-wash transition-colors"
                     >
-                      Choose Annual Flagship
+                      Select Annual Partnership
                     </Link>
                   </div>
                 </div>
 
-                {/* Shopify-Style Comparative Market Matrix */}
-                <div className="mt-9 rounded-[28px] bg-canvas p-6 sm:p-7">
-                  <h4 className="text-[15px] font-bold tracking-tight text-ink">
-                    ROI Comparison: LuxeBeau Spotlight vs Traditional Channels
+                {/* Market Benchmark: Matching EscrowStrip Design Language */}
+                <div className="mt-8 rounded-[24px] bg-canvas p-5 sm:p-6 border border-hairline">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] font-bold uppercase tracking-[0.08em] text-brand">
+                      Market Benchmark
+                    </span>
+                  </div>
+                  <h4 className="mt-1 text-[16px] font-extrabold tracking-tight text-ink">
+                    Why LuxeBeau Spotlight delivers superior return on ad spend
                   </h4>
-                  <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3 text-[12px]">
-                    <div className="rounded-2xl bg-surface p-4 shadow-sm">
-                      <p className="font-bold text-ink">Meta / Instagram Ads in NG</p>
-                      <p className="mt-1 text-muted leading-snug">
-                        Costs ₦4,500–₦15,000/day ($3–$10/day). High bounce rates, bots, and zero purchase escrow guarantee.
+                  <div className="mt-4 grid grid-cols-1 gap-3.5 sm:grid-cols-3 text-[12px]">
+                    <div className="rounded-2xl bg-surface p-4 border border-hairline shadow-sm">
+                      <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-muted">
+                        Meta / Instagram Ads
+                      </p>
+                      <p className="mt-1 text-[14px] font-bold text-ink">₦4,500 – ₦15,000 / day</p>
+                      <p className="mt-1.5 text-muted leading-relaxed">
+                        High bounce rates, unverified traffic, and zero purchase escrow guarantee.
                       </p>
                     </div>
-                    <div className="rounded-2xl bg-surface p-4 shadow-sm">
-                      <p className="font-bold text-ink">Influencer Collaboration</p>
-                      <p className="mt-1 text-muted leading-snug">
-                        ₦30,000–₦100,000+ for a single 24-hr disappearing story with no long-term indexing.
+                    <div className="rounded-2xl bg-surface p-4 border border-hairline shadow-sm">
+                      <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-muted">
+                        Influencer Collaboration
+                      </p>
+                      <p className="mt-1 text-[14px] font-bold text-ink">₦30,000 – ₦100,000+</p>
+                      <p className="mt-1.5 text-muted leading-relaxed">
+                        Single 24-hr disappearing story with no lasting presence or buyer search indexing.
                       </p>
                     </div>
-                    <div className="rounded-2xl bg-brand/10 p-4 border border-brand/20">
-                      <p className="font-bold text-brand">LuxeBeau Hero Spotlight</p>
-                      <p className="mt-1 text-brand/90 leading-snug font-medium">
-                        As low as <strong>₦328 to ₦500/day</strong>. 100% targeted luxury shoppers, continuous visibility, and built-in escrow checkout.
+                    <div className="rounded-2xl bg-brand-wash/30 p-4 border-2 border-brand shadow-sm">
+                      <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-brand">
+                        LuxeBeau Hero Spotlight
+                      </p>
+                      <p className="mt-1 text-[14px] font-bold text-brand">From ~₦328 / day</p>
+                      <p className="mt-1.5 text-ink/90 font-medium leading-relaxed">
+                        100% targeted luxury beauty buyers, continuous visibility, and built-in escrow checkout.
                       </p>
                     </div>
                   </div>
