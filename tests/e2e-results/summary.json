@@ -1,183 +1,274 @@
 {
-  "total": 25,
-  "passed": 17,
-  "failed": 8,
-  "percentage": 68,
+  "total": 38,
+  "passed": 34,
+  "failed": 4,
+  "percentage": 89,
   "results": [
     {
       "category": "API",
       "name": "GET /healthz",
       "passed": true,
       "details": "Status: 200",
-      "timestamp": "2026-11-02T16:34:14.352Z"
+      "timestamp": "2026-11-03T01:21:56.383Z"
     },
     {
       "category": "API",
       "name": "GET /api/v1/products",
       "passed": true,
       "details": "Loaded 6 products",
-      "timestamp": "2026-11-02T16:34:14.595Z"
+      "timestamp": "2026-11-03T01:21:56.611Z"
     },
     {
       "category": "API",
       "name": "GET /api/v1/products/1",
       "passed": true,
       "details": "Ọsẹ Dúdú Honey Cleansing Bar",
-      "timestamp": "2026-11-02T16:34:14.911Z"
+      "timestamp": "2026-11-03T01:21:56.802Z"
     },
     {
       "category": "API",
       "name": "GET /api/v1/artisans",
       "passed": true,
       "details": "Loaded 6 artisans",
-      "timestamp": "2026-11-02T16:34:15.165Z"
+      "timestamp": "2026-11-03T01:21:57.004Z"
     },
     {
       "category": "API",
       "name": "GET /api/v1/artisans/2/availability",
-      "passed": false,
-      "details": "Status 400",
-      "timestamp": "2026-11-02T16:34:15.422Z"
+      "passed": true,
+      "details": "Status 200",
+      "timestamp": "2026-11-03T01:21:57.272Z"
+    },
+    {
+      "category": "API Storefront",
+      "name": "POST /api/v1/storefronts/check-handle",
+      "passed": true,
+      "details": "Status 200",
+      "timestamp": "2026-11-03T01:21:57.528Z"
+    },
+    {
+      "category": "API Storefront",
+      "name": "POST /api/v1/storefronts/theme-preview",
+      "passed": true,
+      "details": "Status 200",
+      "timestamp": "2026-11-03T01:21:57.726Z"
     },
     {
       "category": "AUTH",
       "name": "Login as buyer (buyer@luxebeau.ng)",
       "passed": true,
       "details": "User ID: 00000000-0000-0000-0000-000000000001",
-      "timestamp": "2026-11-02T16:34:17.348Z"
+      "timestamp": "2026-11-03T01:21:59.578Z"
     },
     {
       "category": "AUTH",
       "name": "Login as seller (seller@luxebeau.ng)",
       "passed": true,
       "details": "User ID: 00000000-0000-0000-0000-000000000002",
-      "timestamp": "2026-11-02T16:34:19.241Z"
+      "timestamp": "2026-11-03T01:22:01.406Z"
     },
     {
       "category": "AUTH",
       "name": "Login as artisan (amaka@luxebeau.ng)",
       "passed": true,
       "details": "User ID: 10000000-0000-0000-0000-000000000001",
-      "timestamp": "2026-11-02T16:34:21.121Z"
+      "timestamp": "2026-11-03T01:22:03.287Z"
     },
     {
       "category": "AUTH",
       "name": "Login as admin (admin@luxebeau.ng)",
       "passed": false,
       "details": "Status 500",
-      "timestamp": "2026-11-02T16:34:33.038Z"
+      "timestamp": "2026-11-03T01:22:15.204Z"
     },
     {
       "category": "API Buyer",
       "name": "GET /api/v1/auth/me",
       "passed": true,
       "details": "buyer@luxebeau.ng",
-      "timestamp": "2026-11-02T16:34:33.285Z"
+      "timestamp": "2026-11-03T01:22:15.401Z"
     },
     {
       "category": "API Buyer",
       "name": "GET /api/v1/wallets/me",
       "passed": true,
       "details": "Balance: ₦0",
-      "timestamp": "2026-11-02T16:34:33.487Z"
+      "timestamp": "2026-11-03T01:22:15.595Z"
     },
     {
       "category": "API Buyer",
       "name": "GET /api/v1/me/orders",
       "passed": true,
       "details": "Found 0 orders",
-      "timestamp": "2026-11-02T16:34:33.694Z"
+      "timestamp": "2026-11-03T01:22:15.794Z"
     },
     {
       "category": "API Buyer",
       "name": "GET /api/v1/me/bookings",
       "passed": true,
       "details": "Found 0 bookings",
-      "timestamp": "2026-11-02T16:34:33.902Z"
+      "timestamp": "2026-11-03T01:22:15.995Z"
     },
     {
       "category": "API Seller",
       "name": "GET /api/v1/wallets/me",
       "passed": true,
       "details": "Balance: ₦0",
-      "timestamp": "2026-11-02T16:34:34.151Z"
+      "timestamp": "2026-11-03T01:22:16.198Z"
     },
     {
       "category": "API Seller",
       "name": "GET /api/v1/me/sales",
       "passed": true,
       "details": "Status 200",
-      "timestamp": "2026-11-02T16:34:34.353Z"
+      "timestamp": "2026-11-03T01:22:16.393Z"
     },
     {
       "category": "API Seller",
       "name": "GET /api/v1/me/delivery-zones",
       "passed": false,
       "details": "Zones: 0",
-      "timestamp": "2026-11-02T16:34:34.550Z"
+      "timestamp": "2026-11-03T01:22:16.593Z"
     },
     {
       "category": "API Seller",
       "name": "GET /api/v1/me/influencer-packages",
       "passed": false,
       "details": "Packages: 0",
-      "timestamp": "2026-11-02T16:34:34.770Z"
+      "timestamp": "2026-11-03T01:22:16.793Z"
     },
     {
       "category": "API Seller",
       "name": "GET /api/v1/me/wallet/withdrawals",
       "passed": false,
       "details": "Status 404",
-      "timestamp": "2026-11-02T16:34:34.973Z"
+      "timestamp": "2026-11-03T01:22:16.981Z"
     },
     {
       "category": "API Artisan",
       "name": "GET /api/v1/me/artisan",
       "passed": true,
       "details": "",
-      "timestamp": "2026-11-02T16:34:35.189Z"
+      "timestamp": "2026-11-03T01:22:17.188Z"
     },
     {
       "category": "API Artisan",
       "name": "GET /api/v1/me/bookings",
       "passed": true,
       "details": "Bookings: 0",
-      "timestamp": "2026-11-02T16:34:35.400Z"
+      "timestamp": "2026-11-03T01:22:17.403Z"
     },
     {
       "category": "API Artisan",
       "name": "GET /api/v1/me/artisan/slots",
       "passed": true,
-      "details": "Slots: 99",
-      "timestamp": "2026-11-02T16:34:35.682Z"
+      "details": "Slots: 108",
+      "timestamp": "2026-11-03T01:22:17.598Z"
     },
     {
       "category": "UI Guest",
       "name": "Load Home Page",
       "passed": true,
       "details": "Title: \"LuxeBeau, Nigeria's Luxury Beauty Marketplace\"",
-      "timestamp": "2026-11-02T16:34:40.726Z"
+      "timestamp": "2026-11-03T01:22:24.299Z"
     },
     {
       "category": "UI Guest",
       "name": "Header & Brand Wordmark rendered",
-      "passed": false,
-      "details": "Header present",
-      "timestamp": "2026-11-02T16:34:40.758Z"
+      "passed": true,
+      "details": "Header present (2 icons)",
+      "timestamp": "2026-11-03T01:22:24.396Z"
     },
     {
       "category": "UI Guest",
       "name": "Browse Shop Catalog (/shop)",
-      "passed": false,
-      "details": "Found 0 product cards rendered",
-      "timestamp": "2026-11-02T16:34:46.273Z"
+      "passed": true,
+      "details": "Found 12 product cards rendered",
+      "timestamp": "2026-11-03T01:22:29.496Z"
     },
     {
-      "category": "FATAL",
-      "name": "E2E Execution Error",
-      "passed": false,
-      "details": "locator.getAttribute: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('a[href*=\\'/shop/\\']').first()\u001b[22m\n",
-      "timestamp": "2026-11-02T16:35:16.280Z"
+      "category": "UI Guest",
+      "name": "View Product Details (/shop/ose-dudu-honey-cleansing-bar)",
+      "passed": true,
+      "details": "Trust badge and pricing rendered",
+      "timestamp": "2026-11-03T01:22:35.443Z"
+    },
+    {
+      "category": "UI Guest",
+      "name": "Click 'Add to Bag'",
+      "passed": true,
+      "details": "Added item to cart state",
+      "timestamp": "2026-11-03T01:22:36.845Z"
+    },
+    {
+      "category": "UI Guest",
+      "name": "Inspect Cart Page (/cart)",
+      "passed": true,
+      "details": "Cart view rendered",
+      "timestamp": "2026-11-03T01:22:42.316Z"
+    },
+    {
+      "category": "UI Guest",
+      "name": "Browse Artisans Directory (/services)",
+      "passed": true,
+      "details": "Found 6 artisan links",
+      "timestamp": "2026-11-03T01:22:47.180Z"
+    },
+    {
+      "category": "UI Guest",
+      "name": "View Artisan Profile (/services/tolu-bankole)",
+      "passed": true,
+      "details": "Artisan bio and services loaded",
+      "timestamp": "2026-11-03T01:22:51.641Z"
+    },
+    {
+      "category": "UI Guest",
+      "name": "Buyer Protection Page (/buyer-protection)",
+      "passed": true,
+      "details": "Protection copy verified",
+      "timestamp": "2026-11-03T01:22:54.489Z"
+    },
+    {
+      "category": "UI Guest",
+      "name": "Seller Partnership Onboarding Page (/partnership/seller)",
+      "passed": true,
+      "details": "Rendered",
+      "timestamp": "2026-11-03T01:22:58.416Z"
+    },
+    {
+      "category": "UI Guest",
+      "name": "Artisan Partnership Onboarding Page (/partnership/artisan)",
+      "passed": true,
+      "details": "Rendered",
+      "timestamp": "2026-11-03T01:23:02.183Z"
+    },
+    {
+      "category": "UI Storefront",
+      "name": "Public Storefront (/s/adunni-organics)",
+      "passed": true,
+      "details": "Storefront route verified",
+      "timestamp": "2026-11-03T01:23:05.270Z"
+    },
+    {
+      "category": "UI Buyer",
+      "name": "Buyer Dashboard (/dashboard)",
+      "passed": true,
+      "details": "Buyer view verified",
+      "timestamp": "2026-11-03T01:23:09.276Z"
+    },
+    {
+      "category": "UI Seller",
+      "name": "Seller Dashboard (/dashboard/seller)",
+      "passed": true,
+      "details": "Seller dashboard verified",
+      "timestamp": "2026-11-03T01:23:13.623Z"
+    },
+    {
+      "category": "UI Artisan",
+      "name": "Artisan Dashboard (/dashboard/artisan)",
+      "passed": true,
+      "details": "Artisan dashboard verified",
+      "timestamp": "2026-11-03T01:23:18.660Z"
     }
   ]
 }
