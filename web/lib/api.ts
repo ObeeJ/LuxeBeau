@@ -187,6 +187,11 @@ export const orderResultSchema = z
   }));
 export type OrderResult = z.infer<typeof orderResultSchema>;
 
+export async function verifyOrderPayment(orderId: string, reference?: string): Promise<OrderResult> {
+  const query = reference ? `?reference=${encodeURIComponent(reference)}` : "";
+  return apiFetch(`/orders/${orderId}/verify${query}`, orderResultSchema, { method: "POST" });
+}
+
 export const bookingResultSchema = z
   .object({
     booking: z.object({

@@ -71,6 +71,8 @@ type OrderService interface {
 	ListMyOrders(ctx context.Context, buyerID string) ([]Order, error)
 	// ConfirmPayment applies a verified payment-provider notification.
 	ConfirmPayment(ctx context.Context, n PaymentNotice) (PaymentOutcome, error)
+	// VerifyPayment queries the payment gateway directly as a fallback to confirm an order.
+	VerifyPayment(ctx context.Context, orderID string, reference string) (*Order, error)
 }
 
 // PaymentNotice is a provider's report about one order's payment, already

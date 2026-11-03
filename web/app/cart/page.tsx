@@ -14,7 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { formatNaira } from "@/lib/format";
 import { useCart, useAuth } from "@/lib/store";
 import { useCreateOrder, useWallet } from "@/lib/queries";
-import { deliveryFeeNGN, deliverySchema, type OrderResult } from "@/lib/api";
+import { deliveryFeeNGN, deliverySchema, verifyOrderPayment, type OrderResult } from "@/lib/api";
 import { useAuthModal } from "@/components/auth/auth-dialog";
 import { getFriendlyErrorMessage } from "@/lib/errors";
 import { cn } from "@/lib/utils";
@@ -48,11 +48,87 @@ export default function CartPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState("");
   const [placed, setPlaced] = useState<OrderResult | null>(null);
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [isOpeningPaystack, setIsOpeningPaystack] = useState(false);
 
   const fee = deliveryFeeNGN(subtotalNGN);
   const total = subtotalNGN + fee;
   const balance = wallet.data?.balanceNGN;
   const walletShort = pay === "wallet" && (balance === undefined || balance < total);
+
+  /* Dynamically loads Paystack inline script if not present */
+  const loadPaystack = (): Promise<boolean> => {
+    return new Promise(resolve => {
+      if (typeof window === "undefined") return resolve(false);
+      if ((window as any).PaystackPop) return resolve(true);
+      const existing = document.getElementById("paystack-inline-js");
+      if (existing) {
+        existing.addEventListener("load", () => resolve(true), { once: true });
+        return;
+      }
+      const script = document.createElement("script");
+      script.id = "paystack-inline-js";
+      script.src = "https://js.paystack.co/v1/inline.js";
+      script.async = true;
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
+
+  /* Launches Paystack inline modal for card/transfer/ussd payment */
+  const triggerPaystack = async (order: OrderResult) => {
+    setIsOpeningPaystack(true);
+    const loaded = await loadPaystack();
+    setIsOpeningPaystack(false);
+
+    const currentUser = useAuth.getState().user;
+    const email = currentUser?.email || "buyer@luxebeau.com";
+    const publicKey = process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || "pk_test_8f297ae20d9fcad597746b3989cca684e971d9f8";
+
+    if (!loaded || !(window as any).PaystackPop) {
+      setPlaced(order);
+      setFormError("Could not load Paystack modal. You can pay or retry verification below.");
+      return;
+    }
+
+    const handler = (window as any).PaystackPop.setup({
+      key: publicKey,
+      email: email,
+      amount: Math.round(order.totalNGN * 100), // in kobo
+      ref: order.id,
+      currency: "NGN",
+      callback: async (response: { reference: string }) => {
+        setIsVerifying(true);
+        try {
+          const verifiedOrder = await verifyOrderPayment(order.id, response.reference);
+          setPlaced(verifiedOrder);
+        } catch {
+          // If immediate API verification is still processing, keep order and wait for webhook
+          setPlaced({ ...order, paymentStatus: "paid" });
+        } finally {
+          setIsVerifying(false);
+        }
+      },
+      onClose: () => {
+        setPlaced(order);
+      },
+    });
+    handler.openIframe();
+  };
+
+  const manualVerify = async (orderId: string) => {
+    setIsVerifying(true);
+    setFormError("");
+    try {
+      const verified = await verifyOrderPayment(orderId);
+      setPlaced(verified);
+    } catch (err) {
+      setFormError(getFriendlyErrorMessage(err, "Payment has not yet been confirmed by Paystack. Please complete payment first."));
+    } finally {
+      setIsVerifying(false);
+    }
+  };
 
   /* Contact details prefill from the profile when checkout opens. */
   const openCheckout = () => {
@@ -93,9 +169,15 @@ export default function CartPage() {
       { items, delivery: parsed.data, pay_method: pay },
       {
         onSuccess: result => {
-          setPlaced(result);
           clear();
           window.scrollTo({ top: 0 });
+          if (pay === "wallet") {
+            setPlaced(result);
+          } else {
+            // Trigger Paystack inline checkout popup
+            setPlaced(result);
+            triggerPaystack(result);
+          }
         },
         onError: err => setFormError(getFriendlyErrorMessage(err, "We couldn't place your order. Please try again.")),
       },
@@ -103,24 +185,68 @@ export default function CartPage() {
   };
 
   if (placed) {
+    const isPaid = placed.paymentStatus === "paid";
     return (
       <SiteShell>
         <Container className="pt-10">
           <div className="mx-auto max-w-md rounded-[32px] bg-surface p-6 shadow-soft sm:p-8">
-            <CheckCircle2 className="h-8 w-8 text-brand" strokeWidth={1.75} aria-hidden />
-            <h1 className="t-display mt-4">Order {placed.id} placed</h1>
-            <p className="mt-2 text-[15px] text-muted">
-              {placed.paymentStatus === "paid"
-                ? "Paid from your wallet. We've emailed your receipt."
-                : "We've emailed your order details. Your payment is held safe until you confirm delivery."}
+            <div className="flex items-center gap-3">
+              {isPaid ? (
+                <CheckCircle2 className="h-8 w-8 text-brand" strokeWidth={1.75} aria-hidden />
+              ) : (
+                <ShieldCheck className="h-8 w-8 text-amber-500" strokeWidth={1.75} aria-hidden />
+              )}
+              <div>
+                <h1 className="t-display text-[22px]">Order {placed.id}</h1>
+                <p className="text-[13px] font-medium text-muted">
+                  {isPaid ? "Payment confirmed • Escrow funded" : "Pending payment • Reserved"}
+                </p>
+              </div>
+            </div>
+
+            <p className="mt-3 text-[14px] leading-relaxed text-muted">
+              {isPaid
+                ? "Your payment is safely held in LuxeBeau Escrow. The seller will only be paid once you receive and confirm your order."
+                : "Your items are reserved. Complete your payment via Paystack to fund escrow and release your order for dispatch."}
             </p>
+
+            {formError && (
+              <div className="mt-3 rounded-xl bg-destructive/10 p-3 text-[13px] text-destructive">
+                {formError}
+              </div>
+            )}
+
             <dl className="mt-5 divide-y divide-hairline text-[14px] tracking-[-0.014em]">
+              <div className="flex justify-between py-2.5"><dt className="text-muted">Payment status</dt><dd className="font-semibold capitalize text-ink">{placed.paymentStatus}</dd></div>
               <div className="flex justify-between py-2.5"><dt className="text-muted">Delivery</dt><dd>{placed.deliveryFeeNGN ? formatNaira(placed.deliveryFeeNGN) : "Free"}</dd></div>
-              <div className="flex justify-between py-2.5"><dt className="text-muted">Total</dt><dd className="font-bold">{formatNaira(placed.totalNGN)}</dd></div>
+              <div className="flex justify-between py-2.5"><dt className="text-muted">Total</dt><dd className="font-bold text-brand">{formatNaira(placed.totalNGN)}</dd></div>
             </dl>
-            <div className="mt-6 flex flex-wrap gap-2.5">
-              <Button asChild><Link href="/dashboard">Track order</Link></Button>
-              <Button asChild variant="outline"><Link href="/shop">Keep shopping</Link></Button>
+
+            {!isPaid && (
+              <div className="mt-6 flex flex-col gap-2.5">
+                <Button
+                  onClick={() => triggerPaystack(placed)}
+                  disabled={isOpeningPaystack || isVerifying}
+                  className="w-full"
+                >
+                  {isOpeningPaystack && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Pay {formatNaira(placed.totalNGN)} with Paystack
+                </Button>
+                <Button
+                  onClick={() => manualVerify(placed.id)}
+                  disabled={isVerifying}
+                  variant="outline"
+                  className="w-full text-[13px]"
+                >
+                  {isVerifying && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  I have already paid (Verify now)
+                </Button>
+              </div>
+            )}
+
+            <div className="mt-6 flex flex-wrap gap-2.5 border-t border-hairline pt-4">
+              <Button asChild variant={isPaid ? "default" : "outline"}><Link href="/dashboard">Track order</Link></Button>
+              <Button asChild variant="ghost"><Link href="/shop">Keep shopping</Link></Button>
             </div>
           </div>
         </Container>

@@ -250,3 +250,39 @@ func (h *OrderHandler) CryptoWebhook(c *gin.Context) {
 		Amount:    p.AmountKobo, Currency: p.Currency,
 	})
 }
+
+// VerifyPayment provides a synchronous fallback to query the payment gateway directly.
+func (h *OrderHandler) VerifyPayment(c *gin.Context) {
+	orderID := c.Param("id")
+	reference := c.Query("reference")
+	if reference == "" {
+		var body struct {
+			Reference string `json:"reference"`
+		}
+		_ = c.ShouldBindJSON(&body)
+		reference = body.Reference
+	}
+
+	order, err := h.service.GetOrderDetails(c.Request.Context(), orderID)
+	if err != nil || order == nil {
+		response.NotFound(c, "Order not found")
+		return
+	}
+
+	// Security: Only the buyer or an admin may verify the payment.
+	userID := c.GetString("userID")
+	userRole := c.GetString("userRole")
+	if order.BuyerID != userID && userRole != "admin" {
+		response.Forbidden(c, "You are not authorized to verify this order")
+		return
+	}
+
+	updated, err := h.service.VerifyPayment(c.Request.Context(), orderID, reference)
+	if err != nil {
+		h.logger.Warn("order payment verification failed", slog.String("order", orderID), slog.Any("error", err))
+		response.BadRequest(c, err.Error())
+		return
+	}
+
+	response.OK(c, gin.H{"order": updated, "verified": true})
+}

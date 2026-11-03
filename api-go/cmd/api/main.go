@@ -323,6 +323,7 @@ func main() {
 		// Orders
 		protected.POST("/orders", orderHandler.CreateOrder)
 		protected.GET("/orders/:id", orderHandler.GetOrder)
+		protected.POST("/orders/:id/verify", orderHandler.VerifyPayment)
 		protected.GET("/me/orders", orderHandler.ListMyOrders)
 
 		// Bookings (the signed-in user's own bookings, role-aware)

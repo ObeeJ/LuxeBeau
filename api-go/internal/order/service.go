@@ -4,10 +4,15 @@ import (
 	"context"
 	crand "crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
+	"net/url"
+	"os"
 	"strings"
+	"time"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -254,4 +259,81 @@ func (s *orderService) ConfirmPayment(ctx context.Context, n domain.PaymentNotic
 		return "", err
 	}
 	return outcome, nil
+}
+
+// VerifyPayment queries the payment gateway directly as a fallback to confirm an order.
+func (s *orderService) VerifyPayment(ctx context.Context, orderID string, reference string) (*domain.Order, error) {
+	if reference == "" {
+		reference = orderID
+	}
+	order, err := s.GetOrderDetails(ctx, orderID)
+	if err != nil || order == nil {
+		return nil, fmt.Errorf("order not found: %s", orderID)
+	}
+
+	// Idempotent fast-path: if order is already marked paid, return immediately.
+	if order.PaymentStatus == "paid" {
+		return order, nil
+	}
+
+	secret := os.Getenv("PAYSTACK_SECRET_KEY")
+	if secret == "" {
+		return nil, errors.New("payment gateway not configured")
+	}
+
+	reqURL := "https://api.paystack.co/transaction/verify/" + url.PathEscape(reference)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("paystack verify request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+secret)
+	req.Header.Set("Accept", "application/json")
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("paystack verify http call: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("paystack verification returned HTTP %d", resp.StatusCode)
+	}
+
+	var pResp struct {
+		Status  bool   `json:"status"`
+		Message string `json:"message"`
+		Data    struct {
+			Reference string `json:"reference"`
+			Status    string `json:"status"`
+			Amount    int64  `json:"amount"` // in kobo
+			Currency  string `json:"currency"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&pResp); err != nil {
+		return nil, fmt.Errorf("paystack verify response decode: %w", err)
+	}
+
+	if !pResp.Status || pResp.Data.Status != "success" {
+		return nil, fmt.Errorf("payment not successful (status: %s)", pResp.Data.Status)
+	}
+
+	if pResp.Data.Amount != order.Total {
+		return nil, fmt.Errorf("payment amount mismatch: expected %d kobo, got %d kobo", order.Total, pResp.Data.Amount)
+	}
+
+	// Confirm payment in database transaction with escrow hold and ledger write
+	outcome, err := s.ConfirmPayment(ctx, domain.PaymentNotice{
+		Provider:  "paystack",
+		Reference: order.ID,
+		Succeeded: true,
+		Amount:    pResp.Data.Amount,
+		Currency:  pResp.Data.Currency,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("confirm payment: %w", err)
+	}
+	s.logger.Info("payment verified via Paystack API", slog.String("order", order.ID), slog.String("outcome", string(outcome)))
+
+	return s.GetOrderDetails(ctx, orderID)
 }
