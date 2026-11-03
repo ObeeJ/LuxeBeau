@@ -25,6 +25,8 @@ const nextConfig: NextConfig = {
       { source: "/artisan", destination: "/dashboard/artisan", permanent: false },
       { source: "/escrow", destination: "/dashboard/escrow", permanent: false },
       { source: "/store", destination: "/shop", permanent: false },
+      { source: "/checkout", destination: "/cart", permanent: false },
+      { source: "/cart/checkout", destination: "/cart", permanent: false },
     ];
   },
 };

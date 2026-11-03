@@ -13,6 +13,8 @@ import { useArtisans } from "@/lib/queries";
 
 type Visit = "any" | "studio" | "home";
 
+const POPULAR_CITIES = ["Lagos", "Abuja", "Port Harcourt", "Ibadan"];
+
 function ServicesContent() {
   const searchParams = useSearchParams();
   const q = (searchParams.get("q") ?? "").trim().toLowerCase();
@@ -21,17 +23,20 @@ function ServicesContent() {
 
   const { data: artisans = [], isLoading, isError, refetch } = useArtisans();
 
-  // Derive unique cities from live artisan data only
-  const cities = useMemo(() => [...new Set(artisans.map(a => a.city).filter(Boolean))], [artisans]);
+  // Instant response: pre-seed with major luxury hubs, merge dynamically
+  const cities = useMemo(() => {
+    const liveCities = artisans.map(a => a.city).filter(Boolean);
+    return Array.from(new Set([...POPULAR_CITIES, ...liveCities]));
+  }, [artisans]);
 
   const visible = useMemo(
     () =>
       artisans.filter(a => {
-        const cityOk = !city || a.city === city;
+        const cityOk = !city || a.city?.toLowerCase() === city.toLowerCase();
         const visitOk = visit === "any" || a.serviceMode === "both" || a.serviceMode === visit;
         const queryOk =
           !q ||
-          [a.name, a.craft, a.studio, ...a.services.map(s => s.name)].some(v => v.toLowerCase().includes(q));
+          [a.name, a.craft, a.studio, ...a.services.map(s => s.name)].some(v => v?.toLowerCase().includes(q));
         return cityOk && visitOk && queryOk;
       }),
     [artisans, city, visit, q],
@@ -45,28 +50,25 @@ function ServicesContent() {
         <SearchBar key={q} defaultValue={searchParams.get("q") ?? ""} action="/services" placeholder="Braids, gele, makeup, nails…" />
       </div>
 
-      <div className="mt-5 flex flex-wrap items-start justify-center gap-x-8 gap-y-4">
-        <FilterGroup label="Where" className="max-w-full">
-          <Segmented<Visit>
-            value={visit}
-            onChange={setVisit}
-            options={[
-              { value: "any", label: "Anywhere", icon: LayoutGrid },
-              { value: "home", label: "Comes to me", icon: Home },
-              { value: "studio", label: "In studio", icon: Store },
-            ]}
-          />
-        </FilterGroup>
+      {/* Unconstrained, non-cropping filter row with instant feedback */}
+      <div className="mt-6 flex flex-col items-center gap-4">
+        <Segmented<Visit>
+          value={visit}
+          onChange={setVisit}
+          options={[
+            { value: "any", label: "Anywhere", icon: LayoutGrid },
+            { value: "home", label: "Comes to me", icon: Home },
+            { value: "studio", label: "In studio", icon: Store },
+          ]}
+        />
 
-        {cities.length > 0 && (
-          <FilterGroup label="City" className="max-w-full">
-            <ChipRow<string>
-              value={city}
-              onChange={setCity}
-              options={[{ value: "", label: "All cities" }, ...cities.map(c => ({ value: c, label: c, icon: MapPin }))]}
-            />
-          </FilterGroup>
-        )}
+        <div className="w-full">
+          <ChipRow<string>
+            value={city}
+            onChange={setCity}
+            options={[{ value: "", label: "All cities" }, ...cities.map(c => ({ value: c, label: c, icon: MapPin }))]}
+          />
+        </div>
       </div>
 
       <div className="mt-6">

@@ -14,11 +14,11 @@ export function getFriendlyErrorMessage(err: unknown, fallback = "Something went
       case "UNAUTHORIZED":
         return "Your session has expired. Please sign in again.";
       case "FORBIDDEN":
-        return "You do not have permission to perform this action.";
+        return err.message || "You do not have permission to perform this action.";
       case "NOT_FOUND":
-        return "We could not find the requested record.";
+        return err.message || "We could not find the requested record.";
       case "CONFLICT":
-        return "This record already exists. Please check your details and try again.";
+        return err.message || "An account with this email already exists. Sign in instead.";
       default:
         return err.message || fallback;
     }

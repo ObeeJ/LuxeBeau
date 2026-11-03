@@ -32,6 +32,9 @@ import {
   toMyOrder,
   toProduct,
   walletResponseSchema,
+  messageResponseSchema,
+  type ForgotPasswordInput,
+  type ResetPasswordInput,
   type ApiProduct,
   type Artisan,
   type DeliveryInput,
@@ -88,6 +91,7 @@ export function useArtisans() {
   return useQuery({
     queryKey: ["artisans"],
     staleTime: CATALOGUE_STALE,
+    placeholderData: previousData => previousData,
     queryFn: async () => {
       const data = await apiFetch("/artisans", artisansResponseSchema);
       return data.artisans.map(toArtisan);

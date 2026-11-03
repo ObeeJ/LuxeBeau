@@ -57,13 +57,15 @@ export function ChipRow<T extends string>({
   value,
   options,
   onChange,
+  className,
 }: {
   value: T;
   options: SegmentOption<T>[];
   onChange: (v: T) => void;
+  className?: string;
 }) {
   return (
-    <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 pb-1 pt-1 sm:mx-0 sm:flex-wrap sm:justify-center sm:px-0">
+    <div className={cn("no-scrollbar flex flex-wrap items-center justify-center gap-2 py-1", className)}>
       {options.map(({ value: v, label, icon: Icon }) => {
         const on = v === value;
         return (
@@ -73,7 +75,7 @@ export function ChipRow<T extends string>({
             aria-pressed={on}
             onClick={() => onChange(v)}
             className={cn(
-              "lb-press inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-[14px] font-medium tracking-[-0.014em] shadow-pill ring-1 transition-colors duration-200",
+              "lb-press inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-[14px] font-medium tracking-[-0.014em] shadow-pill ring-1 transition-colors duration-150 cursor-pointer",
               on ? "bg-brand-wash text-brand-deep ring-brand" : "bg-surface text-ink ring-hairline hover:bg-canvas",
             )}
           >
