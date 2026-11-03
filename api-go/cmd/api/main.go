@@ -30,6 +30,7 @@ import (
 	"luxebeau/internal/media"
 	"luxebeau/internal/middleware"
 	"luxebeau/internal/order"
+	"luxebeau/internal/promotion"
 	"luxebeau/internal/seed"
 	"luxebeau/internal/seller"
 	"luxebeau/internal/storefront"
@@ -92,6 +93,7 @@ func main() {
 		&domain.Storefront{},
 		&domain.ReservedHandle{},
 		&domain.StorefrontHandleHistory{},
+		&domain.FeaturedAd{},
 	); err != nil {
 		logger.Error("Auto-migration failed", slog.Any("error", err))
 		os.Exit(1)
@@ -111,6 +113,10 @@ func main() {
 	if err := seed.SeedPlatformWallet(db, logger); err != nil {
 		logger.Error("Platform wallet seed failed", slog.Any("error", err))
 		os.Exit(1)
+	}
+	// Seed featured ads spotlight if empty
+	if err := seed.SeedFeaturedAds(db, logger); err != nil {
+		logger.Warn("Featured ads seed failed", slog.Any("error", err))
 	}
 
 	// ── Dependency Injection Wiring ─────────────────────────
@@ -207,6 +213,11 @@ func main() {
 	withdrawalService := withdrawal.NewService(db, os.Getenv("PAYSTACK_SECRET_KEY"), logger)
 	withdrawalHandler := withdrawal.NewHandler(withdrawalService, logger)
 
+	// Paid ads & featured promotions
+	promotionRepo := promotion.NewGormRepository(db)
+	promotionService := promotion.NewService(promotionRepo, logger)
+	promotionHandler := promotion.NewHandler(promotionService, logger)
+
 	// ── Router ──────────────────────────────────────────────
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -287,6 +298,11 @@ func main() {
 		v1.GET("/storefronts/:handle", storefrontHandler.GetPublicStorefront)
 		v1.POST("/storefronts/check-handle", storefrontHandler.CheckHandle)
 		v1.POST("/storefronts/theme-preview", storefrontHandler.ThemePreview)
+
+		// Featured Ads & Sponsored Spotlights
+		v1.GET("/featured-ads/active", promotionHandler.ListActive)
+		v1.GET("/featured-ads/pricing", promotionHandler.PricingInfo)
+		v1.POST("/featured-ads/:id/click", promotionHandler.RecordClick)
 	}
 
 	// ── Protected Routes ────────────────────────────────────
@@ -382,12 +398,18 @@ func main() {
 			adminGroup.POST("/escrows/:id/resolve", escrowHandler.AdminResolve)
 			adminGroup.GET("/influencer/packages", influencerHandler.AdminList)
 			adminGroup.GET("/influencer-commissions", influencerHandler.AdminCommissions)
+			adminGroup.GET("/promotions", promotionHandler.AdminList)
+			adminGroup.PATCH("/promotions/:id/status", promotionHandler.AdminUpdateStatus)
 		}
 
 		// Wallets & Withdrawals
 		protected.GET("/wallets/me", authHandler.GetWallet)
 		protected.POST("/me/wallet/withdraw", auth.RequireRole("seller", "artisan", "admin"), withdrawalHandler.Initiate)
 		protected.GET("/me/wallet/withdrawals", auth.RequireRole("seller", "artisan", "admin"), withdrawalHandler.List)
+
+		// Promotions & Paid Ads (sellers, artisans, admin)
+		protected.POST("/me/promotions", auth.RequireRole("seller", "artisan", "admin"), promotionHandler.CreatePromotion)
+		protected.GET("/me/promotions", auth.RequireRole("seller", "artisan", "admin"), promotionHandler.ListMyPromotions)
 
 		// ── Storefront configuration (sellers, artisans, admin) ──
 		sfGroup := protected.Group("/me/storefront")

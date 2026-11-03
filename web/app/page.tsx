@@ -12,6 +12,7 @@ import {
   StoreCard,
 } from "@/components/site/catalog";
 import { HeroCard } from "@/components/site/home/hero-card";
+import { FeaturedSpotlight } from "@/components/site/home/featured-spotlight";
 import { EscrowStrip } from "@/components/site/home/escrow-strip";
 import { JoinRow } from "@/components/site/home/join-row";
 import { CategoryGrid, EditCards } from "@/components/site/home/explore";
@@ -137,9 +138,10 @@ export default function Home() {
         </Container>
       </section>
 
-      {/* Hero */}
-      <Container className="mb-12">
+      {/* Hero & Featured Partner Spotlight */}
+      <Container className="mb-12 space-y-6">
         <HeroCard />
+        <FeaturedSpotlight />
       </Container>
 
       {/* Explore feed */}

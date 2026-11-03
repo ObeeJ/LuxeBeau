@@ -5,6 +5,8 @@ import { useProducts, useArtisans } from "@/lib/queries";
 jest.mock("@/lib/queries", () => ({
   useProducts: jest.fn(),
   useArtisans: jest.fn(),
+  useFeaturedAds: jest.fn(() => ({ data: [], isLoading: false })),
+  useRecordAdClick: jest.fn(() => ({ mutate: jest.fn() })),
 }));
 
 jest.mock("next/navigation", () => ({

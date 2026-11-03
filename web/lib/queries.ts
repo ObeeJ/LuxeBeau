@@ -47,6 +47,9 @@ import {
   type SaveStorefrontPayload,
   type ThemeVariants,
   type PublicStorefrontResponse,
+  fetchActiveFeaturedAds,
+  recordAdClick,
+  type FeaturedAd,
 } from "@/lib/api";
 
 /* ── Catalogue queries (public, backend-driven) ──────────────
@@ -820,3 +823,18 @@ export function useThemePreview(baseHex: string, enabled = true) {
     staleTime: 60 * 60 * 1000, // Derived math is deterministic
   });
 }
+
+export function useFeaturedAds(limit = 6) {
+  return useQuery({
+    queryKey: ["featuredAds", limit],
+    queryFn: () => fetchActiveFeaturedAds(limit),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useRecordAdClick() {
+  return useMutation({
+    mutationFn: (id: string) => recordAdClick(id),
+  });
+}
+

@@ -787,3 +787,42 @@ export async function fetchPublicStorefront(handle: string): Promise<PublicStore
   return apiFetch(`/storefronts/${encodeURIComponent(handle)}`, publicStorefrontResponseSchema);
 }
 
+export const featuredAdSchema = z.object({
+  id: z.string(),
+  merchant_id: z.string(),
+  type: z.enum(["product", "storefront", "artisan"]),
+  target_id: z.string(),
+  title: z.string(),
+  tagline: z.string().optional().default(""),
+  description: z.string().optional().default(""),
+  badge: z.string().optional().default("Featured Partner"),
+  image_url: z.string(),
+  link_url: z.string(),
+  plan: z.string(),
+  amount_kobo: z.number(),
+  starts_at: z.string().optional(),
+  expires_at: z.string().optional(),
+  status: z.string(),
+  clicks_count: z.number().optional().default(0),
+  impressions_count: z.number().optional().default(0),
+});
+export type FeaturedAd = z.infer<typeof featuredAdSchema>;
+
+export async function fetchActiveFeaturedAds(limit = 6): Promise<FeaturedAd[]> {
+  try {
+    const res = await apiFetch(`/featured-ads/active?limit=${limit}`, z.object({ ads: z.array(featuredAdSchema) }));
+    return res.ads;
+  } catch {
+    return [];
+  }
+}
+
+export async function recordAdClick(id: string): Promise<void> {
+  try {
+    await apiFetch(`/featured-ads/${id}/click`, z.unknown(), { method: "POST" });
+  } catch {
+    // Non-blocking
+  }
+}
+
+

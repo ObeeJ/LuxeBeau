@@ -6,6 +6,7 @@ package seed
 import (
 	"log/slog"
 	"os"
+	"time"
 
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
@@ -178,6 +179,68 @@ func SeedPlatformWallet(db *gorm.DB, logger *slog.Logger) error {
 		logger.Info("Platform wallet created", slog.String("user_id", domain.PlatformWalletID))
 		return nil
 	})
+}
+
+// SeedFeaturedAds ensures active featured ad cards exist for the home page spotlight.
+func SeedFeaturedAds(db *gorm.DB, logger *slog.Logger) error {
+	var count int64
+	if err := db.Model(&domain.FeaturedAd{}).Count(&count).Error; err != nil {
+		return err
+	}
+	if count > 0 {
+		return nil
+	}
+
+	const demoSellerID = "00000000-0000-0000-0000-000000000002"
+	now := time.Now().UTC()
+
+	ads := []domain.FeaturedAd{
+		{
+			ID:          "f0000000-0000-0000-0000-000000000001",
+			MerchantID:  demoSellerID,
+			Type:        domain.PromotionTypeStorefront,
+			TargetID:    "adunni-organics",
+			Title:       "Adunni Organics",
+			Tagline:     "Pure African Botanicals Handcrafted for Melanin Radiance",
+			Description: "Verified Nigerian luxury beauty house crafting cold-processed black soaps and toner essences.",
+			Badge:       "Featured Brand",
+			ImageURL:    "https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=1200&q=80",
+			LinkURL:     "/s/adunni-organics",
+			Plan:        domain.PlanAnnual,
+			AmountKobo:  domain.AdPriceAnnualKobo,
+			StartsAt:    now.Add(-24 * time.Hour),
+			ExpiresAt:   now.Add(365 * 24 * time.Hour),
+			Status:      domain.PromotionStatusActive,
+			CreatedAt:   now,
+			UpdatedAt:   now,
+		},
+		{
+			ID:          "f0000000-0000-0000-0000-000000000002",
+			MerchantID:  demoSellerID,
+			Type:        domain.PromotionTypeProduct,
+			TargetID:    "ose-dudu-honey-cleansing-bar",
+			Title:       "Ọsẹ Dúdú Honey Cleansing Bar",
+			Tagline:     "Raw African black soap whipped with Ijebu wild honey and shea",
+			Description: "Cold-processed in small batches in Ibadan. Balances oily and combination skin without stripping.",
+			Badge:       "Spotlight Product",
+			ImageURL:    "https://images.unsplash.com/photo-1608248597359-561b369528d2?auto=format&fit=crop&w=1200&q=80",
+			LinkURL:     "/shop/ose-dudu-honey-cleansing-bar",
+			Plan:        domain.Plan30Days,
+			AmountKobo:  domain.AdPrice30DaysKobo,
+			StartsAt:    now.Add(-12 * time.Hour),
+			ExpiresAt:   now.Add(30 * 24 * time.Hour),
+			Status:      domain.PromotionStatusActive,
+			CreatedAt:   now,
+			UpdatedAt:   now,
+		},
+	}
+
+	if err := db.Create(&ads).Error; err != nil {
+		logger.Warn("Failed to seed featured ads", slog.Any("error", err))
+		return err
+	}
+	logger.Info("Seeded featured ads spotlight", slog.Int("count", len(ads)))
+	return nil
 }
 
 // MinDemoPasswordLen is the shortest SEED_DEMO_PASSWORD accepted.
