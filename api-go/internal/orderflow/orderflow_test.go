@@ -193,6 +193,9 @@ func TestOrderMoneyLifecycle(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, f := range all {
+		if f.UserID == domain.PlatformWalletID {
+			continue // platform commission fee accumulation
+		}
 		want := int64(0)
 		if f.UserID == buyerID {
 			want = startFund // the opening balance that was put there by hand, not by any recorded movement

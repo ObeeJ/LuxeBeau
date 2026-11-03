@@ -39,6 +39,14 @@ import {
   type Product,
   type RegisterInput,
   type User,
+  fetchMyStorefront,
+  saveStorefront,
+  previewThemeVariants,
+  fetchPublicStorefront,
+  type ApiStorefront,
+  type SaveStorefrontPayload,
+  type ThemeVariants,
+  type PublicStorefrontResponse,
 } from "@/lib/api";
 
 /* ── Catalogue queries (public, backend-driven) ──────────────
@@ -774,5 +782,41 @@ export function useApplications(enabled: boolean) {
     queryKey: ["admin", "applications"],
     enabled,
     queryFn: async () => (await apiFetch("/admin/applications", applicationsResponseSchema, {})).applications ?? [],
+  });
+}
+
+/* ── Storefront hooks ── */
+export function useMyStorefront() {
+  return useQuery({
+    queryKey: ["me", "storefront"],
+    queryFn: fetchMyStorefront,
+  });
+}
+
+export function useSaveStorefront() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: SaveStorefrontPayload) => saveStorefront(payload),
+    onSuccess: (data) => {
+      qc.setQueryData(["me", "storefront"], data);
+      qc.invalidateQueries({ queryKey: ["publicStorefront", data.handle] });
+    },
+  });
+}
+
+export function usePublicStorefront(handle: string, enabled = true) {
+  return useQuery({
+    queryKey: ["publicStorefront", handle],
+    enabled: Boolean(handle) && enabled,
+    queryFn: () => fetchPublicStorefront(handle),
+  });
+}
+
+export function useThemePreview(baseHex: string, enabled = true) {
+  return useQuery({
+    queryKey: ["storefront", "themePreview", baseHex],
+    enabled: Boolean(baseHex) && enabled,
+    queryFn: () => previewThemeVariants(baseHex),
+    staleTime: 60 * 60 * 1000, // Derived math is deterministic
   });
 }

@@ -679,3 +679,111 @@ export function toEscrow(e: ApiEscrow): Escrow {
     date: (e.created_at ?? "").slice(0, 10),
   };
 }
+
+// ── Storefronts ─────────────────────────────────────────────
+export const storefrontSchema = z.object({
+  id: z.number().optional(),
+  owner_id: z.string(),
+  owner_type: z.string(),
+  handle: z.string(),
+  custom_domain: z.string().nullish(),
+  domain_verified: z.boolean().optional(),
+  template_id: z.string(),
+  logo_url: z.string().nullish(),
+  banner_url: z.string().nullish(),
+  accent_hex: z.string(),
+  on_accent_hex: z.string(),
+  soft_hex: z.string(),
+  deep_hex: z.string(),
+  theme_variant: z.string(),
+  bio: z.string().nullish(),
+  live: z.boolean(),
+  total_views: z.number().optional(),
+});
+export type ApiStorefront = z.infer<typeof storefrontSchema>;
+
+export const variantConfigSchema = z.object({
+  accent_hex: z.string(),
+  on_accent_hex: z.string(),
+  contrast: z.number(),
+  passes_aa: z.boolean(),
+});
+
+export const themeVariantsSchema = z.object({
+  true: variantConfigSchema,
+  soft: variantConfigSchema,
+  deep: variantConfigSchema,
+  muted: variantConfigSchema,
+  vivid: variantConfigSchema,
+});
+export type ThemeVariants = z.infer<typeof themeVariantsSchema>;
+
+export interface SaveStorefrontPayload {
+  handle: string;
+  template_id: string;
+  logo_url?: string | null;
+  banner_url?: string | null;
+  base_hex: string;
+  theme_variant: string;
+  bio: string;
+  live: boolean;
+}
+
+export const checkHandleSchema = z.object({
+  handle: z.string(),
+  available: z.boolean(),
+  reason: z.string(),
+});
+
+export const publicStorefrontResponseSchema = z.object({
+  storefront: storefrontSchema.nullish(),
+  owner: z
+    .object({
+      id: z.string(),
+      name: z.string(),
+      email: z.string().optional(),
+      role: z.string(),
+      verified: z.boolean().optional(),
+      kyc_status: z.string().optional(),
+      jurisdiction: z.string().nullish(),
+    })
+    .optional(),
+  products: z.array(productSchema).optional(),
+  artisan: artisanSchema.nullish(),
+  redirect_handle: z.string().optional(),
+  is_owner: z.boolean().optional(),
+});
+export type PublicStorefrontResponse = z.infer<typeof publicStorefrontResponseSchema>;
+
+export async function fetchMyStorefront(): Promise<ApiStorefront | null> {
+  const res = await apiFetch("/me/storefront", z.object({ storefront: storefrontSchema.nullish() }));
+  return res.storefront ?? null;
+}
+
+export async function saveStorefront(payload: SaveStorefrontPayload): Promise<ApiStorefront> {
+  const res = await apiFetch("/me/storefront", z.object({ storefront: storefrontSchema }), {
+    method: "POST",
+    body: payload,
+  });
+  return res.storefront;
+}
+
+export async function checkHandleAvailability(handle: string): Promise<{ handle: string; available: boolean; reason: string }> {
+  return apiFetch("/me/storefront/check-handle", checkHandleSchema, {
+    method: "POST",
+    body: { handle },
+  });
+}
+
+export async function previewThemeVariants(baseHex: string): Promise<ThemeVariants> {
+  const res = await apiFetch("/storefronts/theme-preview", z.object({ variants: themeVariantsSchema }), {
+    method: "POST",
+    body: { base_hex: baseHex },
+  });
+  return res.variants;
+}
+
+export async function fetchPublicStorefront(handle: string): Promise<PublicStorefrontResponse> {
+  return apiFetch(`/storefronts/${encodeURIComponent(handle)}`, publicStorefrontResponseSchema);
+}
+
