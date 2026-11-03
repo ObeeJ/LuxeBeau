@@ -2,10 +2,19 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
-import { Sparkles, ArrowRight, ShieldCheck, CheckCircle2, Store, Tag, HelpCircle, Check } from "lucide-react";
+import {
+  ArrowRight,
+  BadgeCheck,
+  Check,
+  CheckCircle2,
+  CircleHelp,
+  Naira,
+  ShieldCheck,
+  Star,
+} from "@/components/icons";
 import { useFeaturedAds, useRecordAdClick } from "@/lib/queries";
 import { type FeaturedAd } from "@/lib/api";
+import { cn } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -15,7 +24,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 
-// Fallback demo ads if API hasn't loaded or is empty
+// Reliable local photography that loads instantly without external hostname dependencies
 const DEFAULT_ADS: FeaturedAd[] = [
   {
     id: "f0000000-0000-0000-0000-000000000001",
@@ -24,9 +33,10 @@ const DEFAULT_ADS: FeaturedAd[] = [
     target_id: "adunni-organics",
     title: "Adunni Organics",
     tagline: "Handcrafted Luxury Skincare · Melanin-First Formulations",
-    description: "Pure African black soap whipped with Ijebu wild honey, Zobo-petal AHA toners, and cold-pressed botanical oils handcrafted in Ibadan.",
-    badge: "Featured Brand",
-    image_url: "https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=1200&q=80",
+    description:
+      "Pure African black soap whipped with Ijebu wild honey, Zobo-petal AHA toners, and cold-pressed botanical oils handcrafted in small batches.",
+    badge: "Featured Partner",
+    image_url: "/images/photos/facial-treatment.webp",
     link_url: "/s/adunni-organics",
     plan: "annual",
     amount_kobo: 12000000,
@@ -40,10 +50,11 @@ const DEFAULT_ADS: FeaturedAd[] = [
     type: "product",
     target_id: "ose-dudu-honey-cleansing-bar",
     title: "Ọsẹ Dúdú Honey Cleansing Bar",
-    tagline: "Raw African black soap whipped with Ijebu wild honey and shea",
-    description: "Cold-processed in small batches. Balances oily and combination skin without stripping. Free of sulphates and synthetic fragrance.",
-    badge: "Spotlight Product",
-    image_url: "https://images.unsplash.com/photo-1608248597359-561b369528d2?auto=format&fit=crop&w=1200&q=80",
+    tagline: "Raw African black soap whipped with wild honey & unrefined shea",
+    description:
+      "Balances oily and combination skin without stripping. Free of sulphates, parabens, and synthetic fragrance. Cold-processed in Ibadan.",
+    badge: "Featured Spotlight",
+    image_url: "/images/photos/skin-cream.webp",
     link_url: "/shop/ose-dudu-honey-cleansing-bar",
     plan: "30_days",
     amount_kobo: 1500000,
@@ -71,104 +82,95 @@ export function FeaturedSpotlight() {
   if (!activeAd) return null;
 
   const isStorefront = activeAd.type === "storefront";
+  const displayImage =
+    activeAd.image_url && !activeAd.image_url.startsWith("http")
+      ? activeAd.image_url
+      : isStorefront
+      ? "/images/photos/facial-treatment.webp"
+      : "/images/photos/skin-cream.webp";
 
   return (
     <section
       aria-label="Featured Partner Spotlight"
-      className="relative overflow-hidden rounded-[28px] border border-gold/30 bg-gradient-to-br from-surface via-[#FAF7F2] to-surface p-6 shadow-sm transition-all duration-300 hover:border-gold/50 hover:shadow-md sm:p-8"
+      className="group relative rounded-[32px] bg-surface p-6 shadow-soft transition-all duration-300 hover:shadow-float sm:p-8"
     >
-      {/* Top Header Row */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-hairline/60 pb-4">
-        <div className="flex items-center gap-2.5">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-brand/10 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-brand">
-            <Sparkles className="h-3 w-3 text-gold" aria-hidden="true" />
-            {activeAd.badge || "Featured Partner"}
-          </span>
-          <span className="hidden items-center gap-1 text-[12px] font-medium text-muted sm:inline-flex">
-            <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" aria-hidden="true" />
-            Verified LuxeBeau Partner · 100% Escrow Protected
-          </span>
+      {/* Eyebrow & Navigation Row (Clean typographic header, NO pill badges) */}
+      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-hairline/60 pb-5">
+        <div className="flex items-center gap-3">
+          <span className="flex h-2.5 w-2.5 rounded-full bg-brand" aria-hidden />
+          <p className="text-[12px] font-bold uppercase tracking-[0.08em] text-brand">
+            {activeAd.badge || "Featured Partner"} · Verified LuxeBeau Merchant
+          </p>
         </div>
 
-        {/* Multi-Ad Selector Indicator */}
+        {/* Minimal dot indicators matching LuxeBeau home layout */}
         {ads.length > 1 && (
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-2">
             {ads.map((ad, idx) => (
               <button
                 key={ad.id || idx}
                 type="button"
                 onClick={() => setCurrentIndex(idx)}
-                aria-label={`View featured promotion ${idx + 1}`}
-                className={`h-2 rounded-full transition-all duration-200 ${
-                  idx === currentIndex
-                    ? "w-6 bg-brand"
-                    : "w-2 bg-hairline hover:bg-muted"
-                }`}
+                aria-label={`View featured item ${idx + 1}`}
+                className={cn(
+                  "h-2 rounded-full transition-all duration-200 cursor-pointer",
+                  idx === currentIndex ? "w-7 bg-brand" : "w-2 bg-hairline hover:bg-muted"
+                )}
               />
             ))}
           </div>
         )}
       </div>
 
-      {/* Main Card Content */}
+      {/* Main Content Layout */}
       <div className="mt-6 grid grid-cols-1 items-center gap-6 md:grid-cols-12 md:gap-8">
-        {/* Left Side: Creative Image with Luxury Framing */}
-        <div className="relative aspect-[4/3] w-full overflow-hidden rounded-[20px] bg-subtle md:col-span-5 lg:col-span-4">
+        {/* Left Side: Photo with LuxeBeau's signature smooth radius & overlay */}
+        <div className="relative aspect-[4/3] w-full overflow-hidden rounded-[24px] bg-canvas md:col-span-5">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={activeAd.image_url}
+            src={displayImage}
             alt={activeAd.title}
-            className="h-full w-full object-cover transition-transform duration-500 hover:scale-105"
+            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
-          <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-white">
-            <span className="inline-flex items-center gap-1 rounded-full bg-black/60 px-2.5 py-1 text-[11px] font-medium backdrop-blur-md">
-              {isStorefront ? <Store className="h-3 w-3" /> : <Tag className="h-3 w-3" />}
-              {isStorefront ? "Brand Storefront" : "Curated Product"}
-            </span>
-            <span className="rounded-full bg-gold/90 px-2 py-0.5 text-[10px] font-bold text-black uppercase tracking-wider">
-              Promoted
-            </span>
-          </div>
         </div>
 
-        {/* Right Side: Business Profile or Featured Product Details */}
-        <div className="flex flex-col justify-center space-y-4 md:col-span-7 lg:col-span-8">
+        {/* Right Side: Editorial Information */}
+        <div className="flex flex-col justify-between space-y-5 md:col-span-7">
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="text-[22px] font-extrabold tracking-[-0.03em] text-ink sm:text-[26px]">
+              <h3 className="text-[26px] font-extrabold leading-[1.05] tracking-[-0.04em] text-ink sm:text-[32px]">
                 {activeAd.title}
               </h3>
-              <CheckCircle2 className="h-5 w-5 shrink-0 text-brand" aria-label="Verified Authenticity" />
+              <CheckCircle2 className="h-5 w-5 shrink-0 text-brand" aria-label="Verified" />
             </div>
 
             {activeAd.tagline && (
-              <p className="mt-1 text-[15px] font-semibold text-brand/90 sm:text-[16px]">
+              <p className="mt-1.5 text-[15px] font-medium tracking-[-0.014em] text-brand sm:text-[16px]">
                 {activeAd.tagline}
               </p>
             )}
 
             {activeAd.description && (
-              <p className="mt-2 text-[14px] leading-relaxed text-muted line-clamp-2 sm:text-[15px]">
+              <p className="mt-3 text-[14px] leading-relaxed tracking-[-0.014em] text-muted sm:text-[15px]">
                 {activeAd.description}
               </p>
             )}
           </div>
 
-          {/* Trust Highlights Strip */}
-          <div className="grid grid-cols-2 gap-3 rounded-[16px] bg-surface/80 p-3 text-[13px] sm:grid-cols-3">
-            <div className="flex flex-col">
-              <span className="text-[11px] text-muted">Guarantee</span>
-              <span className="font-semibold text-ink">Escrow Secured</span>
-            </div>
-            <div className="flex flex-col">
-              <span className="text-[11px] text-muted">Authenticity</span>
-              <span className="font-semibold text-ink">NAFDAC / Verified</span>
-            </div>
-            <div className="col-span-2 flex flex-col sm:col-span-1">
-              <span className="text-[11px] text-muted">Dispatch</span>
-              <span className="font-semibold text-ink">Nationwide NG</span>
-            </div>
+          {/* Trust Value Signals: Typographic format matching EscrowStrip */}
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 border-t border-hairline/60 pt-4 text-[13px] text-muted">
+            <span className="flex items-center gap-1.5 font-medium text-ink">
+              <ShieldCheck className="h-4 w-4 text-brand" aria-hidden />
+              100% Escrow Protected
+            </span>
+            <span className="flex items-center gap-1.5 font-medium text-ink">
+              <BadgeCheck className="h-4 w-4 text-brand" aria-hidden />
+              NAFDAC / Quality Checked
+            </span>
+            <span className="flex items-center gap-1.5 font-medium text-ink">
+              <Naira className="h-4 w-4 text-brand" aria-hidden />
+              Direct Naira Payout
+            </span>
           </div>
 
           {/* Action Row */}
@@ -176,110 +178,132 @@ export function FeaturedSpotlight() {
             <Link
               href={activeAd.link_url}
               onClick={() => handleClick(activeAd)}
-              className="inline-flex items-center gap-2 rounded-full bg-brand px-6 py-3 text-[14px] font-semibold text-surface shadow-md transition-all duration-200 hover:bg-brand/90 hover:shadow-lg hover:translate-x-0.5"
+              className="lb-press inline-flex h-12 items-center gap-2 rounded-full bg-brand px-7 text-[15px] font-semibold text-surface shadow-glow hover:bg-brand-deep"
             >
               <span>{isStorefront ? "Explore Storefront" : "Shop Featured Product"}</span>
-              <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              <ArrowRight className="h-4 w-4" aria-hidden />
             </Link>
 
+            {/* Pricing & ROI Dialog */}
             <Dialog>
               <DialogTrigger asChild>
                 <button
                   type="button"
-                  className="inline-flex items-center gap-1.5 text-[12px] text-muted underline-offset-4 hover:text-ink hover:underline cursor-pointer"
+                  className="lb-press inline-flex h-12 items-center gap-2 rounded-full bg-surface px-5 text-[14px] font-semibold text-ink shadow-pill hover:bg-canvas border border-hairline cursor-pointer"
                 >
-                  <HelpCircle className="h-3.5 w-3.5 text-brand" />
-                  <span>Want your brand featured here?</span>
-                  <span className="font-semibold text-brand">From ₦5k/wk · View Pricing & ROI</span>
+                  <CircleHelp className="h-4 w-4 text-brand" aria-hidden />
+                  <span>Promote your brand</span>
+                  <span className="text-[12px] font-medium text-muted">From ₦5k/wk</span>
                 </button>
               </DialogTrigger>
-              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-6 sm:p-8">
-                <DialogHeader>
-                  <div className="flex items-center gap-2">
-                    <span className="rounded-full bg-brand/10 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-brand">
-                      Featured Ad Pricing
-                    </span>
-                  </div>
-                  <DialogTitle className="text-[22px] font-black tracking-tight text-ink sm:text-[26px]">
-                    Paid Ads & Featured Spotlight: Pricing & Annual Math Analysis
+
+              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto rounded-[32px] bg-surface p-6 sm:p-8 shadow-float border-0">
+                <DialogHeader className="space-y-1">
+                  <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-brand">
+                    Advertising & Partner Spotlight
+                  </p>
+                  <DialogTitle className="text-[26px] font-extrabold tracking-[-0.04em] text-ink sm:text-[30px] leading-tight">
+                    Featured Spotlight Pricing & Annual ROI Analysis
                   </DialogTitle>
-                  <DialogDescription className="text-[14px] text-muted">
-                    Prominence directly beneath the LuxeBeau hero section for verified Nigerian luxury merchants and beauty artisans.
+                  <DialogDescription className="text-[14px] text-muted tracking-[-0.014em]">
+                    Prominent homepage placement directly beneath the hero for verified Nigerian luxury merchants and beauty artisans.
                   </DialogDescription>
                 </DialogHeader>
 
-                {/* 3 Pricing Tier Cards */}
-                <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
+                {/* 3 Pricing Tier Cards (Landing page style cards) */}
+                <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
                   {/* Tier 1: 7 Days */}
-                  <div className="rounded-[20px] border border-hairline bg-surface p-4 shadow-sm flex flex-col justify-between">
+                  <div className="rounded-[24px] bg-canvas p-5 flex flex-col justify-between transition-all hover:shadow-soft">
                     <div>
-                      <span className="text-[11px] font-bold uppercase text-muted">Starter Boost</span>
-                      <div className="mt-2 text-[24px] font-black text-ink">₦5,000</div>
-                      <span className="text-[12px] font-medium text-brand">for 7 Days</span>
-                      <p className="mt-2 text-[12px] text-muted leading-snug">
-                        ₦714/day. Perfect for weekend product drops and flash promotional sprints.
+                      <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-muted">Starter Boost</p>
+                      <div className="mt-2 text-[28px] font-black tracking-[-0.04em] text-ink">₦5,000</div>
+                      <p className="text-[12px] font-semibold text-brand">for 7 Days</p>
+                      <p className="mt-2.5 text-[12px] leading-relaxed text-muted">
+                        ~₦714/day. Ideal for weekend product drops and promotional sprints.
                       </p>
                     </div>
-                    <div className="mt-4 pt-3 border-t border-hairline text-[11px] text-muted space-y-1">
-                      <div className="flex items-center gap-1.5 text-ink"><Check className="h-3 w-3 text-emerald-600" /> Instant hero spot</div>
-                      <div className="flex items-center gap-1.5 text-ink"><Check className="h-3 w-3 text-emerald-600" /> Verified badge</div>
-                    </div>
+                    <ul className="mt-4 space-y-1.5 border-t border-hairline/80 pt-3 text-[11px] font-medium text-ink">
+                      <li className="flex items-center gap-1.5">
+                        <Check className="h-3 w-3 text-brand" /> Instant hero spot
+                      </li>
+                      <li className="flex items-center gap-1.5">
+                        <Check className="h-3 w-3 text-brand" /> Verified badge
+                      </li>
+                    </ul>
                   </div>
 
-                  {/* Tier 2: 30 Days */}
-                  <div className="relative rounded-[20px] border-2 border-brand bg-surface p-4 shadow-md flex flex-col justify-between">
-                    <span className="absolute -top-3 right-3 rounded-full bg-brand px-2.5 py-0.5 text-[10px] font-bold text-surface uppercase">
-                      Most Popular
-                    </span>
+                  {/* Tier 2: 30 Days (Highlighted Standard) */}
+                  <div className="relative rounded-[24px] bg-surface p-5 shadow-float border-2 border-brand flex flex-col justify-between">
                     <div>
-                      <span className="text-[11px] font-bold uppercase text-brand">Monthly Standard</span>
-                      <div className="mt-2 text-[24px] font-black text-brand">₦15,000</div>
-                      <span className="text-[12px] font-medium text-muted">for 30 Days</span>
-                      <p className="mt-2 text-[12px] text-muted leading-snug">
-                        ₦500/day. Saves 25% compared to weekly rate (saves ₦5,000 monthly).
+                      <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-brand">Monthly Standard</p>
+                      <div className="mt-2 text-[28px] font-black tracking-[-0.04em] text-brand">₦15,000</div>
+                      <p className="text-[12px] font-semibold text-ink">for 30 Days (Save 25%)</p>
+                      <p className="mt-2.5 text-[12px] leading-relaxed text-muted">
+                        ₦500/day. Saves ₦5,000 each month compared to four weekly bookings.
                       </p>
                     </div>
-                    <div className="mt-4 pt-3 border-t border-hairline text-[11px] text-muted space-y-1">
-                      <div className="flex items-center gap-1.5 text-ink"><Check className="h-3 w-3 text-emerald-600" /> Continuous 30 days</div>
-                      <div className="flex items-center gap-1.5 text-ink"><Check className="h-3 w-3 text-emerald-600" /> Click & impression tracking</div>
-                    </div>
+                    <ul className="mt-4 space-y-1.5 border-t border-hairline/80 pt-3 text-[11px] font-medium text-ink">
+                      <li className="flex items-center gap-1.5">
+                        <Check className="h-3 w-3 text-brand" /> 30 days continuous
+                      </li>
+                      <li className="flex items-center gap-1.5">
+                        <Check className="h-3 w-3 text-brand" /> Click & reach metrics
+                      </li>
+                    </ul>
                   </div>
 
-                  {/* Tier 3: Annual */}
-                  <div className="rounded-[20px] border border-amber-300 bg-gradient-to-br from-surface to-amber-50/50 p-4 shadow-sm flex flex-col justify-between">
+                  {/* Tier 3: Annual (Best Value) */}
+                  <div className="rounded-[24px] bg-canvas p-5 flex flex-col justify-between transition-all hover:shadow-soft border border-gold/40">
                     <div>
-                      <span className="text-[11px] font-bold uppercase text-amber-700">Best Value · 33% Off</span>
-                      <div className="mt-2 text-[24px] font-black text-ink">₦120,000</div>
-                      <span className="text-[12px] font-medium text-brand">for 365 Days (1 Yr)</span>
-                      <p className="mt-2 text-[12px] text-muted leading-snug">
-                        <strong className="text-ink">₦10,000/mo flat</strong> (~₦328/day). 4 Months completely Free (saves ₦60,000/yr).
+                      <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-gold-dark font-extrabold">
+                        Annual · 4 Months Free
+                      </p>
+                      <div className="mt-2 text-[28px] font-black tracking-[-0.04em] text-ink">₦120,000</div>
+                      <p className="text-[12px] font-semibold text-brand">for 365 Days (1 Year)</p>
+                      <p className="mt-2.5 text-[12px] leading-relaxed text-muted">
+                        <strong className="text-ink">₦10,000/mo flat</strong> (~₦328/day). 33% off; saves ₦60,000 annually.
                       </p>
                     </div>
-                    <div className="mt-4 pt-3 border-t border-hairline text-[11px] text-muted space-y-1">
-                      <div className="flex items-center gap-1.5 text-ink"><Check className="h-3 w-3 text-emerald-600" /> 365 days prominence</div>
-                      <div className="flex items-center gap-1.5 text-ink"><Check className="h-3 w-3 text-emerald-600" /> Guaranteed prestige</div>
-                    </div>
+                    <ul className="mt-4 space-y-1.5 border-t border-hairline/80 pt-3 text-[11px] font-medium text-ink">
+                      <li className="flex items-center gap-1.5">
+                        <Check className="h-3 w-3 text-brand" /> Year-round prominence
+                      </li>
+                      <li className="flex items-center gap-1.5">
+                        <Check className="h-3 w-3 text-brand" /> Top prestige tier
+                      </li>
+                    </ul>
                   </div>
                 </div>
 
                 {/* Comparative Economics Analysis */}
-                <div className="mt-4 rounded-[18px] bg-subtle p-4 text-[13px]">
-                  <h4 className="font-bold text-ink">Why is this good & cheap enough for Nigerian brands?</h4>
-                  <ul className="mt-2 space-y-1 text-muted text-[12px]">
-                    <li>• <strong>vs Meta/Instagram Ads:</strong> Instagram ads in NG cost ₦4,500–₦15,000/day with high bounce rates. LuxeBeau costs as low as ₦328/day with 100% targeted beauty shoppers.</li>
-                    <li>• <strong>vs Influencer Posts:</strong> A 24-hr disappearing IG story costs ₦30k–₦100k+. LuxeBeau gives 30 full days of hero placement for only ₦15k.</li>
-                    <li>• <strong>Zero Risk Escrow:</strong> Shoppers buy directly through trust-backed escrow, maximizing conversion for featured sellers.</li>
-                  </ul>
+                <div className="mt-5 rounded-[24px] bg-canvas p-5">
+                  <h4 className="text-[14px] font-bold tracking-tight text-ink">
+                    Why is this good & cheap enough for Nigerian brands?
+                  </h4>
+                  <div className="mt-3 space-y-2 text-[12px] leading-relaxed text-muted">
+                    <p>
+                      <strong className="text-ink">• vs Meta / Instagram Ads:</strong> Instagram ads in Nigeria typically cost ₦4,500 to ₦15,000/day ($3–$10/day) with high bounce rates, bot traffic, and zero purchase guarantee. LuxeBeau costs as low as <strong className="text-brand">₦328/day</strong> with 100% targeted luxury beauty shoppers.
+                    </p>
+                    <p>
+                      <strong className="text-ink">• vs Influencer Shoutouts:</strong> A single 24-hour disappearing Instagram or TikTok story costs ₦30,000 to ₦100,000+. LuxeBeau gives 30 full days of hero visibility for only ₦15,000.
+                    </p>
+                    <p>
+                      <strong className="text-ink">• Escrow Conversion:</strong> Shoppers buy directly through trust-backed escrow, ensuring higher checkout rates for featured sellers.
+                    </p>
+                  </div>
                 </div>
 
-                <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-hairline pt-3">
-                  <span className="text-[12px] text-muted">Available to verified Sellers & Artisans</span>
+                {/* Modal Footer */}
+                <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-hairline pt-4">
+                  <p className="text-[12px] font-medium text-muted">
+                    Available to approved LuxeBeau Sellers and Artisans
+                  </p>
                   <Link
                     href="/partnership/seller"
-                    className="inline-flex items-center gap-1.5 rounded-full bg-brand px-5 py-2.5 text-[13px] font-semibold text-surface shadow hover:bg-brand/90"
+                    className="lb-press inline-flex h-11 items-center gap-2 rounded-full bg-brand px-6 text-[14px] font-semibold text-surface shadow-glow hover:bg-brand-deep"
                   >
-                    <span>Register to Feature</span>
-                    <ArrowRight className="h-3.5 w-3.5" />
+                    <span>Apply for Featured Placement</span>
+                    <ArrowRight className="h-4 w-4" aria-hidden />
                   </Link>
                 </div>
               </DialogContent>

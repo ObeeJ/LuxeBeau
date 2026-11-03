@@ -79,7 +79,7 @@ async function main() {
 
     // 2. Switch to Featured Product Card
     console.log("Switching to second featured item (Product)...");
-    const dots = page.locator("button[aria-label*='View featured promotion']");
+    const dots = page.locator("button[aria-label*='View featured']");
     const dotCount = await dots.count();
     if (dotCount > 1) {
       await dots.nth(1).click();
@@ -91,7 +91,7 @@ async function main() {
 
     // 3. Open Pricing & Annual Math Analysis Dialog
     console.log("Opening Pricing & Annual Math Analysis Dialog...");
-    const pricingTrigger = page.locator("button:has-text('View Pricing & ROI'), button:has-text('Want your brand featured here')");
+    const pricingTrigger = page.locator("button:has-text('Promote your brand')");
     await pricingTrigger.first().click();
     await page.waitForTimeout(1500);
 
