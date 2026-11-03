@@ -4,118 +4,97 @@ import { useEffect } from "react";
 
 /**
  * FaviconAnimator
- * Animates the LuxeBeau signature twin-ring emblem in the browser tab favicon
- * every 10 seconds with a smooth 1.2s cycle, resting idle for the remaining 8.8s.
+ * Cross-browser animated favicon for LuxeBeau.
+ * 
+ * Animates the signature LuxeBeau twin-ring emblem in the browser tab:
+ * - Plays an initial welcoming pulse 400ms after page load so users see it immediately.
+ * - Repeats every 10 seconds with a smooth 1.2s twin-ring dance/interlace cycle.
+ * - Rests completely idle for the remaining 8.8s (zero CPU/battery impact).
+ * - Respects prefers-reduced-motion and document visibility.
+ * - Uses a vector SVG Data URI with sizes="any" and type="image/svg+xml" to ensure
+ *   instant rendering at retina quality across modern Chrome, Safari, Edge and Firefox.
  */
 export function FaviconAnimator() {
   useEffect(() => {
     if (typeof window === "undefined" || typeof document === "undefined") return;
 
-    // Check prefers-reduced-motion
+    // Respect user's motion preference
     const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
     if (mediaQuery.matches) return;
 
-    // Get or create favicon link tag
-    let link = document.querySelector<HTMLLinkElement>("link[rel~='icon']");
-    if (!link) {
-      link = document.createElement("link");
-      link.rel = "icon";
-      document.head.appendChild(link);
+    function buildSvgDataUri(offset: number): string {
+      const leftCx = (23 + offset).toFixed(1);
+      const rightCx = (41 - offset).toFixed(1);
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="16" fill="%238a1fc7"/><circle cx="${leftCx}" cy="32" r="14" fill="none" stroke="%23fff" stroke-width="10"/><circle cx="${rightCx}" cy="32" r="14" fill="none" stroke="%23fff" stroke-width="10" stroke-opacity=".72"/></svg>`;
+      return `data:image/svg+xml;utf8,${svg}`;
     }
 
-    const canvas = document.createElement("canvas");
-    canvas.width = 64;
-    canvas.height = 64;
-    if (typeof canvas.getContext !== "function") return;
-    let ctx: CanvasRenderingContext2D | null = null;
-    try {
-      ctx = canvas.getContext("2d");
-    } catch {
-      return;
-    }
-    if (!ctx) return;
+    function applyFavicon(dataUri: string) {
+      if (!dataUri) return;
 
-    function drawFavicon(offset: number) {
-      if (!ctx) return;
-      ctx.clearRect(0, 0, 64, 64);
-
-      // LuxeBeau Brand Purple Rounded Square
-      const r = 16;
-      ctx.beginPath();
-      ctx.moveTo(r, 0);
-      ctx.lineTo(64 - r, 0);
-      ctx.quadraticCurveTo(64, 0, 64, r);
-      ctx.lineTo(64, 64 - r);
-      ctx.quadraticCurveTo(64, 64, 64 - r, 64);
-      ctx.lineTo(r, 64);
-      ctx.quadraticCurveTo(0, 64, 0, 64 - r);
-      ctx.lineTo(0, r);
-      ctx.quadraticCurveTo(0, 0, r, 0);
-      ctx.closePath();
-      ctx.fillStyle = "#8a1fc7";
-      ctx.fill();
-
-      // Circle 1 (Left White Ring)
-      ctx.beginPath();
-      ctx.arc(23 + offset, 32, 14, 0, Math.PI * 2);
-      ctx.strokeStyle = "#ffffff";
-      ctx.lineWidth = 9;
-      ctx.stroke();
-
-      // Circle 2 (Right Translucent White Ring)
-      ctx.beginPath();
-      ctx.arc(41 - offset, 32, 14, 0, Math.PI * 2);
-      ctx.strokeStyle = "rgba(255, 255, 255, 0.72)";
-      ctx.lineWidth = 9;
-      ctx.stroke();
-
-      if (link) {
-        link.href = canvas.toDataURL("image/png");
+      let link = document.querySelector<HTMLLinkElement>("#luxe-dynamic-favicon");
+      if (!link) {
+        // Remove existing static icon tags once so browsers don't compete
+        document.querySelectorAll("link[rel*='icon']:not(#luxe-dynamic-favicon)").forEach(el => el.remove());
+        link = document.createElement("link");
+        link.id = "luxe-dynamic-favicon";
+        link.rel = "icon";
+        link.type = "image/svg+xml";
+        link.sizes = "any";
+        document.head.appendChild(link);
       }
+
+      link.href = dataUri;
     }
 
-    // Initial draw
-    drawFavicon(0);
+    // Set initial resting frame
+    applyFavicon(buildSvgDataUri(0));
 
-    let animationFrameId: number | null = null;
-    let animStartTime = 0;
-    const ANIMATION_DURATION = 1200; // 1.2 seconds animation
+    let timerId: ReturnType<typeof setInterval> | null = null;
+    let frameIndex = 0;
+    const TOTAL_FRAMES = 18; // 18 frames over ~1.17s (~65ms/frame, ~15fps optimal for browser tab renderers)
+    const FRAME_INTERVAL = 65;
 
-    function step(timestamp: number) {
-      if (!animStartTime) animStartTime = timestamp;
-      const elapsed = timestamp - animStartTime;
-      const progress = Math.min(elapsed / ANIMATION_DURATION, 1);
-
-      // Smooth sine wave offset: peaks at ~5px excursion and returns to 0
-      const offset = Math.sin(progress * Math.PI * 2) * 5;
-      drawFavicon(offset);
-
-      if (progress < 1) {
-        animationFrameId = requestAnimationFrame(step);
-      } else {
-        drawFavicon(0);
-        animationFrameId = null;
-      }
-    }
-
-    function triggerAnimation() {
-      // Don't run when tab is hidden to save battery
+    function playAnimation() {
       if (document.hidden) return;
-      animStartTime = 0;
-      if (animationFrameId !== null) {
-        cancelAnimationFrame(animationFrameId);
-      }
-      animationFrameId = requestAnimationFrame(step);
+      if (timerId) clearInterval(timerId);
+
+      frameIndex = 0;
+      timerId = setInterval(() => {
+        frameIndex++;
+        const progress = frameIndex / TOTAL_FRAMES;
+        if (progress >= 1) {
+          if (timerId) clearInterval(timerId);
+          timerId = null;
+          applyFavicon(buildSvgDataUri(0));
+          return;
+        }
+
+        // Sine wave displacement: smooth glide inward up to 6px and back to resting position
+        const excursion = Math.sin(progress * Math.PI) * 6;
+        applyFavicon(buildSvgDataUri(excursion));
+      }, FRAME_INTERVAL);
     }
 
-    // Trigger every 10 seconds
-    const intervalId = window.setInterval(triggerAnimation, 10000);
+    // Play once right after load (400ms delay) so the user sees it animate immediately
+    const initialTimeout = setTimeout(playAnimation, 400);
+
+    // Then repeat every 10 seconds
+    const loopInterval = setInterval(playAnimation, 10000);
+
+    // Re-sync on visibility change
+    const onVisibilityChange = () => {
+      if (!document.hidden) {
+        applyFavicon(buildSvgDataUri(0));
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
 
     return () => {
-      window.clearInterval(intervalId);
-      if (animationFrameId !== null) {
-        cancelAnimationFrame(animationFrameId);
-      }
+      clearTimeout(initialTimeout);
+      clearInterval(loopInterval);
+      if (timerId) clearInterval(timerId);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
     };
   }, []);
 
