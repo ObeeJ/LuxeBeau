@@ -10,6 +10,7 @@ import { IdentityPanel } from "@/components/dashboard/identity";
 import { ServicesEditor } from "@/components/dashboard/services-editor";
 import { AvailabilityEditor } from "@/components/dashboard/availability-editor";
 import { PendingApproval } from "@/components/dashboard/pending-approval";
+import { StorefrontEditor } from "@/components/dashboard/storefront-editor";
 import { Avatar, visitLabel } from "@/components/site/catalog";
 import { EmptyState, LoadError } from "@/components/site/states";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -19,7 +20,7 @@ import { useMyArtisanProfile, useMyBookings, useWallet } from "@/lib/queries";
 import { bookingStart, formatNaira } from "@/lib/format";
 import { useNow } from "@/lib/use-now";
 
-type Tab = "bookings" | "services" | "availability" | "verification";
+type Tab = "bookings" | "services" | "availability" | "storefront" | "verification";
 
 export default function ArtisanDashboard() {
   const router = useRouter();
@@ -100,9 +101,14 @@ export default function ArtisanDashboard() {
           { id: "bookings", label: "Bookings", count: list.length },
           { id: "services", label: "Services", count: artisan?.services.length },
           { id: "availability", label: "Availability" },
+          { id: "storefront", label: "Storefront" },
           { id: "verification", label: "Verification" },
         ]}
       />
+
+      {tab === "storefront" && (
+        <StorefrontEditor role="artisan" hasItems={Boolean(artisan?.services && artisan.services.length > 0)} />
+      )}
 
       {tab === "bookings" && (
         <div className="space-y-5">
