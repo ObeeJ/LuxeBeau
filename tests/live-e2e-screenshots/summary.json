@@ -1,0 +1,97 @@
+{
+  "total": 12,
+  "passed": 8,
+  "failed": 4,
+  "percentage": 67,
+  "consoleErrorsCount": 1,
+  "consoleErrors": [
+    "Failed to load resource: the server responded with a status of 401 ()"
+  ],
+  "timestamp": "2026-11-03T09:47:18.756Z",
+  "results": [
+    {
+      "suite": "1. Homepage",
+      "check": "Page Title & Brand Meta",
+      "passed": true,
+      "details": "Title: \"LuxeBeau, Nigeria's Luxury Beauty Marketplace\"",
+      "timestamp": "2026-11-03T09:46:36.770Z"
+    },
+    {
+      "suite": "1. Homepage",
+      "check": "Side Rail Navigation Visible",
+      "passed": true,
+      "details": "Desktop side rail navigation rendered",
+      "timestamp": "2026-11-03T09:46:36.911Z"
+    },
+    {
+      "suite": "1. Homepage",
+      "check": "LuxeBeau Twin-Ring Logo",
+      "passed": false,
+      "details": "Twin-ring signature mark present in header/siderail",
+      "timestamp": "2026-11-03T09:46:36.938Z"
+    },
+    {
+      "suite": "1. Homepage",
+      "check": "Hero Heading & Value Proposition",
+      "passed": true,
+      "details": "Hero H1: \"Beauty is all abouthim\"",
+      "timestamp": "2026-11-03T09:46:36.967Z"
+    },
+    {
+      "suite": "1. Homepage",
+      "check": "Hero Spotlight Card Rendered",
+      "passed": false,
+      "details": "Hero Spotlight Card located directly beneath Hero",
+      "timestamp": "2026-11-03T09:46:37.016Z"
+    },
+    {
+      "suite": "2. Pricing Modal",
+      "check": "Pricing Trigger Button",
+      "passed": false,
+      "details": "Could not find pricing trigger button",
+      "timestamp": "2026-11-03T09:46:38.177Z"
+    },
+    {
+      "suite": "3. Auth UI",
+      "check": "AuthDialog Opens from Navigation",
+      "passed": true,
+      "details": "Sign-in dialog appeared",
+      "timestamp": "2026-11-03T09:46:39.521Z"
+    },
+    {
+      "suite": "3. Auth UI",
+      "check": "Sign-in Submission & Dialog Close",
+      "passed": true,
+      "details": "Logged in as buyer@luxebeau.ng",
+      "timestamp": "2026-11-03T09:46:43.668Z"
+    },
+    {
+      "suite": "3. Auth UI",
+      "check": "User Profile Avatar (AB) Rendered in Siderail",
+      "passed": true,
+      "details": "UI switched from guest to authenticated user state",
+      "timestamp": "2026-11-03T09:46:43.678Z"
+    },
+    {
+      "suite": "4. Shop Catalog",
+      "check": "Catalog Products Rendered",
+      "passed": true,
+      "details": "Loaded 12 products from backend",
+      "timestamp": "2026-11-03T09:46:46.705Z"
+    },
+    {
+      "suite": "4. Shop Catalog",
+      "check": "Category Filter Tab ('Skincare')",
+      "passed": true,
+      "details": "Filtered products by category",
+      "timestamp": "2026-11-03T09:46:48.383Z"
+    },
+    {
+      "suite": "FATAL",
+      "check": "E2E Execution Error",
+      "passed": false,
+      "details": "locator.click: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('a[href*=\\'/shop/\\']').first()\u001b[22m\n\u001b[2m    - locator resolved to <a tabindex=\"-1\" aria-hidden=\"true\" class=\"block h-full w-full\" href=\"/shop/ose-dudu-honey-cleansing-bar\">…</a>\u001b[22m\n\u001b[2m  - attempting click action\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is visible, enabled and stable\u001b[22m\n\u001b[2m      - scrolling into view if needed\u001b[22m\n\u001b[2m      - done scrolling\u001b[22m\n\u001b[2m      - <a href=\"/shop/ose-dudu-honey-cleansing-bar\" class=\"after:absolute after:inset-0 hover:underline hover:underline-offset-2\">Ọsẹ Dúdú Honey Cleansing Bar</a> from <div class=\"flex flex-1 flex-col pt-3\">…</div> subtree intercepts pointer events\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m    - waiting 20ms\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is visible, enabled and stable\u001b[22m\n\u001b[2m      - scrolling into view if needed\u001b[22m\n\u001b[2m      - done scrolling\u001b[22m\n\u001b[2m      - <a href=\"/shop/ose-dudu-honey-cleansing-bar\" class=\"after:absolute after:inset-0 hover:underline hover:underline-offset-2\">Ọsẹ Dúdú Honey Cleansing Bar</a> from <div class=\"flex flex-1 flex-col pt-3\">…</div> subtree intercepts pointer events\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m      - waiting 100ms\u001b[22m\n\u001b[2m    55 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m       - element is visible, enabled and stable\u001b[22m\n\u001b[2m       - scrolling into view if needed\u001b[22m\n\u001b[2m       - done scrolling\u001b[22m\n\u001b[2m       - <a href=\"/shop/ose-dudu-honey-cleansing-bar\" class=\"after:absolute after:inset-0 hover:underline hover:underline-offset-2\">Ọsẹ Dúdú Honey Cleansing Bar</a> from <div class=\"flex flex-1 flex-col pt-3\">…</div> subtree intercepts pointer events\u001b[22m\n\u001b[2m     - retrying click action\u001b[22m\n\u001b[2m       - waiting 500ms\u001b[22m\n",
+      "timestamp": "2026-11-03T09:47:18.707Z"
+    }
+  ]
+}
