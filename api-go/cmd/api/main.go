@@ -31,6 +31,7 @@ import (
 	"luxebeau/internal/order"
 	"luxebeau/internal/seed"
 	"luxebeau/internal/seller"
+	"luxebeau/internal/storefront"
 )
 
 func main() {
@@ -86,6 +87,9 @@ func main() {
 		&domain.InfluencerPackage{},
 		&domain.InfluencerReferral{},
 		&domain.InfluencerCommission{},
+		&domain.Storefront{},
+		&domain.ReservedHandle{},
+		&domain.StorefrontHandleHistory{},
 	); err != nil {
 		logger.Error("Auto-migration failed", slog.Any("error", err))
 		os.Exit(1)
@@ -176,6 +180,23 @@ func main() {
 	escrowService := escrow.NewService(escrow.NewGormRepository(db), escrowRails, escrowNotifier, logger)
 	escrowHandler := escrow.NewHandler(escrowService, logger)
 
+	// Storefront engine
+	storefrontRepo := storefront.NewGormStorefrontRepository(db)
+	storefrontService := storefront.NewService(storefrontRepo, db, logger)
+	storefrontHandler := storefront.NewHandler(storefrontService, authService, logger)
+
+	// Seed default reserved handles
+	reservedList := make([]domain.ReservedHandle, 0, len(storefront.DefaultReservedHandles))
+	for _, h := range storefront.DefaultReservedHandles {
+		reservedList = append(reservedList, domain.ReservedHandle{
+			Handle: h,
+			Reason: "system",
+		})
+	}
+	if err := storefrontRepo.SeedReservedHandles(context.Background(), reservedList); err != nil {
+		logger.Warn("Failed to seed reserved handles", slog.Any("error", err))
+	}
+
 	// ── Router ──────────────────────────────────────────────
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -251,6 +272,11 @@ func main() {
 		v1.GET("/artisans", bookingHandler.ListArtisans)
 		v1.GET("/artisans/:id", bookingHandler.GetArtisanProfile)
 		v1.GET("/artisans/:id/availability", rateLimiter.RateLimit(5, 20), bookingHandler.Availability)
+
+		// Public Storefronts
+		v1.GET("/storefronts/:handle", storefrontHandler.GetPublicStorefront)
+		v1.POST("/storefronts/check-handle", storefrontHandler.CheckHandle)
+		v1.POST("/storefronts/theme-preview", storefrontHandler.ThemePreview)
 	}
 
 	// ── Protected Routes ────────────────────────────────────
@@ -339,6 +365,16 @@ func main() {
 
 		// Wallets
 		protected.GET("/wallets/me", authHandler.GetWallet)
+
+		// ── Storefront configuration (sellers, artisans, admin) ──
+		sfGroup := protected.Group("/me/storefront")
+		sfGroup.Use(auth.RequireRole("seller", "artisan", "admin"))
+		{
+			sfGroup.GET("", storefrontHandler.GetMyStorefront)
+			sfGroup.POST("", storefrontHandler.SaveStorefront)
+			sfGroup.POST("/check-handle", storefrontHandler.CheckHandle)
+			sfGroup.POST("/theme-preview", storefrontHandler.ThemePreview)
+		}
 	}
 
 	// ── Background work ─────────────────────────────────────
