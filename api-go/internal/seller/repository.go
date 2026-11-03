@@ -23,6 +23,8 @@ type Repository interface {
 	DeleteProduct(ctx context.Context, id uint) error
 	ListSales(ctx context.Context, sellerID string) ([]domain.Order, error)
 	Fulfil(ctx context.Context, sellerID, orderID, stage, note string, at time.Time) (*Fulfilment, error)
+	ListDeliveryZones(ctx context.Context, sellerID string) ([]domain.DeliveryZone, error)
+	UpsertDeliveryZones(ctx context.Context, sellerID string, zones []domain.DeliveryZone) error
 }
 
 type gormRepository struct {
@@ -247,4 +249,12 @@ func (r *gormRepository) Fulfil(ctx context.Context, sellerID, orderID, stage, n
 	}
 	out.Notify = out.Advanced && (stage == "shipped" || stage == "delivered")
 	return out, nil
+}
+
+func (r *gormRepository) ListDeliveryZones(ctx context.Context, sellerID string) ([]domain.DeliveryZone, error) {
+	return ListDeliveryZones(ctx, r.db, sellerID)
+}
+
+func (r *gormRepository) UpsertDeliveryZones(ctx context.Context, sellerID string, zones []domain.DeliveryZone) error {
+	return UpsertDeliveryZones(ctx, r.db, sellerID, zones)
 }

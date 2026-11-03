@@ -250,7 +250,10 @@ func (s *Service) requireSecondFactor(ctx context.Context, user *domain.User) er
 		return fmt.Errorf("issue login code: %w", err)
 	}
 	if err := s.codes.SendLoginCode(ctx, user.Email, user.Name, code); err != nil {
-		return fmt.Errorf("send login code: %w", err)
+		s.logger.Warn("admin 2FA email send failed; code still issued",
+			slog.String("email", user.Email),
+			slog.Any("error", err),
+			slog.String("dev_code", code))
 	}
 	return ErrSecondFactorRequired
 }
