@@ -57,7 +57,7 @@ describe("FeaturedSpotlight Component", () => {
 
     expect(screen.getByText("Adunni Organics")).toBeInTheDocument();
     expect(screen.getByText("Handcrafted Luxury Skincare")).toBeInTheDocument();
-    expect(screen.getByText(/Featured Brand/i)).toBeInTheDocument();
+    expect(screen.getByText(/Curated Spotlight/i)).toBeInTheDocument();
     expect(screen.getByText("Explore Storefront")).toBeInTheDocument();
   });
 
@@ -70,7 +70,7 @@ describe("FeaturedSpotlight Component", () => {
     fireEvent.click(buttons[1]);
 
     expect(screen.getByText("Ọsẹ Dúdú Honey Cleansing Bar")).toBeInTheDocument();
-    expect(screen.getByText(/Spotlight Product/i)).toBeInTheDocument();
+    expect(screen.getByText(/Top Formulation/i)).toBeInTheDocument();
     expect(screen.getByText("Shop Featured Product")).toBeInTheDocument();
   });
 

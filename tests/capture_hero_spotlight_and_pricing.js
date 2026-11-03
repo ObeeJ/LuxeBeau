@@ -61,7 +61,7 @@ async function main() {
 
     // 1. Screenshot of Hero + Spotlight Card (Business Profile)
     console.log("Capturing Hero + Spotlight Card (Business Profile)...");
-    const spotlightSection = page.locator("section[aria-label='Featured Partner Spotlight']");
+    const spotlightSection = page.locator("section[aria-label='Curated Merchant Spotlight'], section[aria-label='Featured Partner Spotlight']");
     await spotlightSection.scrollIntoViewIfNeeded();
     await page.waitForTimeout(1000);
 
@@ -91,11 +91,11 @@ async function main() {
 
     // 3. Open Pricing & Annual Math Analysis Dialog
     console.log("Opening Pricing & Annual Math Analysis Dialog...");
-    const pricingTrigger = page.locator("button:has-text('Promote your brand')");
+    const pricingTrigger = page.locator("button:has-text('Feature your brand'), button:has-text('Promote your brand')");
     await pricingTrigger.first().click();
     await page.waitForTimeout(1500);
 
-    // Capture the open Pricing & Annual Math Modal
+    // Capture the open Pricing & Annual Math Modal (Standard Billing)
     const pricingDialogPath = path.join(SCREENSHOT_DIR, "04_paid_ads_pricing_and_annual_math.png");
     await page.screenshot({ path: pricingDialogPath });
     console.log(`Saved: ${pricingDialogPath}`);
@@ -106,6 +106,17 @@ async function main() {
       const dialogElementPath = path.join(SCREENSHOT_DIR, "05_pricing_analysis_modal_detail.png");
       await dialogModal.screenshot({ path: dialogElementPath });
       console.log(`Saved: ${dialogElementPath}`);
+
+      // Click the Annual Commitment toggle to show annual math & discounts
+      console.log("Toggling Annual Commitment billing view...");
+      const annualToggle = dialogModal.locator("button:has-text('Annual Commitment'), button:has-text('Save 33%')");
+      if (await annualToggle.isVisible()) {
+        await annualToggle.click();
+        await page.waitForTimeout(600);
+        const annualDialogPath = path.join(SCREENSHOT_DIR, "06_pricing_modal_annual_toggle.png");
+        await dialogModal.screenshot({ path: annualDialogPath });
+        console.log(`Saved: ${annualDialogPath}`);
+      }
     }
 
     await browser.close();
