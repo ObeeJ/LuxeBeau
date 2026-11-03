@@ -39,6 +39,7 @@ func (h *CatalogHandler) ListProducts(c *gin.Context) {
 		return
 	}
 
+	c.Header("Cache-Control", "public, max-age=60, s-maxage=300, stale-while-revalidate=600")
 	response.OK(c, gin.H{"products": products, "page": page, "limit": limit})
 }
 
@@ -59,5 +60,6 @@ func (h *CatalogHandler) GetProduct(c *gin.Context) {
 		return
 	}
 
+	c.Header("Cache-Control", "public, max-age=60, s-maxage=300, stale-while-revalidate=600")
 	response.OK(c, gin.H{"product": product})
 }

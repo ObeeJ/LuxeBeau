@@ -438,3 +438,55 @@ func TestAdminGoogleSignInNeedsEmailedCode(t *testing.T) {
 		t.Fatalf("verify google admin login: %v", err)
 	}
 }
+
+func TestForgotPasswordAndReset(t *testing.T) {
+	svc, sender, _ := newTestService(t)
+	ctx := context.Background()
+
+	// Register user
+	user, err := svc.Register(ctx, "Test User", "testuser@example.com", "OldPassword123!", "")
+	if err != nil {
+		t.Fatalf("register failed: %v", err)
+	}
+
+	// Verify email
+	verifyCode := sender.last("testuser@example.com")
+	if _, err := svc.VerifyEmail(ctx, user.Email, verifyCode); err != nil {
+		t.Fatalf("verify email failed: %v", err)
+	}
+
+	// Request password recovery
+	if err := svc.ForgotPassword(ctx, "testuser@example.com"); err != nil {
+		t.Fatalf("forgot password request failed: %v", err)
+	}
+
+	rawResetCode := sender.last("testuser@example.com")
+	resetCode := strings.TrimPrefix(rawResetCode, "reset:")
+	if len(resetCode) != 6 {
+		t.Fatalf("expected 6-digit reset code, got %s", resetCode)
+	}
+
+	// Reset with new password
+	newPass := "NewLuxuryPassword2026!"
+	updatedUser, err := svc.ResetPassword(ctx, "testuser@example.com", resetCode, newPass)
+	if err != nil {
+		t.Fatalf("reset password failed: %v", err)
+	}
+	if updatedUser.Email != "testuser@example.com" {
+		t.Errorf("wrong updated user email: %s", updatedUser.Email)
+	}
+
+	// Verify old password fails
+	if _, err := svc.Login(ctx, "testuser@example.com", "OldPassword123!"); !errors.Is(err, ErrInvalidCredentials) {
+		t.Errorf("expected ErrInvalidCredentials for old password, got: %v", err)
+	}
+
+	// Verify new password succeeds
+	loggedIn, err := svc.Login(ctx, "testuser@example.com", newPass)
+	if err != nil {
+		t.Fatalf("login with new password failed: %v", err)
+	}
+	if loggedIn.ID != user.ID {
+		t.Errorf("login returned different user ID")
+	}
+}

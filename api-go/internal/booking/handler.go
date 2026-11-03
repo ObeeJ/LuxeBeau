@@ -160,6 +160,7 @@ func (h *BookingHandler) ListArtisans(c *gin.Context) {
 		return
 	}
 
+	c.Header("Cache-Control", "public, max-age=60, s-maxage=300, stale-while-revalidate=600")
 	response.OK(c, gin.H{"artisans": artisans})
 }
 
@@ -176,6 +177,7 @@ func (h *BookingHandler) GetArtisanProfile(c *gin.Context) {
 		return
 	}
 
+	c.Header("Cache-Control", "public, max-age=60, s-maxage=300, stale-while-revalidate=600")
 	response.OK(c, gin.H{"artisan": artisan})
 }
 
