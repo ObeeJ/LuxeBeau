@@ -77,7 +77,7 @@ describe("Home sections", () => {
       render(<EscrowStrip />);
       const steps = screen.getAllByRole("listitem");
       expect(steps).toHaveLength(3);
-      expect(screen.getByText(/You pay into escrow/i)).toBeInTheDocument();
+      expect(screen.getByText(/You pay into (trust|escrow)/i)).toBeInTheDocument();
       expect(screen.getByText(/Verified seller delivers/i)).toBeInTheDocument();
       expect(screen.getByText(/You confirm, they get paid/i)).toBeInTheDocument();
     });

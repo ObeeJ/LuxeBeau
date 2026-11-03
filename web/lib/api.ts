@@ -748,8 +748,8 @@ export const publicStorefrontResponseSchema = z.object({
       jurisdiction: z.string().nullish(),
     })
     .optional(),
-  products: z.array(productSchema).optional(),
-  artisan: artisanSchema.nullish(),
+  products: z.array(apiProductSchema).optional(),
+  artisan: apiArtisanSchema.nullish(),
   redirect_handle: z.string().optional(),
   is_owner: z.boolean().optional(),
 });

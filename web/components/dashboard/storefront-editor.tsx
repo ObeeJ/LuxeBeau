@@ -354,13 +354,12 @@ export function StorefrontEditor({ role, hasItems }: StorefrontEditorProps) {
                 label="Brand Logo"
                 value={logoUrl || ""}
                 onChange={(url) => setLogoUrl(url || null)}
-                required={false}
+                round
               />
               <ImageField
                 label="Storefront Banner"
                 value={bannerUrl || ""}
                 onChange={(url) => setBannerUrl(url || null)}
-                required={false}
               />
             </div>
 
