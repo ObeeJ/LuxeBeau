@@ -98,3 +98,11 @@ func (s *Service) ListSales(ctx context.Context, sellerID string) ([]domain.Orde
 func (s *Service) Fulfil(ctx context.Context, sellerID, orderID, stage, note string) (*Fulfilment, error) {
 	return s.repo.Fulfil(ctx, sellerID, orderID, stage, strings.TrimSpace(note), time.Now().UTC())
 }
+
+func (s *Service) ListDeliveryZones(ctx context.Context, sellerID string) ([]domain.DeliveryZone, error) {
+	return s.repo.ListDeliveryZones(ctx, sellerID)
+}
+
+func (s *Service) UpsertDeliveryZones(ctx context.Context, sellerID string, zones []domain.DeliveryZone) error {
+	return s.repo.UpsertDeliveryZones(ctx, sellerID, zones)
+}

@@ -205,3 +205,28 @@ func sellerName(c *gin.Context) string {
 	}
 	return "Your seller"
 }
+
+func (h *Handler) ListDeliveryZones(c *gin.Context) {
+	zones, err := h.service.ListDeliveryZones(c.Request.Context(), sellerID(c))
+	if err != nil {
+		h.logger.Error("list delivery zones failed", slog.Any("error", err))
+		response.InternalError(c, "Failed to fetch delivery zones")
+		return
+	}
+	response.OK(c, gin.H{"zones": zones})
+}
+
+func (h *Handler) UpsertDeliveryZones(c *gin.Context) {
+	var req struct {
+		Zones []domain.DeliveryZone `json:"zones" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Enter valid delivery zones.")
+		return
+	}
+	if err := h.service.UpsertDeliveryZones(c.Request.Context(), sellerID(c), req.Zones); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+	response.OK(c, gin.H{"message": "Delivery zones updated successfully"})
+}

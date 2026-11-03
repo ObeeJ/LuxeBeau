@@ -23,6 +23,7 @@ import (
 	"luxebeau/internal/catalog"
 	"luxebeau/internal/domain"
 	"luxebeau/internal/escrow"
+	"luxebeau/internal/influencer"
 	"luxebeau/internal/jobs"
 	"luxebeau/internal/kyc"
 	"luxebeau/internal/mail"
@@ -32,6 +33,7 @@ import (
 	"luxebeau/internal/seed"
 	"luxebeau/internal/seller"
 	"luxebeau/internal/storefront"
+	"luxebeau/internal/withdrawal"
 )
 
 func main() {
@@ -197,6 +199,14 @@ func main() {
 		logger.Warn("Failed to seed reserved handles", slog.Any("error", err))
 	}
 
+	// Influencer referral packages
+	influencerService := influencer.NewService(db, logger)
+	influencerHandler := influencer.NewHandler(influencerService, logger)
+
+	// Partner bank withdrawals
+	withdrawalService := withdrawal.NewService(db, os.Getenv("PAYSTACK_SECRET_KEY"), logger)
+	withdrawalHandler := withdrawal.NewHandler(withdrawalService, logger)
+
 	// ── Router ──────────────────────────────────────────────
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -343,6 +353,15 @@ func main() {
 			sellerGroup.DELETE("/products/:id", sellerHandler.DeleteProduct)
 			sellerGroup.GET("/sales", sellerHandler.ListSales)
 			sellerGroup.PATCH("/sales/:orderId", sellerHandler.Fulfil)
+			sellerGroup.GET("/delivery-zones", sellerHandler.ListDeliveryZones)
+			sellerGroup.POST("/delivery-zones", sellerHandler.UpsertDeliveryZones)
+
+			// Influencer partnerships
+			sellerGroup.GET("/influencer-packages", influencerHandler.List)
+			sellerGroup.POST("/influencer-packages", influencerHandler.Create)
+			sellerGroup.GET("/influencer-packages/:id", influencerHandler.Get)
+			sellerGroup.PATCH("/influencer-packages/:id", influencerHandler.Update)
+			sellerGroup.PATCH("/influencer-packages/:id/state", influencerHandler.SetState)
 		}
 
 		// ── Admin console (internal only) ────────────────────
@@ -361,10 +380,14 @@ func main() {
 			adminGroup.GET("/bookings", adminHandler.ListBookings)
 			adminGroup.GET("/escrows", escrowHandler.AdminList)
 			adminGroup.POST("/escrows/:id/resolve", escrowHandler.AdminResolve)
+			adminGroup.GET("/influencer/packages", influencerHandler.AdminList)
+			adminGroup.GET("/influencer-commissions", influencerHandler.AdminCommissions)
 		}
 
-		// Wallets
+		// Wallets & Withdrawals
 		protected.GET("/wallets/me", authHandler.GetWallet)
+		protected.POST("/me/wallet/withdraw", auth.RequireRole("seller", "artisan", "admin"), withdrawalHandler.Initiate)
+		protected.GET("/me/wallet/withdrawals", auth.RequireRole("seller", "artisan", "admin"), withdrawalHandler.List)
 
 		// ── Storefront configuration (sellers, artisans, admin) ──
 		sfGroup := protected.Group("/me/storefront")
@@ -383,6 +406,7 @@ func main() {
 		jobs.Task{Name: "escrow auto-release", Run: escrowService.SweepAutoReleases},
 		jobs.Task{Name: "expire unanswered bookings", Run: bookingJobs.ExpireStale},
 		jobs.Task{Name: "booking reminders", Run: bookingJobs.SendReminders},
+		jobs.Task{Name: "influencer payouts", Run: influencerService.PayOutEarned},
 	)
 
 	// ── Start Server ────────────────────────────────────────
