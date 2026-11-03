@@ -3,11 +3,14 @@ package middleware
 import (
 	"bytes"
 	"crypto/hmac"
+	"crypto/sha256"
 	"crypto/sha512"
 	"crypto/subtle"
+	"encoding/base64"
 	"encoding/hex"
 	"io"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -36,8 +39,21 @@ func readAndRestoreBody(c *gin.Context) ([]byte, bool) {
 // RequireHMACSignature verifies header == hex(HMAC_SHA512(rawBody, secret)).
 // Used by Paystack (x-paystack-signature) and Monnify (monnify-signature).
 func RequireHMACSignature(secret, header string) gin.HandlerFunc {
+	return RequireHMACSignatureAny(header, secret)
+}
+
+// RequireHMACSignatureAny tests inbound signatures against a list of candidate secrets.
+// It supports standard Paystack HMAC-SHA512 as well as whsec_ webhook signing secrets.
+func RequireHMACSignatureAny(header string, secrets ...string) gin.HandlerFunc {
+	validSecrets := make([]string, 0, len(secrets))
+	for _, s := range secrets {
+		if strings.TrimSpace(s) != "" {
+			validSecrets = append(validSecrets, strings.TrimSpace(s))
+		}
+	}
+
 	return func(c *gin.Context) {
-		if secret == "" {
+		if len(validSecrets) == 0 {
 			c.AbortWithStatusJSON(http.StatusServiceUnavailable, gin.H{
 				"success": false,
 				"error":   gin.H{"code": "WEBHOOK_NOT_CONFIGURED", "message": "Webhook signing secret is not configured."},
@@ -49,15 +65,65 @@ func RequireHMACSignature(secret, header string) gin.HandlerFunc {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"success": false, "error": gin.H{"code": "BAD_REQUEST", "message": "Could not read request body."}})
 			return
 		}
-		mac := hmac.New(sha512.New, []byte(secret))
-		mac.Write(body)
-		expected := hex.EncodeToString(mac.Sum(nil))
+
 		got := c.GetHeader(header)
-		// constant-time compare to avoid timing leaks
-		if subtle.ConstantTimeCompare([]byte(expected), []byte(got)) != 1 {
+		if got == "" {
+			// Fallback checks for standard webhook header aliases
+			if alt := c.GetHeader("webhook-signature"); alt != "" {
+				got = alt
+			} else if alt := c.GetHeader("x-signature"); alt != "" {
+				got = alt
+			}
+		}
+
+		if got == "" {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"success": false, "error": gin.H{"code": "INVALID_SIGNATURE", "message": "Missing webhook signature header."}})
+			return
+		}
+
+		// Try all configured candidate secrets
+		matched := false
+		for _, s := range validSecrets {
+			// 1. Paystack standard: HMAC-SHA512 hex
+			mac512 := hmac.New(sha512.New, []byte(s))
+			mac512.Write(body)
+			exp512 := hex.EncodeToString(mac512.Sum(nil))
+			if subtle.ConstantTimeCompare([]byte(exp512), []byte(got)) == 1 {
+				matched = true
+				break
+			}
+
+			// 2. HMAC-SHA256 hex (standard for whsec_ secrets)
+			mac256 := hmac.New(sha256.New, []byte(s))
+			mac256.Write(body)
+			exp256 := hex.EncodeToString(mac256.Sum(nil))
+			if subtle.ConstantTimeCompare([]byte(exp256), []byte(got)) == 1 {
+				matched = true
+				break
+			}
+
+			// 3. Svix-style whsec_ base64 secret parsing
+			if strings.HasPrefix(s, "whsec_") {
+				rawSec, err := base64.StdEncoding.DecodeString(strings.TrimPrefix(s, "whsec_"))
+				if err == nil {
+					macRaw := hmac.New(sha256.New, rawSec)
+					macRaw.Write(body)
+					rawHex := hex.EncodeToString(macRaw.Sum(nil))
+					rawB64 := base64.StdEncoding.EncodeToString(macRaw.Sum(nil))
+					if subtle.ConstantTimeCompare([]byte(rawHex), []byte(got)) == 1 ||
+						subtle.ConstantTimeCompare([]byte(rawB64), []byte(got)) == 1 {
+						matched = true
+						break
+					}
+				}
+			}
+		}
+
+		if !matched {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"success": false, "error": gin.H{"code": "INVALID_SIGNATURE", "message": "Webhook signature verification failed."}})
 			return
 		}
+
 		c.Next()
 	}
 }

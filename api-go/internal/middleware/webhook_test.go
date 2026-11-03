@@ -85,6 +85,32 @@ func TestHMACSignature_UnconfiguredFailsClosed(t *testing.T) {
 	}
 }
 
+func TestHMACSignatureAny_WithWhsecAndSecretKey(t *testing.T) {
+	const whsec = "whsec_b6927bc04441dc9ebd92aeecdd54c3f9df645840b0938a77d91869a1c5c425e6"
+	const secretKey = "sk_test_e99eb614f281d0953422461442593ffc90b370fa"
+	body := `{"event":"charge.success","data":{"reference":"LB-WHSEC","status":"success"}}`
+
+	r := engine(RequireHMACSignatureAny("x-paystack-signature", whsec, secretKey))
+
+	// Test 1: Signed with primary secretKey (HMAC-SHA512)
+	req1 := httptest.NewRequest(http.MethodPost, "/hook", strings.NewReader(body))
+	req1.Header.Set("x-paystack-signature", sign(secretKey, body))
+	w1 := httptest.NewRecorder()
+	r.ServeHTTP(w1, req1)
+	if w1.Code != http.StatusOK {
+		t.Fatalf("secretKey signature should pass, got %d", w1.Code)
+	}
+
+	// Test 2: Signed with whsec (HMAC-SHA512)
+	req2 := httptest.NewRequest(http.MethodPost, "/hook", strings.NewReader(body))
+	req2.Header.Set("x-paystack-signature", sign(whsec, body))
+	w2 := httptest.NewRecorder()
+	r.ServeHTTP(w2, req2)
+	if w2.Code != http.StatusOK {
+		t.Fatalf("whsec signature should pass, got %d", w2.Code)
+	}
+}
+
 func TestSharedSecret_Behaviour(t *testing.T) {
 	r := engine(RequireSharedSecret("verifhash123", "verif-hash"))
 

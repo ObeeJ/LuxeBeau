@@ -258,7 +258,10 @@ func main() {
 	hooks := r.Group("/api/v1/webhooks")
 	{
 		hooks.POST("/paystack",
-			middleware.RequireHMACSignature(os.Getenv("PAYSTACK_SECRET_KEY"), "x-paystack-signature"),
+			middleware.RequireHMACSignatureAny("x-paystack-signature",
+				os.Getenv("PAYSTACK_WEBHOOK_SECRET"),
+				os.Getenv("PAYSTACK_SECRET_KEY"),
+			),
 			orderHandler.PaystackWebhook)
 		hooks.POST("/flutterwave",
 			middleware.RequireSharedSecret(os.Getenv("FLUTTERWAVE_SECRET_HASH"), "verif-hash"),
