@@ -52,12 +52,16 @@ func main() {
 	defer cancel()
 
 	var findings []audit.WalletFinding
+	var escrows []audit.EscrowFinding
 	err = db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Exec("SET TRANSACTION READ ONLY").Error; err != nil {
 			return err
 		}
 		var err error
-		findings, err = audit.Wallets(ctx, tx)
+		if findings, err = audit.Wallets(ctx, tx); err != nil {
+			return err
+		}
+		escrows, err = audit.Escrows(ctx, tx)
 		return err
 	})
 	if err != nil {
@@ -82,7 +86,18 @@ func main() {
 			unexplained += f.Difference
 		}
 	}
-	fmt.Printf("%d wallets checked, %d with a difference. Money with no record: %s\n\n", len(findings), len(audit.Unexplained(findings)), naira(unexplained))
+	fmt.Printf("%d wallets checked, %d with a difference. Money with no record: %s\n", len(findings), len(audit.Unexplained(findings)), naira(unexplained))
+	broken := audit.Broken(escrows)
+	fmt.Printf("%d escrows checked, %d do not balance.\n\n", len(escrows), len(broken))
+	if len(broken) > 0 {
+		ew := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
+		fmt.Fprintln(ew, "ESCROW\tSTATE\tAMOUNT\tPROBLEM")
+		for _, f := range broken {
+			fmt.Fprintf(ew, "%s\t%s\t%s\t%s\n", f.EscrowID, f.State, naira(f.Amount), f.Problem)
+		}
+		ew.Flush()
+		fmt.Println()
+	}
 	if len(listed) == 0 {
 		return
 	}
