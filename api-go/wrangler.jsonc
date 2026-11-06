@@ -48,7 +48,6 @@
     "SMTP_HOST": "smtp.gmail.com",
     "SMTP_PORT": "465",
     "SMTP_USERNAME": "ajayioba2000@gmail.com",
-    "EMAIL_FROM": "LuxeBeau <ajayioba2000@gmail.com>",
-    "PAYSTACK_SECRET_KEY": "sk_test_e99eb614f281d0953422461442593ffc90b370fa"
+    "EMAIL_FROM": "LuxeBeau <ajayioba2000@gmail.com>"
   }
 }

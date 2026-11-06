@@ -2,7 +2,9 @@ export interface Env {}
 
 export default {
   async scheduled(controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
-    const target = "https://luxebeau-api.onrender.com/healthz";
+    // /readyz queries the database, so each ping also keeps a free Supabase
+    // project from pausing. /healthz would only wake the web process.
+    const target = "https://luxebeau-api.onrender.com/readyz";
     try {
       const res = await fetch(target, {
         headers: { "User-Agent": "LuxeBeau-KeepAwake/1.0" }
@@ -14,7 +16,9 @@ export default {
   },
 
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
-    const target = "https://luxebeau-api.onrender.com/healthz";
+    // /readyz queries the database, so each ping also keeps a free Supabase
+    // project from pausing. /healthz would only wake the web process.
+    const target = "https://luxebeau-api.onrender.com/readyz";
     try {
       const res = await fetch(target, {
         headers: { "User-Agent": "LuxeBeau-KeepAwake/1.0" }

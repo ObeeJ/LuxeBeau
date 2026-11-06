@@ -19,7 +19,7 @@ Needed from the owner: `wrangler login` (or `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE
 
 Fallbacks if Render misbehaves: Fly.io (free allowance, WebSockets fine) or Koyeb (free instance). Do not use Render's free Postgres for real data: it expires after 30 days.
 
-Free-tier risks to accept knowingly: cold start of about 50 seconds if the pinger fails, no Redis persistence, Supabase pauses a free project after a week of no activity (the keep-awake ping also hits the database through `/healthz`).
+Free-tier risks to accept knowingly: cold start of about 50 seconds if the pinger fails, no Redis persistence, Supabase pauses a free project after a week of no activity (the keep-awake ping also hits the database through `/readyz`).
 
 ## 2. Profiles (like a social profile, built for a marketplace)
 

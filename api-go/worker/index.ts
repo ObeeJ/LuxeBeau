@@ -55,13 +55,19 @@ export class ApiContainer extends DurableObject<Env> {
     if (!container.running) {
       const dbUrl = this.env.HYPERDRIVE?.connectionString || this.env.DATABASE_URL || "";
 
+      // No built-in default: a secret in source is a secret in a public repo.
+      const jwtSecret = this.env.JWT_SECRET;
+      if (!jwtSecret || jwtSecret.length < 32) {
+        throw new Error("JWT_SECRET must be set (32+ characters): wrangler secret put JWT_SECRET");
+      }
+
       await container.start({
         image: container.images.base,
         enableInternet: true,
         env: {
           PORT: "8080",
           DATABASE_URL: dbUrl,
-          JWT_SECRET: this.env.JWT_SECRET || "luxebeau_secret_key_production_32_bytes_random",
+          JWT_SECRET: jwtSecret,
           APP_URL: this.env.APP_URL || "https://myluxebeau.com",
           ALLOWED_ORIGINS: this.env.ALLOWED_ORIGINS || "https://myluxebeau.com,https://www.myluxebeau.com,http://localhost:3000",
           COOKIE_DOMAIN: this.env.COOKIE_DOMAIN || "",
@@ -70,9 +76,9 @@ export class ApiContainer extends DurableObject<Env> {
           SMTP_HOST: this.env.SMTP_HOST || "smtp.gmail.com",
           SMTP_PORT: this.env.SMTP_PORT || "465",
           SMTP_USERNAME: this.env.SMTP_USERNAME || "ajayioba2000@gmail.com",
-          SMTP_PASSWORD: this.env.SMTP_PASSWORD || "syhmnslpydwapdia",
+          SMTP_PASSWORD: this.env.SMTP_PASSWORD ?? "",
           EMAIL_FROM: this.env.EMAIL_FROM || "Akin <ajayioba2000@gmail.com>",
-          PAYSTACK_SECRET_KEY: this.env.PAYSTACK_SECRET_KEY || "sk_test_e99eb614f281d0953422461442593ffc90b370fa",
+          PAYSTACK_SECRET_KEY: this.env.PAYSTACK_SECRET_KEY ?? "",
         },
       });
     }
