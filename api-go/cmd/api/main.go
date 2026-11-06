@@ -239,10 +239,29 @@ func main() {
 	r.Use(middleware.Logger(logger))
 	r.Use(middleware.Recovery(logger))
 	r.Use(middleware.CORS(splitList(envOrDefault("ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000"))))
+	// After CORS so a browser can still read the 413 message.
+	r.Use(middleware.BodyLimit(middleware.DefaultBodyLimit))
 
 	// ── Health Check ────────────────────────────────────────
 	r.GET("/healthz", func(c *gin.Context) {
 		c.JSON(200, gin.H{"status": "ok", "service": "luxebeau-api"})
+	})
+	// Readiness: proves the database answers. /healthz only proves the process
+	// is up. Point load balancers and keep-awake pings that must also keep the
+	// database active (Supabase pauses idle free projects) at this one.
+	r.GET("/readyz", func(c *gin.Context) {
+		sqlDB, err := db.DB()
+		if err == nil {
+			pingCtx, cancel := context.WithTimeout(c.Request.Context(), 3*time.Second)
+			defer cancel()
+			err = sqlDB.PingContext(pingCtx)
+		}
+		if err != nil {
+			logger.Error("readiness check failed", slog.Any("error", err))
+			c.JSON(http.StatusServiceUnavailable, gin.H{"status": "unavailable", "service": "luxebeau-api"})
+			return
+		}
+		c.JSON(200, gin.H{"status": "ready", "service": "luxebeau-api"})
 	})
 	r.GET("/", func(c *gin.Context) {
 		c.JSON(200, gin.H{"status": "ok", "service": "luxebeau-api", "health": "/healthz"})

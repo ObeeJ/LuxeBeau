@@ -12,7 +12,7 @@ Decided with the owner on 2026-10-29: database on **Supabase**, images and media
 | Cache | Render Key Value (free tier, no persistence) | Rate limits and presence only; never the source of truth. |
 | Media | R2 bucket `luxebeau-media`, served through a Worker on `media.<domain>.com` | Replaces Cloudflare Images (paid). |
 | Media compressor | Cloudflare Worker with the Images binding, triggered by a Queue | See section 4. |
-| Keep-awake | Cloudflare Worker with a Cron Trigger every 10 minutes calling `GET <api>/healthz` | Render free web services sleep after 15 minutes idle. 750 free hours a month covers one always-on service. |
+| Keep-awake | Cloudflare Worker with a Cron Trigger every 10 minutes calling `GET <api>/readyz` (it queries the database, so it also keeps Supabase from pausing; `/healthz` does not touch the database) | Render free web services sleep after 15 minutes idle. 750 free hours a month covers one always-on service. |
 | Domain | `.com` bought through Cloudflare Registrar (about 10 USD a year; the owner must purchase it) | Until then: `*.workers.dev` and the Render URL. |
 
 Needed from the owner: `wrangler login` (or `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID`), a Supabase project connection string, a Render API key, the domain name. None of these go into chat or git; they live in Render env vars and GitHub Actions secrets (set with `gh secret set`).
