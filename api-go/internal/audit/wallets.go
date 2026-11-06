@@ -7,6 +7,8 @@ import (
 	"sort"
 
 	"gorm.io/gorm"
+
+	"luxebeau/internal/domain"
 )
 
 // WalletFinding compares one wallet's balance with what its history explains.
@@ -54,8 +56,14 @@ SELECT w.user_id AS user_id,
 FROM wallets w
 LEFT JOIN users u ON CAST(u.id AS TEXT) = CAST(w.user_id AS TEXT)
 LEFT JOIN (
-    SELECT to_account AS acct, CAST(SUM(amount) AS BIGINT) AS total
-    FROM ledger_entries WHERE type IN ('release', 'refund') GROUP BY to_account
+    -- Fees are booked to the account named "platform"; the platform's wallet is
+    -- keyed by a fixed id, so map one onto the other.
+    SELECT acct, CAST(SUM(amount) AS BIGINT) AS total
+    FROM (
+        SELECT CASE WHEN to_account = 'platform' THEN '` + domain.PlatformWalletID + `' ELSE to_account END AS acct,
+               amount
+        FROM ledger_entries WHERE type IN ('release', 'refund', 'fee')
+    ) credits GROUP BY acct
 ) i ON i.acct = CAST(w.user_id AS TEXT)
 LEFT JOIN (
     SELECT from_account AS acct, CAST(SUM(amount) AS BIGINT) AS total
