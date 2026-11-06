@@ -6,6 +6,7 @@ services:
     dockerContext: ./api-go
     plan: free
     region: frankfurt
+    healthCheckPath: /readyz
     envVars:
       - key: PORT
         value: "8080"

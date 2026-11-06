@@ -95,7 +95,7 @@ export default function CartPage() {
     const handler = (window as any).PaystackPop.setup({
       key: publicKey,
       email: email,
-      amount: Math.round(order.totalNGN * 100), // in kobo
+      amount: order.totalKobo ?? Math.round(order.totalNGN * 100), // exact kobo integer
       ref: order.id,
       currency: "NGN",
       callback: async (response: { reference: string }) => {

@@ -23,6 +23,17 @@ func (m *mockRepo) Create(ctx context.Context, ad *domain.FeaturedAd) error {
 	return nil
 }
 
+func (m *mockRepo) Update(ctx context.Context, ad *domain.FeaturedAd) error {
+	for i, a := range m.ads {
+		if a.ID == ad.ID {
+			m.ads[i] = *ad
+			return nil
+		}
+	}
+	m.ads = append(m.ads, *ad)
+	return nil
+}
+
 func (m *mockRepo) GetByID(ctx context.Context, id string) (*domain.FeaturedAd, error) {
 	for _, a := range m.ads {
 		if a.ID == id {
@@ -138,7 +149,16 @@ func TestCreatePromotion(t *testing.T) {
 	assert.Equal(t, "merchant-123", ad.MerchantID)
 	assert.Equal(t, domain.AdPrice30DaysKobo, ad.AmountKobo)
 	assert.Equal(t, "/s/adunni-organics", ad.LinkURL)
-	assert.Equal(t, domain.PromotionStatusActive, ad.Status)
+	assert.Equal(t, domain.PromotionStatusPending, ad.Status)
+
+	// Inactive while pending
+	activePending, err := svc.ListActive(ctx, 10)
+	require.NoError(t, err)
+	assert.Empty(t, activePending)
+
+	// Activate ad
+	err = repo.UpdateStatus(ctx, ad.ID, domain.PromotionStatusActive)
+	require.NoError(t, err)
 
 	// Check active list
 	active, err := svc.ListActive(ctx, 10)

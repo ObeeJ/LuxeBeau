@@ -83,6 +83,30 @@ func (h *Handler) CreatePromotion(c *gin.Context) {
 	response.Created(c, gin.H{"ad": ad})
 }
 
+// PayAdWithWallet: POST /api/v1/me/promotions/:id/pay-wallet (Protected - seller, artisan, admin)
+func (h *Handler) PayAdWithWallet(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		response.BadRequest(c, "Ad ID is required")
+		return
+	}
+
+	v, exists := c.Get("userID")
+	if !exists {
+		response.Unauthorized(c, "Authentication required")
+		return
+	}
+	merchantID, _ := v.(string)
+
+	if err := h.service.PayWithWallet(c.Request.Context(), merchantID, id); err != nil {
+		h.logger.Warn("pay ad with wallet failed", slog.String("ad_id", id), slog.Any("error", err))
+		response.BadRequest(c, err.Error())
+		return
+	}
+
+	response.OK(c, gin.H{"message": "Promotion paid and activated successfully"})
+}
+
 // ListMyPromotions: GET /api/v1/me/promotions (Protected - seller, artisan, admin)
 func (h *Handler) ListMyPromotions(c *gin.Context) {
 	v, exists := c.Get("userID")

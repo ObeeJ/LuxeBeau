@@ -11,6 +11,10 @@ skills-lock.json
 .env
 .env.local
 
+# Python caches
+__pycache__/
+*.pyc
+
 # OS files
 .DS_Store
 Thumbs.db

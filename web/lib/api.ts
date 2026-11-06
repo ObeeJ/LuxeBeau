@@ -196,6 +196,8 @@ export const orderResultSchema = z
   })
   .transform(({ order }) => ({
     id: order.id,
+    totalKobo: order.total,
+    deliveryFeeKobo: order.delivery_fee ?? 0,
     totalNGN: Math.round(order.total / 100),
     deliveryFeeNGN: Math.round((order.delivery_fee ?? 0) / 100),
     paymentStatus: order.payment_status ?? "pending",
@@ -220,6 +222,7 @@ export const bookingResultSchema = z
   })
   .transform(({ booking }) => ({
     id: booking.id,
+    amountKobo: booking.amount ?? 0,
     amountNGN: Math.round((booking.amount ?? 0) / 100),
     status: booking.status ?? "pending",
   }));
@@ -234,7 +237,10 @@ export function deliveryFeeNGN(subtotalNGN: number): number {
 /* GET /wallets/me → { wallet: Wallet } (balance in kobo). */
 export const walletResponseSchema = z
   .object({ wallet: z.object({ balance: z.number() }) })
-  .transform(({ wallet }) => ({ balanceNGN: Math.round(wallet.balance / 100) }));
+  .transform(({ wallet }) => ({
+    balanceKobo: wallet.balance,
+    balanceNGN: Math.round(wallet.balance / 100),
+  }));
 
 /* ── Catalogue: API shapes (snake_case, kobo) → display models (NGN) ──
    The Go schema is the source of truth. These schemas validate the wire

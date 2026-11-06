@@ -58,9 +58,14 @@ func (s *orderService) CreateCheckout(ctx context.Context, buyerID string, items
 			if prod.Stock < item.Qty {
 				return fmt.Errorf("insufficient stock for %s (available: %d, requested: %d)", prod.Name, prod.Stock, item.Qty)
 			}
-			prod.Stock -= item.Qty
-			if err := tx.Save(&prod).Error; err != nil {
-				return fmt.Errorf("failed to update stock: %w", err)
+			res := tx.Model(&domain.Product{}).
+				Where("id = ? AND stock >= ?", prod.ID, item.Qty).
+				Update("stock", gorm.Expr("stock - ?", item.Qty))
+			if res.Error != nil {
+				return fmt.Errorf("failed to update stock: %w", res.Error)
+			}
+			if res.RowsAffected == 0 {
+				return fmt.Errorf("insufficient stock for %s (available: %d, requested: %d)", prod.Name, prod.Stock, item.Qty)
 			}
 			subtotal += prod.Price * int64(item.Qty)
 			orderItems = append(orderItems, domain.OrderItem{

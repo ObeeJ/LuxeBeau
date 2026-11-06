@@ -67,6 +67,10 @@ func (r *GormRepository) ListAll(ctx context.Context, limit, offset int) ([]doma
 	return ads, count, err
 }
 
+func (r *GormRepository) Update(ctx context.Context, ad *domain.FeaturedAd) error {
+	return r.db.WithContext(ctx).Save(ad).Error
+}
+
 func (r *GormRepository) UpdateStatus(ctx context.Context, id string, status domain.PromotionStatus) error {
 	return r.db.WithContext(ctx).
 		Model(&domain.FeaturedAd{}).

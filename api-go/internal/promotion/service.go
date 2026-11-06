@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"luxebeau/internal/domain"
 )
@@ -33,12 +35,21 @@ type CreatePromotionInput struct {
 
 type Service struct {
 	repo   domain.PromotionRepository
+	db     *gorm.DB
 	logger *slog.Logger
 }
 
 func NewService(repo domain.PromotionRepository, logger *slog.Logger) *Service {
 	return &Service{
 		repo:   repo,
+		logger: logger,
+	}
+}
+
+func NewServiceWithDB(repo domain.PromotionRepository, db *gorm.DB, logger *slog.Logger) *Service {
+	return &Service{
+		repo:   repo,
+		db:     db,
 		logger: logger,
 	}
 }
@@ -105,7 +116,7 @@ func (s *Service) CreatePromotion(ctx context.Context, merchantID string, input 
 		AmountKobo:  amountKobo,
 		StartsAt:    now,
 		ExpiresAt:   now.Add(duration),
-		Status:      domain.PromotionStatusActive,
+		Status:      domain.PromotionStatusPending,
 		CreatedAt:   now,
 		UpdatedAt:   now,
 	}
@@ -116,6 +127,166 @@ func (s *Service) CreatePromotion(ctx context.Context, merchantID string, input 
 	}
 
 	return ad, nil
+}
+
+// PayWithWallet debits the merchant's wallet atomically, credits the platform wallet,
+// creates an immutable ledger entry, and activates the featured ad promotion.
+func (s *Service) PayWithWallet(ctx context.Context, merchantID string, adID string) error {
+	if s.db == nil {
+		return errors.New("database connection not available")
+	}
+
+	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var ad domain.FeaturedAd
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&ad, "id = ?", adID).Error; err != nil {
+			return fmt.Errorf("ad not found: %w", err)
+		}
+
+		if ad.MerchantID != merchantID {
+			return errors.New("unauthorized: ad does not belong to this merchant")
+		}
+
+		if ad.Status == domain.PromotionStatusActive {
+			return nil // already active/paid
+		}
+
+		if ad.Status != domain.PromotionStatusPending {
+			return fmt.Errorf("ad cannot be paid in status: %s", ad.Status)
+		}
+
+		// 1. Conditional UPDATE: atomically debit merchant's wallet
+		res := tx.Model(&domain.Wallet{}).
+			Where("user_id = ? AND balance >= ?", merchantID, ad.AmountKobo).
+			Update("balance", gorm.Expr("balance - ?", ad.AmountKobo))
+		if res.Error != nil {
+			return fmt.Errorf("failed to deduct wallet balance: %w", res.Error)
+		}
+		if res.RowsAffected == 0 {
+			return errors.New("insufficient wallet balance")
+		}
+
+		// 2. Credit platform wallet
+		if err := tx.Model(&domain.Wallet{}).
+			Where("user_id = ?", domain.PlatformWalletID).
+			Update("balance", gorm.Expr("balance + ?", ad.AmountKobo)).Error; err != nil {
+			return fmt.Errorf("failed to credit platform wallet: %w", err)
+		}
+
+		// 3. Write immutable ledger entry
+		now := time.Now().UTC()
+		ledger := &domain.LedgerEntry{
+			EscrowID:    "ad-" + ad.ID,
+			Type:        "ad",
+			FromAccount: merchantID,
+			ToAccount:   "platform",
+			Amount:      ad.AmountKobo,
+			Memo:        "Featured ad promotion payment (wallet): " + ad.Title,
+			CreatedAt:   now,
+		}
+		if err := tx.Create(ledger).Error; err != nil {
+			return fmt.Errorf("failed to record ledger entry: %w", err)
+		}
+
+		// 4. Activate ad
+		_, duration, _ := s.CalculatePlan(ad.Plan)
+		ad.Status = domain.PromotionStatusActive
+		ad.PaidAt = &now
+		ad.PaymentMethod = "wallet"
+		ad.PaymentRef = "wallet-" + ad.ID
+		ad.StartsAt = now
+		ad.ExpiresAt = now.Add(duration)
+		ad.UpdatedAt = now
+
+		if err := tx.Save(&ad).Error; err != nil {
+			return fmt.Errorf("failed to update ad status: %w", err)
+		}
+
+		s.logger.Info("ad activated via wallet", slog.String("ad_id", ad.ID), slog.String("merchant_id", merchantID), slog.Int64("amount_kobo", ad.AmountKobo))
+		return nil
+	})
+}
+
+// ConfirmPayment handles Paystack/payment gateway notices for paid ads.
+func (s *Service) ConfirmPayment(ctx context.Context, n domain.PaymentNotice) (domain.PaymentOutcome, error) {
+	if s.db == nil {
+		return "", errors.New("database connection not available")
+	}
+
+	var ad domain.FeaturedAd
+	err := s.db.WithContext(ctx).First(&ad, "id = ?", n.Reference).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return domain.PaymentUnknownOrder, nil
+	}
+	if err != nil {
+		return "", err
+	}
+
+	if !n.Succeeded {
+		return domain.PaymentMarkedFailed, nil
+	}
+
+	if n.Amount != ad.AmountKobo || !strings.EqualFold(n.Currency, "NGN") {
+		s.logger.Warn("ad payment amount mismatch; ad left pending",
+			slog.String("ad_id", ad.ID), slog.String("provider", n.Provider),
+			slog.Int64("expected", ad.AmountKobo), slog.Int64("received", n.Amount), slog.String("currency", n.Currency))
+		return domain.PaymentAmountInvalid, nil
+	}
+
+	outcome := domain.PaymentIgnored
+	err = s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var current domain.FeaturedAd
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&current, "id = ?", ad.ID).Error; err != nil {
+			return err
+		}
+
+		if current.Status == domain.PromotionStatusActive {
+			return nil // already paid & active: duplicate notice
+		}
+
+		now := time.Now().UTC()
+		_, duration, _ := s.CalculatePlan(current.Plan)
+		current.Status = domain.PromotionStatusActive
+		current.PaidAt = &now
+		current.PaymentMethod = n.Provider
+		current.PaymentRef = n.Reference
+		current.StartsAt = now
+		current.ExpiresAt = now.Add(duration)
+		current.UpdatedAt = now
+
+		if err := tx.Save(&current).Error; err != nil {
+			return err
+		}
+
+		// Credit platform wallet
+		if err := tx.Model(&domain.Wallet{}).
+			Where("user_id = ?", domain.PlatformWalletID).
+			Update("balance", gorm.Expr("balance + ?", current.AmountKobo)).Error; err != nil {
+			return err
+		}
+
+		// Write ledger entry
+		from := "gateway"
+		ledger := &domain.LedgerEntry{
+			EscrowID:    "ad-" + current.ID,
+			Type:        "ad",
+			FromAccount: from,
+			ToAccount:   "platform",
+			Amount:      current.AmountKobo,
+			Memo:        "Featured ad promotion payment (" + n.Provider + "): " + current.Title,
+			CreatedAt:   now,
+		}
+		if err := tx.Create(ledger).Error; err != nil {
+			return err
+		}
+
+		outcome = domain.PaymentMarkedPaid
+		return nil
+	})
+	if err != nil {
+		return "", err
+	}
+
+	return outcome, nil
 }
 
 func (s *Service) ListActive(ctx context.Context, limit int) ([]domain.FeaturedAd, error) {

@@ -53,7 +53,10 @@ type FeaturedAd struct {
 	AmountKobo       int64           `gorm:"type:bigint;not null" json:"amount_kobo"`
 	StartsAt         time.Time       `gorm:"index;not null" json:"starts_at"`
 	ExpiresAt        time.Time       `gorm:"index;not null" json:"expires_at"`
-	Status           PromotionStatus `gorm:"type:varchar(20);default:'active';index" json:"status"`
+	Status           PromotionStatus `gorm:"type:varchar(20);default:'pending';index" json:"status"`
+	PaidAt           *time.Time      `json:"paid_at"`
+	PaymentMethod    string          `gorm:"type:varchar(30)" json:"payment_method"` // "wallet", "paystack"
+	PaymentRef       string          `gorm:"type:varchar(100);index" json:"payment_ref"`
 	ClicksCount      int64           `gorm:"default:0" json:"clicks_count"`
 	ImpressionsCount int64           `gorm:"default:0" json:"impressions_count"`
 	CreatedAt        time.Time       `json:"created_at"`
@@ -66,6 +69,7 @@ type PromotionRepository interface {
 	ListActive(ctx context.Context, limit int) ([]FeaturedAd, error)
 	ListByMerchant(ctx context.Context, merchantID string) ([]FeaturedAd, error)
 	ListAll(ctx context.Context, limit, offset int) ([]FeaturedAd, int64, error)
+	Update(ctx context.Context, ad *FeaturedAd) error
 	UpdateStatus(ctx context.Context, id string, status PromotionStatus) error
 	IncrementImpression(ctx context.Context, id string) error
 	IncrementClick(ctx context.Context, id string) error

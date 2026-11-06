@@ -219,7 +219,7 @@ func main() {
 
 	// Paid ads & featured promotions
 	promotionRepo := promotion.NewGormRepository(db)
-	promotionService := promotion.NewService(promotionRepo, logger)
+	promotionService := promotion.NewServiceWithDB(promotionRepo, db, logger)
 	promotionHandler := promotion.NewHandler(promotionService, logger)
 
 	// ── Router ──────────────────────────────────────────────
@@ -247,13 +247,16 @@ func main() {
 	r.Use(middleware.BodyLimit(middleware.DefaultBodyLimit))
 
 	// ── Health Check ────────────────────────────────────────
-	r.GET("/healthz", func(c *gin.Context) {
+	healthzHandler := func(c *gin.Context) {
 		c.JSON(200, gin.H{"status": "ok", "service": "luxebeau-api"})
-	})
+	}
+	r.GET("/healthz", healthzHandler)
+	r.HEAD("/healthz", func(c *gin.Context) { c.Status(200) })
+
 	// Readiness: proves the database answers. /healthz only proves the process
 	// is up. Point load balancers and keep-awake pings that must also keep the
 	// database active (Supabase pauses idle free projects) at this one.
-	r.GET("/readyz", func(c *gin.Context) {
+	readyzHandler := func(c *gin.Context) {
 		sqlDB, err := db.DB()
 		if err == nil {
 			pingCtx, cancel := context.WithTimeout(c.Request.Context(), 3*time.Second)
@@ -266,6 +269,20 @@ func main() {
 			return
 		}
 		c.JSON(200, gin.H{"status": "ready", "service": "luxebeau-api"})
+	}
+	r.GET("/readyz", readyzHandler)
+	r.HEAD("/readyz", func(c *gin.Context) {
+		sqlDB, err := db.DB()
+		if err == nil {
+			pingCtx, cancel := context.WithTimeout(c.Request.Context(), 3*time.Second)
+			defer cancel()
+			err = sqlDB.PingContext(pingCtx)
+		}
+		if err != nil {
+			c.Status(http.StatusServiceUnavailable)
+			return
+		}
+		c.Status(200)
 	})
 	r.GET("/", func(c *gin.Context) {
 		c.JSON(200, gin.H{"status": "ok", "service": "luxebeau-api", "health": "/healthz"})
@@ -438,6 +455,7 @@ func main() {
 
 		// Promotions & Paid Ads (sellers, artisans, admin)
 		protected.POST("/me/promotions", auth.RequireRole("seller", "artisan", "admin"), promotionHandler.CreatePromotion)
+		protected.POST("/me/promotions/:id/pay-wallet", auth.RequireRole("seller", "artisan", "admin"), promotionHandler.PayAdWithWallet)
 		protected.GET("/me/promotions", auth.RequireRole("seller", "artisan", "admin"), promotionHandler.ListMyPromotions)
 
 		// ── Storefront configuration (sellers, artisans, admin) ──
