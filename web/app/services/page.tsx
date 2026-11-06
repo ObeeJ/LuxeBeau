@@ -10,6 +10,7 @@ import { EmptyState, LoadError } from "@/components/site/states";
 import { PageHeader } from "@/components/dashboard/widgets";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useArtisans } from "@/lib/queries";
+import { cn } from "@/lib/utils";
 
 type Visit = "any" | "studio" | "home";
 
@@ -50,8 +51,8 @@ function ServicesContent() {
         <SearchBar key={q} defaultValue={searchParams.get("q") ?? ""} action="/services" placeholder="Braids, gele, makeup, nails…" />
       </div>
 
-      {/* Unconstrained, non-cropping filter row with instant feedback */}
-      <div className="mt-6 flex flex-col items-center gap-4">
+      {/* Clean, unconstrained filter row without any cropping wrappers */}
+      <div className="mt-6 flex flex-wrap items-center justify-center gap-2.5">
         <Segmented<Visit>
           value={visit}
           onChange={setVisit}
@@ -62,13 +63,36 @@ function ServicesContent() {
           ]}
         />
 
-        <div className="w-full">
-          <ChipRow<string>
-            value={city}
-            onChange={setCity}
-            options={[{ value: "", label: "All cities" }, ...cities.map(c => ({ value: c, label: c, icon: MapPin }))]}
-          />
-        </div>
+        <button
+          type="button"
+          aria-pressed={!city}
+          onClick={() => setCity("")}
+          className={cn(
+            "lb-press inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full px-4 text-[14px] font-medium tracking-[-0.014em] shadow-pill ring-1 transition-colors duration-150 cursor-pointer",
+            !city ? "bg-brand-wash text-brand-deep ring-brand font-semibold" : "bg-surface text-ink ring-hairline hover:bg-canvas",
+          )}
+        >
+          All cities
+        </button>
+
+        {cities.map(c => {
+          const on = city.toLowerCase() === c.toLowerCase();
+          return (
+            <button
+              key={c}
+              type="button"
+              aria-pressed={on}
+              onClick={() => setCity(on ? "" : c)}
+              className={cn(
+                "lb-press inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full px-4 text-[14px] font-medium tracking-[-0.014em] shadow-pill ring-1 transition-colors duration-150 cursor-pointer",
+                on ? "bg-brand-wash text-brand-deep ring-brand font-semibold" : "bg-surface text-ink ring-hairline hover:bg-canvas",
+              )}
+            >
+              <MapPin className="h-4 w-4" aria-hidden />
+              {c}
+            </button>
+          );
+        })}
       </div>
 
       <div className="mt-6">

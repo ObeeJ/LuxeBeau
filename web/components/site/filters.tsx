@@ -65,7 +65,7 @@ export function ChipRow<T extends string>({
   className?: string;
 }) {
   return (
-    <div className={cn("no-scrollbar flex flex-wrap items-center justify-center gap-2 py-1", className)}>
+    <div className={cn("flex flex-wrap items-center justify-center gap-2", className)}>
       {options.map(({ value: v, label, icon: Icon }) => {
         const on = v === value;
         return (
