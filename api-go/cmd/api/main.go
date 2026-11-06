@@ -99,6 +99,10 @@ func main() {
 		os.Exit(1)
 	}
 	logger.Info("Database migrations completed")
+	if err := escrow.EnsureLedgerGuards(db); err != nil {
+		logger.Error("Ledger guards failed", slog.Any("error", err))
+		os.Exit(1)
+	}
 
 	// ── Seed catalogue (idempotent) ─────────────────────────
 	if err := seed.Run(db, logger); err != nil {
