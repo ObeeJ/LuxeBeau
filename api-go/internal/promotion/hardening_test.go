@@ -95,3 +95,34 @@ func TestAdminCannotActivateAnUnpaidAd(t *testing.T) {
 	require.NoError(t, svc.AdminUpdateStatus(ctx, ad.ID, domain.PromotionStatusActive),
 		"a paid ad can be paused and resumed")
 }
+
+// Paystack retries notices. One arriving after the ad has expired or been
+// paused must not bring the ad back or credit the platform a second time.
+func TestConfirmPayment_ReplayAfterExpiryDoesNothing(t *testing.T) {
+	db := setupTestDB(t)
+	repo := promotion.NewGormRepository(db)
+	svc := promotion.NewServiceWithDB(repo, db, testLogger())
+	ctx := context.Background()
+	ad := newPendingAd(t, svc, "m1")
+	notice := domain.PaymentNotice{Provider: "paystack", Reference: ad.ID, Succeeded: true, Amount: ad.AmountKobo, Currency: "NGN"}
+
+	out, err := svc.ConfirmPayment(ctx, notice)
+	require.NoError(t, err)
+	require.Equal(t, domain.PaymentMarkedPaid, out)
+
+	for _, st := range []domain.PromotionStatus{domain.PromotionStatusExpired, domain.PromotionStatusPaused} {
+		db.Model(&domain.FeaturedAd{}).Where("id = ?", ad.ID).Update("status", st)
+		out, err = svc.ConfirmPayment(ctx, notice)
+		require.NoError(t, err)
+		assert.Equal(t, domain.PaymentIgnored, out)
+		got, _ := repo.GetByID(ctx, ad.ID)
+		assert.Equal(t, st, got.Status, "a replayed notice must not revive an ad")
+	}
+
+	var w domain.Wallet
+	require.NoError(t, db.First(&w, "user_id = ?", domain.PlatformWalletID).Error)
+	assert.Equal(t, ad.AmountKobo, w.Balance, "the platform is credited once, however often Paystack retries")
+	var rows int64
+	db.Model(&domain.LedgerEntry{}).Where("type = ?", "ad").Count(&rows)
+	assert.Equal(t, int64(1), rows)
+}

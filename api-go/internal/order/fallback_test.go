@@ -95,6 +95,26 @@ func TestWebhook_UnknownEverywhereIsStillAcknowledged(t *testing.T) {
 	}
 }
 
+// Ads are only ever paid through Paystack, so other providers' notices must
+// never be offered to the ads service.
+func TestWebhook_FallbackIsPaystackOnly(t *testing.T) {
+	ads := &stubAds{outcome: domain.PaymentMarkedPaid}
+	h := newHandler(domain.PaymentUnknownOrder).WithFallbackConfirmer(ads)
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	r.POST("/x", func(c *gin.Context) {
+		h.applyPayment(c, domain.PaymentNotice{Provider: "flutterwave", Reference: "AD-1", Succeeded: true, Amount: 1, Currency: "NGN"})
+	})
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodPost, "/x", nil))
+	if w.Code != http.StatusOK {
+		t.Fatalf("got %d, want 200", w.Code)
+	}
+	if ads.got != nil {
+		t.Fatal("a non-Paystack notice must not reach the ads service")
+	}
+}
+
 func TestWebhook_WorksWithoutAFallback(t *testing.T) {
 	h := newHandler(domain.PaymentUnknownOrder)
 	if code, outcome := fire(hookEngine(h)); code != http.StatusOK || outcome != "unknown_order" {

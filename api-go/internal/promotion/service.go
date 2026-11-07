@@ -265,8 +265,11 @@ func (s *Service) ConfirmPayment(ctx context.Context, n domain.PaymentNotice) (d
 			return err
 		}
 
-		if current.Status == domain.PromotionStatusActive {
-			return nil // already paid & active: duplicate notice
+		// Only a pending, unpaid ad can be settled. Anything else is a replay
+		// (Paystack retries) and must not revive the ad or credit the platform
+		// a second time; the outcome stays "ignored".
+		if current.Status != domain.PromotionStatusPending || current.PaidAt != nil {
+			return nil
 		}
 
 		now := time.Now().UTC()

@@ -160,7 +160,8 @@ func nairaToKobo(n float64) int64 { return int64(math.Round(n * 100)) }
 
 func (h *OrderHandler) applyPayment(c *gin.Context, n domain.PaymentNotice) {
 	outcome, err := h.service.ConfirmPayment(c.Request.Context(), n)
-	if err == nil && outcome == domain.PaymentUnknownOrder && h.fallback != nil {
+	// Ads are only ever paid through Paystack.
+	if err == nil && outcome == domain.PaymentUnknownOrder && h.fallback != nil && n.Provider == "paystack" {
 		outcome, err = h.fallback.ConfirmPayment(c.Request.Context(), n)
 	}
 	if err != nil {

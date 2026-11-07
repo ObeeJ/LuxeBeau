@@ -275,6 +275,67 @@ def full_flow(a):
     s, js, _ = other.call("GET", f"/api/v1/orders/{oid}")
     check("Another visitor cannot read this order", s in (401, 403, 404), str(s))
 
+    section("7b. Featured ads (create, pay by wallet and by Paystack)")
+
+    def new_ad(client, plan="7_days"):
+        return client.call("POST", "/api/v1/me/promotions", {
+            "type": "storefront", "target_id": "adunni-organics", "title": "E2E ad",
+            "image_url": "https://example.com/a.jpg", "plan": plan})
+
+    def active_ids():
+        _, j, _ = anon.call("GET", "/api/v1/featured-ads/active")
+        return {x.get("id") for x in first_list(data(j), "ads", "items")}
+
+    def seller_balance():
+        _, j, _ = seller.call("GET", "/api/v1/wallets/me")
+        return (data(j).get("wallet") or {}).get("balance")
+
+    def hook(ref, amount):
+        body = json.dumps({"event": "charge.success", "data": {"reference": ref, "status": "success", "amount": amount, "currency": "NGN"}}).encode()
+        sig = hmac.new(a.paystack_secret.encode(), body, hashlib.sha512).hexdigest()
+        s_, j_, _ = anon.call("POST", "/api/v1/webhooks/paystack", raw=body, headers={"x-paystack-signature": sig})
+        return s_, (data(j_) or {}).get("outcome")
+
+    s, js, _ = new_ad(buyer)
+    check("A plain buyer cannot create an ad", s in (401, 403), str(s))
+    s, js, _ = new_ad(seller)
+    ad1 = (data(js) or {}).get("ad", {}) if s in (200, 201) else {}
+    check("A seller's new ad starts unpaid (pending)", s in (200, 201) and ad1.get("status") == "pending", f"{s} {ad1.get('status')}")
+    if ad1.get("id"):
+        check("An unpaid ad is not shown to the public", ad1["id"] not in active_ids())
+        before = seller_balance()
+        s, js, _ = seller.call("POST", f"/api/v1/me/promotions/{ad1['id']}/pay-wallet")
+        check("Paying from the wallet works", s == 200, f"{s} {js.get('error', '')}")
+        check("...and the ad goes live", ad1["id"] in active_ids())
+        after = seller_balance()
+        check("The wallet was charged the plan price once", before is not None and after is not None and before - after == 500000, f"{before} -> {after}")
+        s, js, _ = seller.call("POST", f"/api/v1/me/promotions/{ad1['id']}/pay-wallet")
+        again = seller_balance()
+        check("Paying the same ad twice is harmless (no second charge)", s == 200 and again == after, f"{s} balance {after} -> {again}")
+        s, js, _ = buyer.call("POST", f"/api/v1/me/promotions/{ad1['id']}/pay-wallet")
+        check("Another user cannot pay for or touch this ad", s in (403, 404), str(s))
+
+    s, js, _ = new_ad(seller, "annual")
+    big = (data(js) or {}).get("ad", {}) if s in (200, 201) else {}
+    if big.get("id"):
+        s, js, _ = seller.call("POST", f"/api/v1/me/promotions/{big['id']}/pay-wallet")
+        check("Not enough money in the wallet is a clear 402", s == 402, str(s))
+        s, outcome = hook(big["id"], 1)
+        check("A Paystack payment of the wrong amount is not accepted", s == 200 and outcome == "amount_invalid", f"{s} {outcome}")
+        check("...and the ad stays unpaid", big["id"] not in active_ids())
+
+    s, js, _ = new_ad(seller)
+    card = (data(js) or {}).get("ad", {}) if s in (200, 201) else {}
+    if card.get("id"):
+        s, outcome = hook(card["id"], 500000)
+        check("A genuine Paystack payment pays the ad", s == 200 and outcome == "paid", f"{s} {outcome}")
+        check("...and the ad goes live", card["id"] in active_ids())
+        s, outcome = hook(card["id"], 500000)
+        check("The same Paystack payment delivered twice is ignored", s == 200 and outcome == "ignored", f"{s} {outcome}")
+    # Browser-style request (carries the CSRF header), unlike the webhook client.
+    s, js, _ = Client(base, origin=origin).call("POST", f"/api/v1/featured-ads/{ad1.get('id', 'x')}/click")
+    check("A visitor can register a click on a live ad", s in (200, 204), str(s))
+
     section("8. Sign out")
     s, js, _ = buyer.call("POST", "/api/v1/auth/logout")
     check("Logout succeeds", s in (200, 204), str(s))
