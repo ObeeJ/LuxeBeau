@@ -62,12 +62,12 @@ LEFT JOIN (
     FROM (
         SELECT CASE WHEN to_account = 'platform' THEN '` + domain.PlatformWalletID + `' ELSE to_account END AS acct,
                amount
-        FROM ledger_entries WHERE type IN ('release', 'refund', 'fee')
+        FROM ledger_entries WHERE type IN ('release', 'refund', 'fee', 'ad')
     ) credits GROUP BY acct
 ) i ON i.acct = CAST(w.user_id AS TEXT)
 LEFT JOIN (
     SELECT from_account AS acct, CAST(SUM(amount) AS BIGINT) AS total
-    FROM ledger_entries WHERE type IN ('fund', 'delivery') GROUP BY from_account
+    FROM ledger_entries WHERE type IN ('fund', 'delivery', 'ad') GROUP BY from_account
 ) o ON o.acct = CAST(w.user_id AS TEXT)
 LEFT JOIN (
     SELECT CAST(buyer_id AS TEXT) AS acct, CAST(SUM(total) AS BIGINT) AS total

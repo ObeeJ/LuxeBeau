@@ -12,10 +12,24 @@ import (
 	"luxebeau/internal/response"
 )
 
+// paymentConfirmer is anything that can settle a payment notice, such as the
+// ads service.
+type paymentConfirmer interface {
+	ConfirmPayment(ctx context.Context, n domain.PaymentNotice) (domain.PaymentOutcome, error)
+}
+
 type OrderHandler struct {
-	service domain.OrderService
-	mailer  *mail.Mailer
-	logger  *slog.Logger
+	service  domain.OrderService
+	fallback paymentConfirmer
+	mailer   *mail.Mailer
+	logger   *slog.Logger
+}
+
+// WithFallbackConfirmer offers a payment to another service when its
+// reference is not an order (for example, a featured-ad payment).
+func (h *OrderHandler) WithFallbackConfirmer(c paymentConfirmer) *OrderHandler {
+	h.fallback = c
+	return h
 }
 
 func NewOrderHandler(service domain.OrderService, logger *slog.Logger) *OrderHandler {
@@ -146,6 +160,9 @@ func nairaToKobo(n float64) int64 { return int64(math.Round(n * 100)) }
 
 func (h *OrderHandler) applyPayment(c *gin.Context, n domain.PaymentNotice) {
 	outcome, err := h.service.ConfirmPayment(c.Request.Context(), n)
+	if err == nil && outcome == domain.PaymentUnknownOrder && h.fallback != nil {
+		outcome, err = h.fallback.ConfirmPayment(c.Request.Context(), n)
+	}
 	if err != nil {
 		h.logger.Error("payment webhook failed", slog.String("provider", n.Provider), slog.Any("error", err))
 		response.InternalError(c, "Webhook processing failed")

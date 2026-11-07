@@ -220,6 +220,8 @@ func main() {
 	// Paid ads & featured promotions
 	promotionRepo := promotion.NewGormRepository(db)
 	promotionService := promotion.NewServiceWithDB(promotionRepo, db, logger)
+	// A Paystack payment whose reference is not an order is an ad payment.
+	orderHandler.WithFallbackConfirmer(promotionService)
 	promotionHandler := promotion.NewHandler(promotionService, logger)
 
 	// ── Router ──────────────────────────────────────────────

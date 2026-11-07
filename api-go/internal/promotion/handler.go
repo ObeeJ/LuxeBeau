@@ -2,7 +2,9 @@ package promotion
 
 import (
 	"context"
+	"errors"
 	"log/slog"
+	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -99,12 +101,32 @@ func (h *Handler) PayAdWithWallet(c *gin.Context) {
 	merchantID, _ := v.(string)
 
 	if err := h.service.PayWithWallet(c.Request.Context(), merchantID, id); err != nil {
-		h.logger.Warn("pay ad with wallet failed", slog.String("ad_id", id), slog.Any("error", err))
-		response.BadRequest(c, err.Error())
+		h.respondAdError(c, "pay ad with wallet", id, err)
 		return
 	}
 
 	response.OK(c, gin.H{"message": "Promotion paid and activated successfully"})
+}
+
+// respondAdError turns a service error into a status code and a message that is
+// safe to show. Anything unexpected is logged and reported generically, so no
+// database or internal detail reaches the client.
+func (h *Handler) respondAdError(c *gin.Context, action, adID string, err error) {
+	switch {
+	case errors.Is(err, ErrAdNotFound):
+		response.NotFound(c, "Ad not found.")
+	case errors.Is(err, ErrInsufficientBalance):
+		response.Fail(c, http.StatusPaymentRequired, "INSUFFICIENT_BALANCE", "Your wallet balance is too low to pay for this ad.")
+	case errors.Is(err, ErrAdNotPayable):
+		response.Conflict(c, "This ad can no longer be paid for.")
+	case errors.Is(err, ErrAdNotPaid):
+		response.Conflict(c, "This ad has not been paid for yet, so it cannot go live.")
+	case errors.Is(err, ErrInvalidStatus):
+		response.BadRequest(c, "Invalid status: choose active, paused, or expired.")
+	default:
+		h.logger.Error(action+" failed", slog.String("ad_id", adID), slog.Any("error", err))
+		response.InternalError(c, "Something went wrong. Please try again.")
+	}
 }
 
 // ListMyPromotions: GET /api/v1/me/promotions (Protected - seller, artisan, admin)
@@ -183,7 +205,7 @@ func (h *Handler) AdminUpdateStatus(c *gin.Context) {
 	}
 
 	if err := h.service.AdminUpdateStatus(c.Request.Context(), id, req.Status); err != nil {
-		response.InternalError(c, "Failed to update status")
+		h.respondAdError(c, "admin update ad status", id, err)
 		return
 	}
 

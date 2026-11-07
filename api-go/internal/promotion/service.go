@@ -33,6 +33,30 @@ type CreatePromotionInput struct {
 	Plan        domain.PromotionPlan `json:"plan"`
 }
 
+// Errors the HTTP layer maps to status codes. Messages are safe to show.
+var (
+	ErrAdNotFound          = errors.New("ad not found")
+	ErrInsufficientBalance = errors.New("insufficient wallet balance")
+	ErrAdNotPayable        = errors.New("this ad can no longer be paid for")
+	ErrAdNotPaid           = errors.New("this ad has not been paid for")
+	ErrInvalidStatus       = errors.New("invalid status")
+)
+
+// creditPlatform adds money to the platform wallet and fails if the wallet row
+// does not exist, so a merchant is never charged for money that goes nowhere.
+func creditPlatform(tx *gorm.DB, amount int64) error {
+	res := tx.Model(&domain.Wallet{}).
+		Where("user_id = ?", domain.PlatformWalletID).
+		Update("balance", gorm.Expr("balance + ?", amount))
+	if res.Error != nil {
+		return fmt.Errorf("credit platform wallet: %w", res.Error)
+	}
+	if res.RowsAffected == 0 {
+		return errors.New("platform wallet is missing; payment not recorded")
+	}
+	return nil
+}
+
 type Service struct {
 	repo   domain.PromotionRepository
 	db     *gorm.DB
@@ -139,11 +163,15 @@ func (s *Service) PayWithWallet(ctx context.Context, merchantID string, adID str
 	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var ad domain.FeaturedAd
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&ad, "id = ?", adID).Error; err != nil {
-			return fmt.Errorf("ad not found: %w", err)
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return ErrAdNotFound
+			}
+			return err
 		}
 
+		// Someone else's ad must look exactly like a missing one.
 		if ad.MerchantID != merchantID {
-			return errors.New("unauthorized: ad does not belong to this merchant")
+			return ErrAdNotFound
 		}
 
 		if ad.Status == domain.PromotionStatusActive {
@@ -151,7 +179,7 @@ func (s *Service) PayWithWallet(ctx context.Context, merchantID string, adID str
 		}
 
 		if ad.Status != domain.PromotionStatusPending {
-			return fmt.Errorf("ad cannot be paid in status: %s", ad.Status)
+			return fmt.Errorf("%w (status: %s)", ErrAdNotPayable, ad.Status)
 		}
 
 		// 1. Conditional UPDATE: atomically debit merchant's wallet
@@ -162,14 +190,12 @@ func (s *Service) PayWithWallet(ctx context.Context, merchantID string, adID str
 			return fmt.Errorf("failed to deduct wallet balance: %w", res.Error)
 		}
 		if res.RowsAffected == 0 {
-			return errors.New("insufficient wallet balance")
+			return ErrInsufficientBalance
 		}
 
-		// 2. Credit platform wallet
-		if err := tx.Model(&domain.Wallet{}).
-			Where("user_id = ?", domain.PlatformWalletID).
-			Update("balance", gorm.Expr("balance + ?", ad.AmountKobo)).Error; err != nil {
-			return fmt.Errorf("failed to credit platform wallet: %w", err)
+		// 2. Credit platform wallet (fails if the wallet row is missing)
+		if err := creditPlatform(tx, ad.AmountKobo); err != nil {
+			return err
 		}
 
 		// 3. Write immutable ledger entry
@@ -257,10 +283,8 @@ func (s *Service) ConfirmPayment(ctx context.Context, n domain.PaymentNotice) (d
 			return err
 		}
 
-		// Credit platform wallet
-		if err := tx.Model(&domain.Wallet{}).
-			Where("user_id = ?", domain.PlatformWalletID).
-			Update("balance", gorm.Expr("balance + ?", current.AmountKobo)).Error; err != nil {
+		// Credit platform wallet (fails if the wallet row is missing)
+		if err := creditPlatform(tx, current.AmountKobo); err != nil {
 			return err
 		}
 
@@ -313,5 +337,20 @@ func (s *Service) AdminList(ctx context.Context, limit, offset int) ([]domain.Fe
 }
 
 func (s *Service) AdminUpdateStatus(ctx context.Context, id string, status domain.PromotionStatus) error {
+	switch status {
+	case domain.PromotionStatusActive, domain.PromotionStatusPaused, domain.PromotionStatusExpired:
+	default:
+		return ErrInvalidStatus
+	}
+	// Payment, not an admin click, is what makes an ad live.
+	if status == domain.PromotionStatusActive {
+		ad, err := s.repo.GetByID(ctx, id)
+		if err != nil {
+			return ErrAdNotFound
+		}
+		if ad.PaidAt == nil {
+			return ErrAdNotPaid
+		}
+	}
 	return s.repo.UpdateStatus(ctx, id, status)
 }
