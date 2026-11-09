@@ -81,9 +81,12 @@ func ListDeliveryZones(ctx context.Context, db *gorm.DB, sellerID string) ([]dom
 // It picks the exact city match first, then the catch-all (empty city), then
 // falls back to the platform default if the seller has no zones configured.
 func DeliveryFeeFor(ctx context.Context, db *gorm.DB, sellerID, city string) (int64, error) {
+	// The buyer's city is free text: match it ignoring case and stray spaces, so
+	// a zone saved as "Lagos" also serves "lagos" and " LAGOS ".
+	city = strings.TrimSpace(city)
 	var zones []domain.DeliveryZone
 	if err := db.WithContext(ctx).
-		Where("seller_id = ? AND (city = ? OR city = '')", sellerID, city).
+		Where("seller_id = ? AND (LOWER(city) = LOWER(?) OR city = '')", sellerID, city).
 		Order("CASE WHEN city = '' THEN 1 ELSE 0 END"). // exact match first
 		Find(&zones).Error; err != nil {
 		return 0, err
