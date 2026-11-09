@@ -18,6 +18,7 @@ import (
 	"gorm.io/gorm/clause"
 	"luxebeau/internal/domain"
 	"luxebeau/internal/escrow"
+	"luxebeau/internal/seller"
 )
 
 type orderService struct {
@@ -31,6 +32,41 @@ func NewOrderService(orderRepo domain.OrderRepository, productRepo domain.Produc
 	return &orderService{orderRepo: orderRepo, productRepo: productRepo, db: db, logger: logger}
 }
 
+// QuoteCheckout prices a cart the same way CreateCheckout charges it (same
+// products, same seller delivery fees, same fee rules) but changes nothing, so
+// the buyer sees the real total before paying.
+func (s *orderService) QuoteCheckout(ctx context.Context, items []struct {
+	ProductID uint `json:"product_id"`
+	Qty       int  `json:"qty"`
+}, city, payMethod string) (*domain.OrderPrice, error) {
+	var subtotal int64
+	sellerSet := map[string]struct{}{}
+	for _, item := range items {
+		if item.Qty < 1 || item.Qty > 100 {
+			return nil, fmt.Errorf("invalid quantity for product %d", item.ProductID)
+		}
+		var prod domain.Product
+		// Same rule as checkout: only products from approved sellers.
+		if err := s.db.WithContext(ctx).
+			Where("seller_id IN (?)", s.db.Model(&domain.User{}).Select("id").Where("verified = ?", true)).
+			First(&prod, item.ProductID).Error; err != nil {
+			return nil, fmt.Errorf("product %d not found", item.ProductID)
+		}
+		subtotal += prod.Price * int64(item.Qty)
+		sellerSet[prod.SellerID] = struct{}{}
+	}
+	var delivery int64
+	for sellerID := range sellerSet {
+		fee, err := seller.DeliveryFeeFor(ctx, s.db, sellerID, city)
+		if err != nil {
+			return nil, fmt.Errorf("delivery fee: %w", err)
+		}
+		delivery += fee
+	}
+	price := domain.PriceOrder(subtotal, delivery, domain.ChargesProcessingFee(payMethod))
+	return &price, nil
+}
+
 func (s *orderService) CreateCheckout(ctx context.Context, buyerID string, items []struct {
 	ProductID uint `json:"product_id"`
 	Qty       int  `json:"qty"`
@@ -40,6 +76,7 @@ func (s *orderService) CreateCheckout(ctx context.Context, buyerID string, items
 	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var orderItems []domain.OrderItem
 		var subtotal int64
+		sellerSet := map[string]struct{}{}
 
 		for _, item := range items {
 			// Defence in depth: a non-positive quantity would add stock and make
@@ -68,6 +105,7 @@ func (s *orderService) CreateCheckout(ctx context.Context, buyerID string, items
 				return fmt.Errorf("insufficient stock for %s (available: %d, requested: %d)", prod.Name, prod.Stock, item.Qty)
 			}
 			subtotal += prod.Price * int64(item.Qty)
+			sellerSet[prod.SellerID] = struct{}{}
 			orderItems = append(orderItems, domain.OrderItem{
 				ProductID: item.ProductID,
 				Qty:       item.Qty,
@@ -75,11 +113,21 @@ func (s *orderService) CreateCheckout(ctx context.Context, buyerID string, items
 			})
 		}
 
-		// Calculate delivery fee (free above ₦10,000 = 1,000,000 kobo)
+		// Each seller sets their own delivery fee for the buyer's city (the
+		// platform default if they have not set one), and it is that seller's
+		// money. The platform fee and any gateway fee are added on top, and paid
+		// by the buyer.
+		split := map[string]int64{}
 		var deliveryFee int64
-		if subtotal < 1000000 {
-			deliveryFee = 150000 // ₦1,500
+		for sellerID := range sellerSet {
+			fee, err := seller.DeliveryFeeFor(ctx, tx, sellerID, city)
+			if err != nil {
+				return fmt.Errorf("delivery fee: %w", err)
+			}
+			split[sellerID] = fee
+			deliveryFee += fee
 		}
+		price := domain.PriceOrder(subtotal, deliveryFee, domain.ChargesProcessingFee(payMethod))
 
 		orderID, err := newOrderID()
 		if err != nil {
@@ -92,7 +140,9 @@ func (s *orderService) CreateCheckout(ctx context.Context, buyerID string, items
 			Items:          orderItems,
 			Subtotal:       subtotal,
 			DeliveryFee:    deliveryFee,
-			Total:          subtotal + deliveryFee,
+			PlatformFee:    price.PlatformFee,
+			ProcessingFee:  price.ProcessingFee,
+			Total:          price.Total,
 			PaymentMethod:  payMethod,
 			PaymentStatus:  "pending",
 			ShippingStatus: "pending",
@@ -101,6 +151,8 @@ func (s *orderService) CreateCheckout(ctx context.Context, buyerID string, items
 			State:          state,
 			Phone:          phone,
 		}
+
+		o.SetDeliveryBySeller(split)
 
 		if payMethod == "wallet" {
 			// Conditional UPDATE: debit only if balance is sufficient.

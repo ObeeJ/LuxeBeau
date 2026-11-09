@@ -123,6 +123,42 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 	response.Created(c, gin.H{"order": order})
 }
 
+// QuoteRequest is what the cart sends to be priced before the buyer pays.
+type QuoteRequest struct {
+	Items []struct {
+		ProductID uint `json:"product_id" binding:"required"`
+		Qty       int  `json:"qty" binding:"required,min=1,max=100"`
+	} `json:"items" binding:"required,min=1,max=50,dive"`
+	City      string `json:"city" binding:"required,max=100"`
+	PayMethod string `json:"pay_method" binding:"required,oneof=card transfer ussd wallet monnify flutterwave crypto"`
+}
+
+// QuoteOrder: POST /api/v1/orders/quote. Prices a bag exactly as checkout will
+// charge it (goods, each seller's delivery, the platform fee and, for card
+// payments, the processing fee) without placing an order.
+func (h *OrderHandler) QuoteOrder(c *gin.Context) {
+	var req QuoteRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Check your bag: each item needs a quantity from 1 to 100, and we need your city and how you'll pay.")
+		return
+	}
+	items := make([]struct {
+		ProductID uint `json:"product_id"`
+		Qty       int  `json:"qty"`
+	}, len(req.Items))
+	for i, item := range req.Items {
+		items[i].ProductID = item.ProductID
+		items[i].Qty = item.Qty
+	}
+	price, err := h.service.QuoteCheckout(c.Request.Context(), items, req.City, req.PayMethod)
+	if err != nil {
+		h.logger.Warn("order quote failed", slog.Any("error", err))
+		response.Conflict(c, "We couldn't price that bag. Check the items and try again.")
+		return
+	}
+	response.OK(c, gin.H{"quote": price})
+}
+
 func (h *OrderHandler) ListMyOrders(c *gin.Context) {
 	buyerID, _ := c.Get("userID")
 	orders, err := h.service.ListMyOrders(c.Request.Context(), buyerID.(string))

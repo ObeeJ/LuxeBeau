@@ -208,6 +208,9 @@ func (s *Service) Refund(ctx context.Context, id, actorID string, admin bool) (*
 			return err
 		}
 		if e.Kind == domain.EscrowKindOrder {
+			if err := returnPlatformFee(tx, e); err != nil {
+				return err
+			}
 			if err := returnDeliveryFee(tx, e); err != nil {
 				return err
 			}

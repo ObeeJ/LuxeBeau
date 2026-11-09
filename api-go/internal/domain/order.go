@@ -39,7 +39,16 @@ type Order struct {
 	Items          []OrderItem `gorm:"foreignKey:OrderID;constraint:OnDelete:CASCADE" json:"items"`
 	Subtotal       int64       `gorm:"type:bigint;not null" json:"subtotal"`
 	DeliveryFee    int64       `gorm:"type:bigint;not null" json:"delivery_fee"`
-	Total          int64       `gorm:"type:bigint;not null" json:"total"`
+	// PlatformFee is LuxeBeau's fee, paid by the buyer on top of the goods.
+	PlatformFee int64 `gorm:"type:bigint;not null;default:0" json:"platform_fee"`
+	// ProcessingFee is the payment gateway's cut, also paid by the buyer (card
+	// payments only).
+	ProcessingFee int64 `gorm:"type:bigint;not null;default:0" json:"processing_fee"`
+	// DeliverySplit says how DeliveryFee is divided between the sellers, as JSON
+	// {"seller-id": kobo}. It is empty on orders placed before sellers kept their
+	// own delivery fee, which are held under the old rules.
+	DeliverySplit string `gorm:"type:text" json:"-"`
+	Total         int64  `gorm:"type:bigint;not null" json:"total"`
 	PaymentMethod  string      `gorm:"type:varchar(50);not null" json:"payment_method"`
 	PaymentStatus  string      `gorm:"type:varchar(20);default:'pending'" json:"payment_status"`  // pending, paid, failed, refunded
 	ShippingStatus string      `gorm:"type:varchar(20);default:'pending'" json:"shipping_status"` // pending, processing, shipped, delivered, cancelled
@@ -67,6 +76,12 @@ type OrderService interface {
 		ProductID uint `json:"product_id"`
 		Qty       int  `json:"qty"`
 	}, address, city, state, phone, payMethod string) (*Order, error)
+	// QuoteCheckout prices a cart exactly as CreateCheckout would charge it,
+	// without holding stock or moving any money.
+	QuoteCheckout(ctx context.Context, items []struct {
+		ProductID uint `json:"product_id"`
+		Qty       int  `json:"qty"`
+	}, city, payMethod string) (*OrderPrice, error)
 	GetOrderDetails(ctx context.Context, orderID string) (*Order, error)
 	ListMyOrders(ctx context.Context, buyerID string) ([]Order, error)
 	// ConfirmPayment applies a verified payment-provider notification.

@@ -51,6 +51,7 @@ func TestPaystackEndToEndLifecycleAndInvariants(t *testing.T) {
 		&domain.Escrow{},
 		&domain.LedgerEntry{},
 		&domain.EmailOTP{},
+		&domain.DeliveryZone{},
 	)
 	if err != nil {
 		t.Fatalf("failed to migrate db: %v", err)
@@ -131,7 +132,12 @@ func TestPaystackEndToEndLifecycleAndInvariants(t *testing.T) {
 	if order.PaymentStatus != "pending" {
 		t.Fatalf("expected initial payment status 'pending', got: %s", order.PaymentStatus)
 	}
-	expectedTotal := int64(700000 + 150000)
+	// Goods 700,000 + each of the two sellers' default delivery (2 x 150,000) +
+	// the platform fee, 3.5% of the goods (24,500), + the gateway's cut that the
+	// buyer carries on a card payment (25,754: 1.5% plus ₦100 of the grossed-up
+	// charge of 1,050,254). Everything the sellers and the platform are owed
+	// is untouched by it.
+	expectedTotal := int64(700000 + 300000 + 24500 + 25754)
 	if order.Total != expectedTotal {
 		t.Fatalf("expected order total %d kobo, got %d kobo", expectedTotal, order.Total)
 	}
@@ -254,34 +260,37 @@ func TestPaystackEndToEndLifecycleAndInvariants(t *testing.T) {
 		}
 		if e.PayeeID == seller1.ID {
 			seller1Found = true
-			if e.Amount != 400000 { // 1 * 4,000 = 4,000 NGN
-				t.Errorf("expected seller 1 escrow to be 400,000 kobo, got %d", e.Amount)
+			if e.Amount != 550000 { // 4,000 NGN goods + their own 1,500 NGN delivery
+				t.Errorf("expected seller 1 escrow to be 550,000 kobo, got %d", e.Amount)
 			}
 		}
 		if e.PayeeID == seller2.ID {
 			seller2Found = true
-			if e.Amount != 300000 { // 1 * 3,000 = 3,000 NGN
-				t.Errorf("expected seller 2 escrow to be 300,000 kobo, got %d", e.Amount)
+			if e.Amount != 450000 { // 3,000 NGN goods + their own 1,500 NGN delivery
+				t.Errorf("expected seller 2 escrow to be 450,000 kobo, got %d", e.Amount)
 			}
 		}
 	}
 	if !seller1Found || !seller2Found {
 		t.Errorf("missing escrow for seller1 (%v) or seller2 (%v)", seller1Found, seller2Found)
 	}
-	if totalHeld != paidOrder.Subtotal {
-		t.Errorf("total escrows held %d != order subtotal %d", totalHeld, paidOrder.Subtotal)
+	// The sellers hold their goods and their own delivery; neither the platform
+	// fee nor the gateway's fee is in their money.
+	if totalHeld != paidOrder.Subtotal+paidOrder.DeliveryFee {
+		t.Errorf("total escrows held %d != goods %d + delivery %d", totalHeld, paidOrder.Subtotal, paidOrder.DeliveryFee)
 	}
 
 	// Verify Double-Entry Ledger Entries
 	var ledgerEntries []domain.LedgerEntry
 	db.Find(&ledgerEntries)
-	if len(ledgerEntries) != 3 { // 2x fund escrows + 1x delivery fee
-		t.Fatalf("expected 3 ledger entries, got %d", len(ledgerEntries))
+	if len(ledgerEntries) != 4 { // 2x fund escrows + platform fee + processing fee
+		t.Fatalf("expected 4 ledger entries, got %d", len(ledgerEntries))
 	}
 
 	var sumDebitedFromGateway int64
 	var sumCreditedToEscrow int64
 	var sumCreditedToPlatform int64
+	var sumCreditedToProcessor int64
 
 	for _, entry := range ledgerEntries {
 		if entry.FromAccount == "gateway" {
@@ -293,19 +302,25 @@ func TestPaystackEndToEndLifecycleAndInvariants(t *testing.T) {
 		if entry.ToAccount == "platform" {
 			sumCreditedToPlatform += entry.Amount
 		}
+		if entry.ToAccount == "processor" {
+			sumCreditedToProcessor += entry.Amount
+		}
 	}
 
 	if sumDebitedFromGateway != paidOrder.Total {
 		t.Errorf("ledger debit from gateway %d != order total %d", sumDebitedFromGateway, paidOrder.Total)
 	}
-	if sumCreditedToEscrow != paidOrder.Subtotal {
-		t.Errorf("ledger credit to escrow %d != order subtotal %d", sumCreditedToEscrow, paidOrder.Subtotal)
+	if sumCreditedToEscrow != paidOrder.Subtotal+paidOrder.DeliveryFee {
+		t.Errorf("ledger credit to escrow %d != goods %d + delivery %d", sumCreditedToEscrow, paidOrder.Subtotal, paidOrder.DeliveryFee)
 	}
-	if sumCreditedToPlatform != paidOrder.DeliveryFee {
-		t.Errorf("ledger credit to platform %d != order delivery fee %d", sumCreditedToPlatform, paidOrder.DeliveryFee)
+	if sumCreditedToPlatform != paidOrder.PlatformFee {
+		t.Errorf("ledger credit to platform %d != order platform fee %d", sumCreditedToPlatform, paidOrder.PlatformFee)
 	}
-	if sumCreditedToEscrow+sumCreditedToPlatform != sumDebitedFromGateway {
-		t.Errorf("FINANCIAL INVARIANT VIOLATION: debits (%d) != credits (%d)", sumDebitedFromGateway, sumCreditedToEscrow+sumCreditedToPlatform)
+	if sumCreditedToProcessor != paidOrder.ProcessingFee {
+		t.Errorf("ledger credit to the processor %d != order processing fee %d", sumCreditedToProcessor, paidOrder.ProcessingFee)
+	}
+	if credits := sumCreditedToEscrow + sumCreditedToPlatform + sumCreditedToProcessor; credits != sumDebitedFromGateway {
+		t.Errorf("FINANCIAL INVARIANT VIOLATION: debits (%d) != credits (%d)", sumDebitedFromGateway, credits)
 	}
 
 	// ── STEP 5: CONCURRENCY & IDEMPOTENCY VERIFICATION ──
@@ -351,8 +366,9 @@ func TestPaystackEndToEndLifecycleAndInvariants(t *testing.T) {
 
 	var ledgerAfter []domain.LedgerEntry
 	db.Find(&ledgerAfter)
-	if len(ledgerAfter) != 3 {
-		t.Errorf("CONCURRENCY BUG: duplicate ledger entries! expected 3, got %d", len(ledgerAfter))
+	// The same 4 rows as after the first payment: 2 fund + platform fee + processing fee.
+	if len(ledgerAfter) != 4 {
+		t.Errorf("CONCURRENCY BUG: duplicate ledger entries! expected 4, got %d", len(ledgerAfter))
 	}
 
 	// ── STEP 6: IDEMPOTENT VERIFICATION FALLBACK ──

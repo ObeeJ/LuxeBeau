@@ -66,6 +66,7 @@ func TestE2EPaymentIntegration(t *testing.T) {
 		&domain.Escrow{},
 		&domain.LedgerEntry{},
 		&domain.EmailOTP{},
+		&domain.DeliveryZone{},
 	)
 	if err != nil {
 		t.Fatalf("failed to migrate db: %v", err)
@@ -151,10 +152,12 @@ func TestE2EPaymentIntegration(t *testing.T) {
 		t.Errorf("expected wallet order payment status to be 'paid', got %s", order.PaymentStatus)
 	}
 
-	// Verify wallet balance is deducted: 5,000,000 - 2,500,000 = 2,500,000
+	// Verify the wallet is debited the whole order: goods 2,500,000 + the seller's
+	// delivery 150,000 + the platform fee (3% of the goods, they are over ₦10,000)
+	// 75,000 = 2,725,000. 5,000,000 - 2,725,000 = 2,275,000.
 	userWallet, _ = userService.GetWallet(context.Background(), user.ID)
-	if userWallet.Balance != 2500000 {
-		t.Errorf("expected remaining wallet balance to be 2,500,000, got %d", userWallet.Balance)
+	if userWallet.Balance != 2275000 {
+		t.Errorf("expected remaining wallet balance to be 2,275,000, got %d", userWallet.Balance)
 	}
 
 	// Verify product stock is decremented: 5 - 2 = 3

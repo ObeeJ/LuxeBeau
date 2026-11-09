@@ -31,6 +31,7 @@ import (
 	"luxebeau/internal/middleware"
 	"luxebeau/internal/order"
 	"luxebeau/internal/promotion"
+	"luxebeau/internal/revenue"
 	"luxebeau/internal/seed"
 	"luxebeau/internal/seller"
 	"luxebeau/internal/storefront"
@@ -369,6 +370,8 @@ func main() {
 
 		// Orders
 		protected.POST("/orders", orderHandler.CreateOrder)
+		// A quote does a database lookup per bag item, so it is rate limited.
+		protected.POST("/orders/quote", rateLimiter.RateLimit(5, 20), orderHandler.QuoteOrder)
 		protected.GET("/orders/:id", orderHandler.GetOrder)
 		protected.POST("/orders/:id/verify", orderHandler.VerifyPayment)
 		protected.GET("/me/orders", orderHandler.ListMyOrders)
@@ -446,6 +449,7 @@ func main() {
 			adminGroup.POST("/escrows/:id/resolve", escrowHandler.AdminResolve)
 			adminGroup.GET("/influencer/packages", influencerHandler.AdminList)
 			adminGroup.GET("/influencer-commissions", influencerHandler.AdminCommissions)
+			adminGroup.GET("/revenue", revenue.NewHandler(db, logger).Summary)
 			adminGroup.GET("/promotions", promotionHandler.AdminList)
 			adminGroup.PATCH("/promotions/:id/status", promotionHandler.AdminUpdateStatus)
 		}

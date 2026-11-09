@@ -62,12 +62,18 @@ LEFT JOIN (
     FROM (
         SELECT CASE WHEN to_account = 'platform' THEN '` + domain.PlatformWalletID + `' ELSE to_account END AS acct,
                amount
-        FROM ledger_entries WHERE type IN ('release', 'refund', 'fee', 'ad')
+        FROM ledger_entries WHERE type IN ('release', 'refund', 'fee', 'fee_refund', 'ad')
     ) credits GROUP BY acct
 ) i ON i.acct = CAST(w.user_id AS TEXT)
 LEFT JOIN (
-    SELECT from_account AS acct, CAST(SUM(amount) AS BIGINT) AS total
-    FROM ledger_entries WHERE type IN ('fund', 'delivery', 'ad') GROUP BY from_account
+    -- Money leaving a wallet: funding an escrow, the platform fee a buyer pays,
+    -- an ad, and (for the platform) a platform fee it gives back.
+    SELECT acct, CAST(SUM(amount) AS BIGINT) AS total
+    FROM (
+        SELECT CASE WHEN from_account = 'platform' THEN '` + domain.PlatformWalletID + `' ELSE from_account END AS acct,
+               amount
+        FROM ledger_entries WHERE type IN ('fund', 'delivery', 'ad', 'fee', 'fee_refund')
+    ) debits GROUP BY acct
 ) o ON o.acct = CAST(w.user_id AS TEXT)
 LEFT JOIN (
     SELECT CAST(buyer_id AS TEXT) AS acct, CAST(SUM(total) AS BIGINT) AS total

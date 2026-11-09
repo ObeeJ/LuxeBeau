@@ -90,6 +90,7 @@ func TestConcurrentCheckouts(t *testing.T) {
 		&domain.OrderItem{},
 		&domain.Escrow{},
 		&domain.LedgerEntry{},
+		&domain.DeliveryZone{},
 	)
 	if err != nil {
 		t.Fatalf("failed to migrate models: %v", err)
@@ -181,7 +182,7 @@ func TestCheckout_RejectsUnapprovedSellersAndBadQuantities(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := db.AutoMigrate(&domain.User{}, &domain.Wallet{}, &domain.Product{}, &domain.Order{}, &domain.OrderItem{}, &domain.Escrow{}, &domain.LedgerEntry{}); err != nil {
+	if err := db.AutoMigrate(&domain.User{}, &domain.Wallet{}, &domain.Product{}, &domain.Order{}, &domain.OrderItem{}, &domain.Escrow{}, &domain.LedgerEntry{}, &domain.DeliveryZone{}); err != nil {
 		t.Fatal(err)
 	}
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
