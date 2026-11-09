@@ -71,6 +71,59 @@ func TestDeliveryFeeFor_FallsBackToThePlatformDefault(t *testing.T) {
 	}
 }
 
+// Saving must use the same rule as matching: "Lagos" and "lagos" are the same
+// city, so a table that lists both is refused (it would give two answers).
+func TestUpsertDeliveryZones_RefusesCitiesThatDifferOnlyByCaseOrSpaces(t *testing.T) {
+	db := zoneDB(t)
+	err := UpsertDeliveryZones(context.Background(), db, "s1", []domain.DeliveryZone{
+		{City: "Lagos", FeeKobo: 80_000}, {City: " lagos ", FeeKobo: 90_000},
+	})
+	if err == nil {
+		t.Fatal("two spellings of one city should be refused")
+	}
+	var n int64
+	db.Model(&domain.DeliveryZone{}).Count(&n)
+	if n != 0 {
+		t.Errorf("a refused save must store nothing, found %d rows", n)
+	}
+}
+
+func TestUpsertDeliveryZones_EnforcesSaneLimits(t *testing.T) {
+	db := zoneDB(t)
+	ctx := context.Background()
+	long := make([]rune, 81)
+	for i := range long {
+		long[i] = 'a'
+	}
+	for name, z := range map[string]domain.DeliveryZone{
+		"negative fee":      {City: "Lagos", FeeKobo: -1},
+		"fee over N100000":  {City: "Lagos", FeeKobo: 10_000_001},
+		"81 character city": {City: string(long), FeeKobo: 100},
+	} {
+		if err := UpsertDeliveryZones(ctx, db, "s1", []domain.DeliveryZone{z}); err == nil {
+			t.Errorf("%s should be refused", name)
+		}
+	}
+	// The limits themselves are allowed.
+	if err := UpsertDeliveryZones(ctx, db, "s1", []domain.DeliveryZone{{City: "Lagos", FeeKobo: 10_000_000}, {City: "", FeeKobo: 0}}); err != nil {
+		t.Errorf("a N100,000 fee and a free catch-all should be allowed: %v", err)
+	}
+}
+
+// Old data saved before the rule existed can hold two spellings of one city.
+// The answer must still be the same every time, so a quote and the checkout
+// that follows it can never disagree.
+func TestDeliveryFeeFor_LegacyDuplicatesResolveTheSameWayEveryTime(t *testing.T) {
+	db := zoneDB(t)
+	db.Create(&domain.DeliveryZone{SellerID: "s1", City: "Lagos", FeeKobo: 80_000})
+	db.Create(&domain.DeliveryZone{SellerID: "s1", City: "lagos", FeeKobo: 90_000})
+	for i := 0; i < 20; i++ {
+		if got := fee(t, db, "s1", "LAGOS"); got != 80_000 {
+			t.Fatalf("attempt %d: fee = %d, want the earliest saved zone (80000) every time", i, got)
+		}
+	}
+}
+
 func TestDeliveryFeeFor_FreeDeliveryIsHonoured(t *testing.T) {
 	db := zoneDB(t)
 	db.Create(&domain.DeliveryZone{SellerID: "s1", City: "", FeeKobo: 0})

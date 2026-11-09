@@ -39,6 +39,14 @@ func SetStorefrontSlug(ctx context.Context, db *gorm.DB, userID, raw string) (st
 	return slug, nil
 }
 
+const (
+	// MaxZoneFeeKobo is the most a seller can charge for delivery to one zone
+	// (₦100,000). It guards against typos like an extra zero.
+	MaxZoneFeeKobo int64 = 10_000_000
+	// maxZoneCityLen matches the city column (varchar(80)).
+	maxZoneCityLen = 80
+)
+
 // UpsertDeliveryZones replaces a seller's delivery zone table in one transaction.
 // An empty city string is the catch-all ("everywhere else") zone.
 // Checkout calls DeliveryFeeFor to pick the right fee.
@@ -51,12 +59,20 @@ func UpsertDeliveryZones(ctx context.Context, db *gorm.DB, sellerID string, zone
 		zones[i].SellerID = sellerID
 		city := strings.TrimSpace(zones[i].City)
 		zones[i].City = city
-		if seen[city] {
+		if len([]rune(city)) > maxZoneCityLen {
+			return fmt.Errorf("a city name can be at most %d characters", maxZoneCityLen)
+		}
+		// Cities are matched ignoring case, so duplicates are too.
+		key := strings.ToLower(city)
+		if seen[key] {
 			return fmt.Errorf("duplicate city %q in delivery zones", city)
 		}
-		seen[city] = true
+		seen[key] = true
 		if zones[i].FeeKobo < 0 {
 			return fmt.Errorf("delivery fee cannot be negative")
+		}
+		if zones[i].FeeKobo > MaxZoneFeeKobo {
+			return fmt.Errorf("a delivery fee cannot be more than ₦%d", MaxZoneFeeKobo/100)
 		}
 	}
 	return db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
@@ -87,7 +103,9 @@ func DeliveryFeeFor(ctx context.Context, db *gorm.DB, sellerID, city string) (in
 	var zones []domain.DeliveryZone
 	if err := db.WithContext(ctx).
 		Where("seller_id = ? AND (LOWER(city) = LOWER(?) OR city = '')", sellerID, city).
-		Order("CASE WHEN city = '' THEN 1 ELSE 0 END"). // exact match first
+		// Exact match first; if old data holds two spellings of one city, the
+		// earliest saved wins, every time, so a quote and its checkout agree.
+		Order("CASE WHEN city = '' THEN 1 ELSE 0 END, id").
 		Find(&zones).Error; err != nil {
 		return 0, err
 	}
