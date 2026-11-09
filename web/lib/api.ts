@@ -189,7 +189,10 @@ export const orderResultSchema = z
     order: z.object({
       id: z.string(),
       total: z.number(),
+      subtotal: z.number().nullish(),
       delivery_fee: z.number().nullish(),
+      platform_fee: z.number().nullish(),
+      processing_fee: z.number().nullish(),
       payment_status: z.string().nullish(),
       payment_method: z.string().nullish(),
     }),
@@ -197,7 +200,10 @@ export const orderResultSchema = z
   .transform(({ order }) => ({
     id: order.id,
     totalKobo: order.total,
+    subtotalKobo: order.subtotal ?? 0,
     deliveryFeeKobo: order.delivery_fee ?? 0,
+    platformFeeKobo: order.platform_fee ?? 0,
+    processingFeeKobo: order.processing_fee ?? 0,
     totalNGN: Math.round(order.total / 100),
     deliveryFeeNGN: Math.round((order.delivery_fee ?? 0) / 100),
     paymentStatus: order.payment_status ?? "pending",
@@ -227,12 +233,6 @@ export const bookingResultSchema = z
     status: booking.status ?? "pending",
   }));
 export type BookingResult = z.infer<typeof bookingResultSchema>;
-
-/* Mirrors CreateCheckout in api-go/internal/order/service.go: ₦1,500 delivery
-   below a ₦10,000 subtotal, free above. The server total is authoritative. */
-export function deliveryFeeNGN(subtotalNGN: number): number {
-  return subtotalNGN > 0 && subtotalNGN < 10_000 ? 1_500 : 0;
-}
 
 /* GET /wallets/me → { wallet: Wallet } (balance in kobo). */
 export const walletResponseSchema = z

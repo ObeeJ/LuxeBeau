@@ -12,9 +12,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { formatNaira } from "@/lib/format";
+import { PriceBreakdown } from "@/components/site/price-breakdown";
+import { formatKoboNaira, hasCity, useOrderQuote } from "@/lib/quote";
 import { useCart, useAuth } from "@/lib/store";
 import { useCreateOrder, useWallet } from "@/lib/queries";
-import { deliveryFeeNGN, deliverySchema, verifyOrderPayment, type OrderResult } from "@/lib/api";
+import { deliverySchema, verifyOrderPayment, type OrderResult } from "@/lib/api";
 import { useAuthModal } from "@/components/auth/auth-dialog";
 import { getFriendlyErrorMessage } from "@/lib/errors";
 import { cn } from "@/lib/utils";
@@ -32,7 +34,7 @@ const PAY_METHODS: { id: PayMethod; label: string }[] = [
 ];
 
 export default function CartPage() {
-  const { detailed, setQty, remove, clear, subtotalNGN, count } = useCart();
+  const { detailed, setQty, remove, clear, count } = useCart();
   const user = useAuth(s => s.user);
   const showAuth = useAuthModal(s => s.show);
   const createOrder = useCreateOrder();
@@ -51,10 +53,16 @@ export default function CartPage() {
   const [isVerifying, setIsVerifying] = useState(false);
   const [isOpeningPaystack, setIsOpeningPaystack] = useState(false);
 
-  const fee = deliveryFeeNGN(subtotalNGN);
-  const total = subtotalNGN + fee;
+  const quoteItems = detailed.map(d => ({ product_id: Number(d.product.id), qty: d.qty }));
+  const quote = useOrderQuote({ items: quoteItems, city: checkout ? city : "", payMethod: pay });
+  const q = quote.data;
+  const quoteError = quote.isError ? getFriendlyErrorMessage(quote.error, "We couldn't calculate your total. Please try again.") : undefined;
+  const quoteStale = quote.isPlaceholderData || quote.isFetching || quote.settling;
+  const balanceKobo = wallet.data?.balanceKobo;
+  /* Wallet is compared against the server quote total, never a local sum. */
+  const walletShort = pay === "wallet" && (balanceKobo === undefined || (q ? balanceKobo < q.totalKobo : false));
+  const canPlace = Boolean(q) && !quote.isError && !quote.settling && !quote.isPlaceholderData && !quote.isFetching;
   const balance = wallet.data?.balanceNGN;
-  const walletShort = pay === "wallet" && (balance === undefined || balance < total);
 
   /* Dynamically loads Paystack inline script if not present */
   const loadPaystack = (): Promise<boolean> => {
@@ -95,7 +103,7 @@ export default function CartPage() {
     const handler = (window as any).PaystackPop.setup({
       key: publicKey,
       email: email,
-      amount: order.totalKobo ?? Math.round(order.totalNGN * 100), // exact kobo integer
+      amount: order.totalKobo, // the server's exact total in kobo
       ref: order.id,
       currency: "NGN",
       callback: async (response: { reference: string }) => {
@@ -160,9 +168,13 @@ export default function CartPage() {
       return;
     }
     setErrors({});
-    const items = detailed.map(d => ({ product_id: Number(d.product.id), qty: d.qty }));
+    const items = quoteItems;
     if (items.some(i => !Number.isInteger(i.product_id) || i.product_id <= 0)) {
       setFormError("An item in your bag is no longer available. Remove it and try again.");
+      return;
+    }
+    if (!canPlace) {
+      setFormError("We are still calculating your total. Please wait a moment and try again.");
       return;
     }
     createOrder.mutate(
@@ -218,9 +230,9 @@ export default function CartPage() {
 
             <dl className="mt-5 divide-y divide-hairline text-[14px] tracking-[-0.014em]">
               <div className="flex justify-between py-2.5"><dt className="text-muted">Payment status</dt><dd className="font-semibold capitalize text-ink">{placed.paymentStatus}</dd></div>
-              <div className="flex justify-between py-2.5"><dt className="text-muted">Delivery</dt><dd>{placed.deliveryFeeNGN ? formatNaira(placed.deliveryFeeNGN) : "Free"}</dd></div>
-              <div className="flex justify-between py-2.5"><dt className="text-muted">Total</dt><dd className="font-bold text-brand">{formatNaira(placed.totalNGN)}</dd></div>
             </dl>
+            <h2 className="mt-4 text-[13px] font-bold">Price breakdown</h2>
+            <PriceBreakdown className="mt-1" payMethod={placed.paymentMethod} amounts={placed} />
 
             {!isPaid && (
               <div className="mt-6 flex flex-col gap-2.5">
@@ -230,7 +242,7 @@ export default function CartPage() {
                   className="w-full"
                 >
                   {isOpeningPaystack && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Pay {formatNaira(placed.totalNGN)} with Paystack
+                  Pay {formatKoboNaira(placed.totalKobo)} with Paystack
                 </Button>
                 <Button
                   onClick={() => manualVerify(placed.id)}
@@ -267,17 +279,6 @@ export default function CartPage() {
       </SiteShell>
     );
   }
-
-  const summary = (
-    <dl className="divide-y divide-hairline text-[14px] tracking-[-0.014em]">
-      <div className="flex justify-between py-2.5"><dt className="text-muted">Subtotal</dt><dd className="tabular-nums font-semibold">{formatNaira(subtotalNGN)}</dd></div>
-      <div className="flex justify-between py-2.5">
-        <dt className="text-muted">Delivery</dt>
-        <dd className="tabular-nums font-semibold">{fee ? formatNaira(fee) : "Free"}</dd>
-      </div>
-      <div className="flex justify-between py-2.5 text-[16px] font-bold tracking-[-0.031em]"><dt>Total</dt><dd className="tabular-nums text-brand">{formatNaira(total)}</dd></div>
-    </dl>
-  );
 
   return (
     <SiteShell>
@@ -394,8 +395,16 @@ export default function CartPage() {
           )}
 
           <aside className="h-fit rounded-[32px] bg-surface p-5 shadow-soft sm:p-6 lg:sticky lg:top-8" aria-label="Order summary">
-            {summary}
-            {fee > 0 && <p className="mt-1 text-[12px] text-muted">Free delivery on orders of {formatNaira(10000)} or more.</p>}
+            <h2 className="mb-2 text-[16px] font-bold tracking-[-0.031em]">Price breakdown</h2>
+            <PriceBreakdown
+              payMethod={pay}
+              amounts={q}
+              needsCity={!hasCity(checkout ? city : "")}
+              loading={quote.isLoading}
+              refreshing={Boolean(q) && quoteStale}
+              error={quoteError}
+              onRetry={() => quote.refetch()}
+            />
 
             {/* Trust Guarantee Callout beside pay button */}
             <div className="mt-4 rounded-2xl bg-brand-wash p-3 text-[12px] text-brand-deep">
@@ -409,9 +418,9 @@ export default function CartPage() {
             </div>
 
             {checkout ? (
-              <Button type="submit" form="checkout" size="lg" disabled={createOrder.isPending || walletShort} className="mt-5 w-full">
+              <Button type="submit" form="checkout" size="lg" disabled={createOrder.isPending || walletShort || !canPlace} className="mt-5 w-full">
                 {createOrder.isPending && <Loader2 className="animate-spin" aria-hidden />}
-                Place order · {formatNaira(total)}
+                Place order{q ? ` · ${formatKoboNaira(q.totalKobo)}` : ""}
               </Button>
             ) : (
               <Button onClick={startCheckout} size="lg" className="mt-5 w-full">

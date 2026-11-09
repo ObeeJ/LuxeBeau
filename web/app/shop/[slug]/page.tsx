@@ -10,7 +10,6 @@ import { LoadError } from "@/components/site/states";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { useProducts } from "@/lib/queries";
-import { deliveryFeeNGN } from "@/lib/api";
 import { formatNaira } from "@/lib/format";
 import { useCart } from "@/lib/cart";
 
@@ -133,9 +132,7 @@ export default function ProductPage({ params }: { params: Promise<{ slug: string
             </div>
 
             <p className="mt-3 text-[12px] tracking-[-0.017em] text-muted">
-              {deliveryFeeNGN(lineTotal) === 0
-                ? "Free delivery on this order."
-                : `${formatNaira(1500)} delivery across Nigeria. Free on orders of ${formatNaira(10000)} or more.`}
+              Delivery is set by the seller and shown at checkout.
               {product.stock > 0 && product.stock <= 10 ? ` Only ${product.stock} left in stock.` : ""}
             </p>
 

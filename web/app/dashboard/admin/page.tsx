@@ -5,6 +5,7 @@ import Link from "next/link";
 import { BadgeCheck, Search } from "@/components/icons";
 import { Figures, PageHeader, Panel, StatusPill, Table, Tabs } from "@/components/dashboard/widgets";
 import { ApplicationsPanel } from "@/components/dashboard/applications";
+import { AdminRevenue } from "@/components/dashboard/admin-revenue";
 import { Photo } from "@/components/site/catalog";
 import { EmptyState, FieldError, LoadError } from "@/components/site/states";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -26,7 +27,7 @@ import { type User } from "@/lib/api";
 import { formatNaira } from "@/lib/format";
 import { getFriendlyErrorMessage } from "@/lib/errors";
 
-type Tab = "applications" | "users" | "orders" | "bookings" | "products" | "escrows";
+type Tab = "applications" | "users" | "orders" | "bookings" | "products" | "escrows" | "revenue";
 
 function Loading() {
   return <Skeleton className="h-48 w-full" />;
@@ -122,6 +123,7 @@ export default function AdminDashboard() {
           { id: "bookings", label: "Bookings" },
           { id: "products", label: "Products" },
           { id: "escrows", label: "Trust" },
+          { id: "revenue", label: "Revenue" },
         ]}
       />
 
@@ -259,6 +261,8 @@ export default function AdminDashboard() {
           )}
         </Panel>
       )}
+
+      {tab === "revenue" && <AdminRevenue />}
 
       {tab === "escrows" && (
         <Panel

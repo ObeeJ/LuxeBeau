@@ -17,6 +17,11 @@ jest.mock("@/lib/queries", () => ({
   useWallet: () => ({ data: undefined }),
 }));
 
+jest.mock("@/lib/quote", () => ({
+  ...jest.requireActual("@/lib/quote"),
+  useOrderQuote: () => ({ data: undefined, isLoading: false, isError: false, isFetching: false, isPlaceholderData: false, settling: false, refetch: jest.fn() }),
+}));
+
 jest.mock("next/navigation", () => ({
   usePathname: () => "/cart",
   useRouter: () => ({ push: jest.fn() }),
@@ -80,6 +85,7 @@ describe("Cart and Checkout flow", () => {
 
     render(<CartPage />);
 
+    expect(screen.getByText(/Delivery is calculated once you enter a city/i)).toBeInTheDocument();
     const aside = screen.getByRole("complementary", { name: "Order summary" });
     expect(within(aside).getByText(/LuxeBeau Trust Protection/i)).toBeInTheDocument();
 
