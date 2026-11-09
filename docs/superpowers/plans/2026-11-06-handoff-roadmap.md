@@ -50,11 +50,15 @@ Owner's spec: platform fee is 3.5% for transactions up to N10,000, 3% for N10,00
 
 Today: flat 1% (`domain.DefaultFeeBps = 100`, `internal/domain/escrow.go:33`), `Fee()` at line 80 computes `Amount * FeeBps / 10000`, set at `internal/escrow/order.go:79` and `internal/escrow/service.go:69`, taken from the seller's payout at release (`internal/escrow/service.go` around 150 to 172).
 
-Ask the owner before building (open questions, recommended answers first):
-- Does the tier rate apply to the whole order (recommended) or marginally per band? Today every product is N1,000 to N10,000 so it only matters later.
-- Is the platform fee taken from the seller's payout (as now, recommended) or added to the buyer's bill?
-- The spec overlaps at the edges: which band owns exactly N10,000 and exactly N50,000? (Recommend: N10,000 is 3.5%, N50,000 is 3%, i.e. the upper limit belongs to the lower band.)
-- Is the N1,500 delivery fee platform income? Today it is written to the ledger as type `delivery` (buyer to "platform") but never credited to the platform wallet; only the fee is (`internal/escrow/settlement.go:76`).
+STATUS 2026-11-09: BUILT AND TESTED (backend: `domain/fees.go`, `escrow/order.go`, `order/service.go`, `POST /orders/quote`, wallet audit; web: cart price breakdown). Behaviour change to tell the owner: the old "free delivery above N10,000" rule is gone, since each seller now sets their own delivery fee (N1,500 default if unset). Orders placed before this change keep the old rules (empty `DeliverySplit`). Not yet built: a seller-facing way to see and edit their delivery zones in the web dashboard (the API exists: `GET/POST /me/delivery-zones`).
+
+DECISIONS from the owner (2026-11-07), build to these:
+- **The buyer pays the platform fee, on top of the price.** The seller receives the full item price (no platform cut from the seller's payout). This reverses today's behaviour, where the fee is taken from the seller at release.
+- **Delivery belongs to the seller.** The business owner sets logistics and delivery (existing delivery zones). The delivery fee is the seller's money, not platform income, and the platform fee is not charged on it. Today the delivery fee is written to the ledger as type `delivery` (buyer to "platform") and never credited to anyone's wallet, and the N1,500 fallback (`domain.PlatformDeliveryFeeKobo`) is named as the platform's; both must change so delivery money reaches the seller (held in escrow with the items and released with them).
+- **Tier applies to the whole order (not per band), as my recommendation; the owner did not object.** Fee base is the item subtotal (excluding delivery). Boundaries as recommended: exactly N10,000 is 3.5%, exactly N50,000 is 3% (the upper limit belongs to the lower band). Confirm these two points with the owner when showing the checkout breakdown.
+- The payment-method (Paystack) fee is also the buyer's, shown separately (see below).
+
+Consequences to build for: order total = items + seller delivery + platform fee + processing fee. The escrow holds items plus delivery for the seller. The platform fee is platform revenue the moment payment succeeds (ledger type `fee`, source `GatewayAccount` for card payments or the buyer for wallet payments, to "platform"; credit the platform wallet then, not at release); decide and document the refund rule (recommend: platform fee refunded only if the order is refunded in full before shipping). `Escrow.Fee()` and the release split change: net to seller becomes the full escrow amount. The conservation audit (`audit.Escrows`) and wallet audit must be updated with their tests, because "released + fee == funded" no longer holds. The checkout response and cart UI must show: items, delivery, platform fee, processing fee, total.
 
 Design notes:
 - Add `domain.PlatformFeeBps(amount int64) int` with boundaries as constants; unit-test every boundary (999,999 / 1,000,000 / 1,000,001 / 5,000,000 / 5,000,001 kobo).

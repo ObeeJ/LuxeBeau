@@ -177,6 +177,10 @@ def public_checks(base, origin):
     check("Orders without a session are 401", s == 401, str(s))
     s, js, _ = c.call("GET", "/api/v1/auth/me")
     check("Profile without a session is 401", s == 401, str(s))
+    s, js, _ = c.call("POST", "/api/v1/orders/quote", {"items": [{"product_id": 1, "qty": 1}], "city": "Lagos", "pay_method": "card"})
+    check("A price quote needs a session", s == 401, str(s))
+    s, js, _ = c.call("GET", "/api/v1/admin/revenue")
+    check("Admin revenue without a session is 401", s == 401, str(s))
     s, js, _ = c.call("POST", "/api/v1/webhooks/paystack", raw=b'{"event":"charge.success","data":{"reference":"LB-FAKE","status":"success","amount":1}}',
                       headers={"x-paystack-signature": "0" * 128})
     check("A payment webhook with a bad signature is refused", s in (401, 403, 503), str(s))
@@ -232,6 +236,29 @@ def full_flow(a):
     total = order.get("total", 0)
     check("Order total is positive and includes the items", total >= prod["price"], f"total={total} price={prod['price']}")
 
+    # The fee rule: the buyer pays the platform fee on top (3.5% / 3% / 2.5% of
+    # the goods by tier), the seller keeps their own delivery fee, and a card
+    # payment also carries the gateway's processing fee.
+    def expected_platform_fee(goods):
+        bps = 350 if goods <= 1_000_000 else 300 if goods <= 5_000_000 else 250
+        return (goods * bps + 5000) // 10000
+
+    subtotal, delivery = order.get("subtotal", 0), order.get("delivery_fee", 0)
+    fee, processing = order.get("platform_fee", -1), order.get("processing_fee", -1)
+    check("The platform fee follows the tier rule", fee == expected_platform_fee(subtotal), f"goods {subtotal} -> fee {fee}")
+    check("A card order carries a processing fee", processing > 0, str(processing))
+    check("Total = goods + delivery + platform fee + processing fee", total == subtotal + delivery + fee + processing,
+          f"{subtotal}+{delivery}+{fee}+{processing} vs {total}")
+    s, js, _ = buyer.call("POST", "/api/v1/orders/quote", {"items": body["items"], "city": body["city"], "pay_method": "card"})
+    quote = (data(js) or {}).get("quote", {})
+    check("The quote shown before paying matches the real charge", s == 200 and quote.get("total") == total and quote.get("platform_fee") == fee,
+          f"{s} quote total {quote.get('total')} vs {total}")
+    s, js, _ = buyer.call("POST", "/api/v1/orders/quote", {"items": body["items"], "city": body["city"], "pay_method": "wallet"})
+    wq = (data(js) or {}).get("quote", {})
+    check("A wallet payment carries no processing fee", s == 200 and wq.get("processing_fee") == 0, str(wq.get("processing_fee")))
+    s, js, _ = buyer.call("POST", "/api/v1/orders/quote", {"items": [{"product_id": prod["id"], "qty": 0}], "city": "Lagos", "pay_method": "card"})
+    check("Quoting a bad quantity is rejected", s in (400, 422), str(s))
+
     section("6. Pay (Paystack tells the backend by webhook)")
     payload = json.dumps({"event": "charge.success", "data": {"reference": oid, "status": "success", "amount": total, "currency": "NGN"}}).encode()
     good = hmac.new(a.paystack_secret.encode(), payload, hashlib.sha512).hexdigest()
@@ -252,6 +279,9 @@ def full_flow(a):
 
     held = my_escrows()
     check("Money is held in escrow for the seller", len(held) >= 1 and all(e.get("state") == "funded" for e in held), f"{len(held)} escrows {[e.get('state') for e in held]}")
+    check("The seller's escrow holds goods + their delivery, never the fees",
+          len(held) >= 1 and sum(e.get("amount", 0) for e in held) == subtotal + delivery,
+          f"held {sum(e.get('amount', 0) for e in held)} vs goods+delivery {subtotal + delivery}")
     s, js, _ = anon.call("POST", "/api/v1/webhooks/paystack", raw=payload, headers={"x-paystack-signature": good})
     check("The same webhook delivered twice is harmless", s == 200, str(s))
     again = my_escrows()
@@ -335,6 +365,31 @@ def full_flow(a):
     # Browser-style request (carries the CSRF header), unlike the webhook client.
     s, js, _ = Client(base, origin=origin).call("POST", f"/api/v1/featured-ads/{ad1.get('id', 'x')}/click")
     check("A visitor can register a click on a live ad", s in (200, 204), str(s))
+
+    section("7c. Admin revenue (admin signs in with the emailed code)")
+    s, js, _ = buyer.call("GET", "/api/v1/admin/revenue")
+    check("A buyer cannot see revenue", s in (401, 403), str(s))
+    admin = Client(base, origin=origin)
+    t_admin = time.time()
+    s, js, _ = admin.call("POST", "/api/v1/auth/login", {"email": "admin@luxebeau.ng", "password": a.seller_password})
+    check("Admin login asks for the emailed code", s in (200, 401, 403) and "SECOND_FACTOR_REQUIRED" in json.dumps(js), f"{s}")
+    code = otp_from_mail(a.mail_dir, "admin@luxebeau.ng", t_admin)
+    if code:
+        s, js, _ = admin.call("POST", "/api/v1/auth/verify-login", {"email": "admin@luxebeau.ng", "code": code})
+        check("Admin signs in with the code", s == 200, str(s))
+        today = time.strftime("%Y-%m-%d", time.gmtime(time.time() + 3600))  # Lagos date
+        s, js, _ = admin.call("GET", f"/api/v1/admin/revenue?from={today}&to={today}&group=day")
+        rev = data(js) if s == 200 else {}
+        tot = (rev or {}).get("totals", {})
+        check("Revenue loads for admin", s == 200 and bool(tot), str(s))
+        check("Revenue includes this order's platform fee", tot.get("platform_fees", 0) >= fee, f"{tot.get('platform_fees')} vs {fee}")
+        check("Revenue includes the two paid ads", tot.get("ad_revenue", 0) >= 1_000_000, str(tot.get("ad_revenue")))
+        check("Net = fees + ads - refunded fees", tot.get("net") == tot.get("platform_fees", 0) + tot.get("ad_revenue", 0) - tot.get("fee_refunds", 0), str(tot.get("net")))
+        check("The gateway's processing fee is not counted as revenue", tot.get("processing_fees_collected", 0) >= processing and tot.get("net") == tot.get("platform_fees", 0) + tot.get("ad_revenue", 0) - tot.get("fee_refunds", 0))
+        check("No escrow is out of balance", ((rev or {}).get("health") or {}).get("unbalanced_escrows") == 0)
+        check("The daily series adds up to the total", sum(p.get("net", 0) for p in (rev or {}).get("series", [])) == tot.get("net"))
+        s, js, _ = admin.call("GET", "/api/v1/admin/revenue?from=2026-12-01&to=2026-11-01")
+        check("A backwards date range is a clear 400", s == 400, str(s))
 
     section("8. Sign out")
     s, js, _ = buyer.call("POST", "/api/v1/auth/logout")
