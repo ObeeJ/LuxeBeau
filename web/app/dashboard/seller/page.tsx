@@ -7,6 +7,7 @@ import Link from "next/link";
 import { Plus, X } from "@/components/icons";
 import { Figures, PageHeader, Panel, RecordList, StatusPill, Table, Tabs } from "@/components/dashboard/widgets";
 import { Promote } from "@/components/dashboard/promote";
+import { DeliveryZones } from "@/components/dashboard/delivery-zones";
 import { IdentityPanel } from "@/components/dashboard/identity";
 import { PendingApproval } from "@/components/dashboard/pending-approval";
 import { StorefrontEditor } from "@/components/dashboard/storefront-editor";
@@ -33,7 +34,7 @@ import { getFriendlyErrorMessage } from "@/lib/errors";
 const CATEGORIES = ["Skincare", "Haircare", "Makeup", "Fragrance", "Body", "Nails", "Grooming", "Jewellery"] as const;
 
 type Editing = { mode: "new" } | { mode: "edit"; product: ApiProduct } | null;
-type Tab = "products" | "orders" | "storefront" | "promote" | "profile" | "verification";
+type Tab = "products" | "orders" | "storefront" | "delivery" | "promote" | "profile" | "verification";
 
 export default function SellerDashboard() {
   const user = useAuth(s => s.user);
@@ -116,6 +117,7 @@ export default function SellerDashboard() {
           { id: "products", label: "Products", count: products.length },
           { id: "orders", label: "Orders", count: sales.length },
           { id: "storefront", label: "Storefront" },
+          { id: "delivery", label: "Delivery" },
           { id: "promote", label: "Promote" },
           { id: "profile", label: "Profile" },
           { id: "verification", label: "Verification" },
@@ -126,6 +128,7 @@ export default function SellerDashboard() {
         <StorefrontEditor role="seller" hasItems={products.length > 0} />
       )}
 
+      {tab === "delivery" && <DeliveryZones />}
       {tab === "promote" && <Promote />}
 
       {tab === "profile" && (
