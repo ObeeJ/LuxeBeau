@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"math"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"luxebeau/internal/domain"
@@ -18,11 +19,25 @@ type paymentConfirmer interface {
 	ConfirmPayment(ctx context.Context, n domain.PaymentNotice) (domain.PaymentOutcome, error)
 }
 
+// transferHandler settles bank-payout (withdrawal) events that Paystack sends
+// through the same webhook as card payments.
+type transferHandler interface {
+	HandleWebhook(ctx context.Context, event, reference string) error
+}
+
 type OrderHandler struct {
-	service  domain.OrderService
-	fallback paymentConfirmer
-	mailer   *mail.Mailer
-	logger   *slog.Logger
+	service   domain.OrderService
+	fallback  paymentConfirmer
+	transfers transferHandler
+	mailer    *mail.Mailer
+	logger    *slog.Logger
+}
+
+// WithTransferHandler routes Paystack transfer.* events (bank payouts) to the
+// withdrawal service instead of the order code.
+func (h *OrderHandler) WithTransferHandler(t transferHandler) *OrderHandler {
+	h.transfers = t
+	return h
 }
 
 // WithFallbackConfirmer offers a payment to another service when its
@@ -223,6 +238,19 @@ func (h *OrderHandler) PaystackWebhook(c *gin.Context) {
 	var p PaystackWebhookPayload
 	if err := c.ShouldBindJSON(&p); err != nil || p.Data.Reference == "" {
 		response.BadRequest(c, "Invalid webhook payload")
+		return
+	}
+	// Bank payout results are not order payments.
+	if strings.HasPrefix(p.Event, "transfer.") {
+		if h.transfers != nil {
+			if err := h.transfers.HandleWebhook(c.Request.Context(), p.Event, p.Data.Reference); err != nil {
+				// A 5xx makes Paystack retry, so a failed payout is still refunded.
+				h.logger.Error("transfer webhook failed", slog.String("event", p.Event), slog.Any("error", err))
+				response.InternalError(c, "Webhook processing failed")
+				return
+			}
+		}
+		response.OK(c, gin.H{"outcome": "transfer"})
 		return
 	}
 	h.applyPayment(c, domain.PaymentNotice{

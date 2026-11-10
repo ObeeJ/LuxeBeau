@@ -15,14 +15,21 @@ const (
 // Money is debited from the wallet atomically when the row is created;
 // if Paystack fails the debit is reversed and the state moves to failed.
 type Withdrawal struct {
-	ID            uint      `gorm:"primaryKey;autoIncrement" json:"id"`
-	UserID        string    `gorm:"type:uuid;not null;index" json:"user_id"`
-	Amount        int64     `gorm:"type:bigint;not null" json:"amount"` // kobo
-	BankCode      string    `gorm:"type:varchar(10);not null" json:"bank_code"`
-	AccountNumber string    `gorm:"type:varchar(20);not null" json:"account_number"`
-	AccountName   string    `gorm:"type:varchar(120);not null" json:"account_name"`
+	ID            uint   `gorm:"primaryKey;autoIncrement" json:"id"`
+	UserID        string `gorm:"type:uuid;not null;index" json:"user_id"`
+	Amount        int64  `gorm:"type:bigint;not null" json:"amount"` // kobo
+	BankCode      string `gorm:"type:varchar(10);not null" json:"bank_code"`
+	AccountNumber string `gorm:"type:varchar(20);not null" json:"account_number"`
+	AccountName   string `gorm:"type:varchar(120);not null" json:"account_name"`
 	// IdempotencyKey prevents double-submission on retries.
 	IdempotencyKey string `gorm:"type:varchar(80);uniqueIndex;not null" json:"-"`
+	// RecipientCode is Paystack's saved bank recipient (RCP_...), created before
+	// any money moves. A transfer needs this, not a raw account number.
+	RecipientCode string `gorm:"type:varchar(60)" json:"-"`
+	// Reference is the stable id sent to Paystack with the transfer. A retry
+	// reuses it, so the bank can never pay the same withdrawal twice, and
+	// Paystack's webhook is matched back to this row by it.
+	Reference string `gorm:"type:varchar(60);index" json:"-"`
 	// TransferCode is Paystack's handle for the transfer, set once initiated.
 	TransferCode string    `gorm:"type:varchar(60)" json:"transfer_code,omitempty"`
 	State        string    `gorm:"type:varchar(20);default:'pending'" json:"state"`

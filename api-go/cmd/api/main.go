@@ -217,6 +217,9 @@ func main() {
 	// Partner bank withdrawals
 	withdrawalService := withdrawal.NewService(db, os.Getenv("PAYSTACK_SECRET_KEY"), logger)
 	withdrawalHandler := withdrawal.NewHandler(withdrawalService, logger)
+	// Paystack reports bank payout results (transfer.success / failed / reversed)
+	// on the same webhook as card payments; route them to the withdrawal service.
+	orderHandler.WithTransferHandler(withdrawalService)
 
 	// Paid ads & featured promotions
 	promotionRepo := promotion.NewGormRepository(db)
@@ -457,6 +460,7 @@ func main() {
 		// Wallets & Withdrawals
 		protected.GET("/wallets/me", authHandler.GetWallet)
 		protected.POST("/me/wallet/withdraw", auth.RequireRole("seller", "artisan", "admin"), withdrawalHandler.Initiate)
+		protected.POST("/me/wallet/resolve-account", auth.RequireRole("seller", "artisan", "admin"), rateLimiter.RateLimit(1, 5), withdrawalHandler.ResolveAccount)
 		protected.GET("/me/wallet/withdrawals", auth.RequireRole("seller", "artisan", "admin"), withdrawalHandler.List)
 
 		// Promotions & Paid Ads (sellers, artisans, admin)
@@ -482,6 +486,18 @@ func main() {
 		jobs.Task{Name: "expire unanswered bookings", Run: bookingJobs.ExpireStale},
 		jobs.Task{Name: "booking reminders", Run: bookingJobs.SendReminders},
 		jobs.Task{Name: "influencer payouts", Run: influencerService.PayOutEarned},
+		// A bank payout that was debited but never reached Paystack is resent
+		// (with its original reference, so it can never be paid twice).
+		jobs.Task{Name: "retry stuck withdrawals", Run: func(ctx context.Context) (int, error) {
+			retried, err := withdrawalService.RetryPending(ctx, 2*time.Minute)
+			if err != nil {
+				return retried, err
+			}
+			// After a day unsent, check with the bank and give the money back
+			// (never if the bank actually holds the payout).
+			refunded, err := withdrawalService.ExpireStuck(ctx, 24*time.Hour)
+			return retried + refunded, err
+		}},
 	)
 
 	// ── Start Server ────────────────────────────────────────

@@ -25,6 +25,8 @@ interface RequestOptions {
   method?: "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
   body?: unknown;
   signal?: AbortSignal;
+  /** Extra request headers (e.g. Idempotency-Key). */
+  headers?: Record<string, string>;
   /** Internal: set on the retry after a session refresh. */
   retried?: boolean;
 }
@@ -58,9 +60,10 @@ function refreshSession(): Promise<boolean> {
 export async function apiFetch<T>(
   path: string,
   schema: z.ZodType<T>,
-  { method = "GET", body, signal, retried = false }: RequestOptions = {},
+  { method = "GET", body, signal, headers: extra, retried = false }: RequestOptions = {},
 ): Promise<T> {
-  const headers: Record<string, string> = { Accept: "application/json", [CSRF_HEADER]: "web" };
+  // Caller headers first, so they can never override the protected ones.
+  const headers: Record<string, string> = { ...extra, Accept: "application/json", [CSRF_HEADER]: "web" };
   if (body !== undefined) headers["Content-Type"] = "application/json";
 
   let res: Response;
@@ -77,7 +80,7 @@ export async function apiFetch<T>(
   }
 
   if (res.status === 401 && !retried && !path.startsWith("/auth/")) {
-    if (await refreshSession()) return apiFetch(path, schema, { method, body, signal, retried: true });
+    if (await refreshSession()) return apiFetch(path, schema, { method, body, signal, headers: extra, retried: true });
   }
 
   let json: unknown;

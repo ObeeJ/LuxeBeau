@@ -7,6 +7,7 @@ import { BadgeCheck } from "@/components/icons";
 import { Figures, PageHeader, Panel, RecordList, Tabs } from "@/components/dashboard/widgets";
 import { BookingRow } from "@/components/dashboard/booking-row";
 import { Promote } from "@/components/dashboard/promote";
+import { Withdraw } from "@/components/dashboard/withdraw";
 import { IdentityPanel } from "@/components/dashboard/identity";
 import { ServicesEditor } from "@/components/dashboard/services-editor";
 import { AvailabilityEditor } from "@/components/dashboard/availability-editor";
@@ -21,7 +22,7 @@ import { useMyArtisanProfile, useMyBookings, useWallet } from "@/lib/queries";
 import { bookingStart, formatNaira } from "@/lib/format";
 import { useNow } from "@/lib/use-now";
 
-type Tab = "bookings" | "services" | "availability" | "storefront" | "promote" | "verification";
+type Tab = "bookings" | "services" | "availability" | "storefront" | "promote" | "withdraw" | "verification";
 
 export default function ArtisanDashboard() {
   const router = useRouter();
@@ -104,6 +105,7 @@ export default function ArtisanDashboard() {
           { id: "availability", label: "Availability" },
           { id: "storefront", label: "Storefront" },
           { id: "promote", label: "Promote" },
+          { id: "withdraw", label: "Withdraw" },
           { id: "verification", label: "Verification" },
         ]}
       />
@@ -113,6 +115,7 @@ export default function ArtisanDashboard() {
       )}
 
       {tab === "promote" && <Promote />}
+      {tab === "withdraw" && <Withdraw onVerify={() => setTab("verification")} />}
 
       {tab === "bookings" && (
         <div className="space-y-5">

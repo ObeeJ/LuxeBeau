@@ -62,7 +62,7 @@ LEFT JOIN (
     FROM (
         SELECT CASE WHEN to_account = 'platform' THEN '` + domain.PlatformWalletID + `' ELSE to_account END AS acct,
                amount
-        FROM ledger_entries WHERE type IN ('release', 'refund', 'fee', 'fee_refund', 'ad')
+        FROM ledger_entries WHERE type IN ('release', 'refund', 'fee', 'fee_refund', 'ad', 'withdrawal_reversal')
     ) credits GROUP BY acct
 ) i ON i.acct = CAST(w.user_id AS TEXT)
 LEFT JOIN (
@@ -72,7 +72,7 @@ LEFT JOIN (
     FROM (
         SELECT CASE WHEN from_account = 'platform' THEN '` + domain.PlatformWalletID + `' ELSE from_account END AS acct,
                amount
-        FROM ledger_entries WHERE type IN ('fund', 'delivery', 'ad', 'fee', 'fee_refund')
+        FROM ledger_entries WHERE type IN ('fund', 'delivery', 'ad', 'fee', 'fee_refund', 'withdrawal')
     ) debits GROUP BY acct
 ) o ON o.acct = CAST(w.user_id AS TEXT)
 LEFT JOIN (

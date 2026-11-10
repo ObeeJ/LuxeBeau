@@ -24,12 +24,15 @@ import http.cookiejar
 import json
 import os
 import re
+import shlex
 import subprocess
 import sys
 import time
 import urllib.error
 import urllib.request
+import threading
 import uuid
+from http.server import BaseHTTPRequestHandler, HTTPServer
 
 RESULTS = []
 
@@ -86,6 +89,50 @@ class Client:
 
     def cookie_names(self):
         return sorted(c.name for c in self.jar)
+
+
+class FakePaystack:
+    """A stand-in for Paystack's Transfers API, so a bank payout can be run end to
+    end on a throwaway stack. Start the API with PAYSTACK_API_URL=http://127.0.0.1:<port>."""
+
+    def __init__(self, port):
+        self.transfers = []
+        outer = self
+
+        class Handler(BaseHTTPRequestHandler):
+            def log_message(self, *args):
+                pass
+
+            def _send(self, obj, code=200):
+                raw = json.dumps(obj).encode()
+                self.send_response(code)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(raw)))
+                self.end_headers()
+                self.wfile.write(raw)
+
+            def do_GET(self):
+                if self.path.startswith("/bank/resolve"):
+                    self._send({"status": True, "data": {"account_name": "E2E SELLER"}})
+                else:
+                    self._send({"status": False, "message": "not found"}, 404)
+
+            def do_POST(self):
+                n = int(self.headers.get("Content-Length") or 0)
+                body = json.loads(self.rfile.read(n) or b"{}")
+                if self.path == "/transferrecipient":
+                    self._send({"status": True, "data": {"recipient_code": "RCP_e2e"}})
+                elif self.path == "/transfer":
+                    outer.transfers.append(body)
+                    self._send({"status": True, "data": {"transfer_code": f"TRF_e2e_{len(outer.transfers)}"}})
+                else:
+                    self._send({"status": False, "message": "not found"}, 404)
+
+        self.server = HTTPServer(("127.0.0.1", port), Handler)
+        threading.Thread(target=self.server.serve_forever, daemon=True).start()
+
+    def stop(self):
+        self.server.shutdown()
 
 
 def data(js):
@@ -391,6 +438,75 @@ def full_flow(a):
         s, js, _ = admin.call("GET", "/api/v1/admin/revenue?from=2026-12-01&to=2026-11-01")
         check("A backwards date range is a clear 400", s == 400, str(s))
 
+    if a.fake_paystack_port:
+        section("7d. Seller withdraws to a bank (against a fake Paystack)")
+        fake = FakePaystack(a.fake_paystack_port)
+        try:
+            def wallet_balance():
+                _, j, _ = seller.call("GET", "/api/v1/wallets/me")
+                return (data(j).get("wallet") or {}).get("balance")
+
+            def withdraw(key, amount=100_000, acct="0123456789"):
+                hdr = {"Idempotency-Key": key} if key else {}
+                return seller.call("POST", "/api/v1/me/wallet/withdraw",
+                                   {"amount": amount, "bank_code": "058", "account_number": acct, "account_name": "E2E Seller"}, headers=hdr)
+
+            def transfer_event(event, reference, good=True):
+                body = json.dumps({"event": event, "data": {"reference": reference, "status": "success", "amount": 100_000}}).encode()
+                sig = hmac.new(a.paystack_secret.encode(), body, hashlib.sha512).hexdigest() if good else "0" * 128
+                return anon.call("POST", "/api/v1/webhooks/paystack", raw=body, headers={"x-paystack-signature": sig})[0]
+
+            s, js, _ = withdraw(None)
+            check("A withdrawal without an Idempotency-Key is refused", s == 400, str(s))
+            s, js, _ = withdraw("e2e-" + uuid.uuid4().hex[:12])
+            err = js.get("error") if isinstance(js, dict) else {}
+            check("A withdrawal is refused until the seller's identity is verified", s == 403 and (err or {}).get("code") == "KYC_REQUIRED", f"{s} {err}")
+            if a.verify_seller_cmd:
+                # An argument list, never a shell string.
+                subprocess.run(shlex.split(a.verify_seller_cmd), check=True, capture_output=True, timeout=60)
+
+            s, js, _ = seller.call("POST", "/api/v1/me/wallet/resolve-account", {"bank_code": "058", "account_number": "0123456789"})
+            check("Looking up a bank account returns the bank's name", s == 200 and data(js).get("account_name") == "E2E SELLER", f"{s} {data(js)}")
+            s, js, _ = seller.call("POST", "/api/v1/me/wallet/resolve-account", {"bank_code": "058", "account_number": "12345"})
+            check("A short account number is rejected", s == 400, str(s))
+
+            before = wallet_balance()
+            k1 = "e2e-wd-" + uuid.uuid4().hex[:12]
+            s, js, _ = withdraw(k1)
+            wd = (data(js) or {}).get("withdrawal", {}) if s == 201 else {}
+            check("The withdrawal is accepted and sent to the bank", s == 201 and wd.get("state") == "processing", f"{s} {wd.get('state')}")
+            check("Exactly the amount left the wallet", before is not None and before - (wallet_balance() or 0) == 100_000, f"{before} -> {wallet_balance()}")
+            check("The bank was asked once, with a recipient code (not a raw account number)",
+                  len(fake.transfers) == 1 and fake.transfers[0].get("recipient") == "RCP_e2e" and fake.transfers[0].get("amount") == 100_000,
+                  str(fake.transfers))
+            ref1 = fake.transfers[0]["reference"] if fake.transfers else ""
+            check("The bank reference is in Paystack's required format", bool(re.fullmatch(r"[a-z0-9_-]{16,50}", ref1)), ref1)
+            s, js, _ = withdraw(k1)
+            check("Submitting the same withdrawal twice is refused", s == 409, str(s))
+            check("...and charges and sends nothing more", wallet_balance() == before - 100_000 and len(fake.transfers) == 1)
+
+            check("A forged transfer result is refused", transfer_event("transfer.success", ref1, good=False) == 401)
+            check("The bank's success report is accepted", transfer_event("transfer.success", ref1) == 200)
+            _, js, _ = seller.call("GET", "/api/v1/me/wallet/withdrawals")
+            states = {w.get("id"): w.get("state") for w in first_list(data(js), "withdrawals")}
+            check("The withdrawal now shows as paid", states.get(wd.get("id")) == "succeeded", str(states))
+
+            mid = wallet_balance()
+            s, js, _ = withdraw("e2e-wd-" + uuid.uuid4().hex[:12])
+            wd2 = (data(js) or {}).get("withdrawal", {}) if s == 201 else {}
+            ref2 = fake.transfers[-1]["reference"] if len(fake.transfers) == 2 else ""
+            check("A second withdrawal is accepted", s == 201 and bool(ref2), f"{s}")
+            check("The bank reports the second payout failed", transfer_event("transfer.failed", ref2) == 200)
+            check("The failed payout's money is returned to the wallet", wallet_balance() == mid, f"{mid} vs {wallet_balance()}")
+            transfer_event("transfer.failed", ref2)
+            transfer_event("transfer.reversed", ref2)
+            check("A repeated failure never refunds twice", wallet_balance() == mid, f"{mid} vs {wallet_balance()}")
+            _, js, _ = seller.call("GET", "/api/v1/me/wallet/withdrawals")
+            states = {w.get("id"): w.get("state") for w in first_list(data(js), "withdrawals")}
+            check("The failed withdrawal shows as failed", states.get(wd2.get("id")) == "failed", str(states))
+        finally:
+            fake.stop()
+
     section("8. Sign out")
     s, js, _ = buyer.call("POST", "/api/v1/auth/logout")
     check("Logout succeeds", s in (200, 204), str(s))
@@ -416,6 +532,8 @@ def main():
     ap.add_argument("--paystack-secret", default=os.environ.get("PAYSTACK_SECRET_KEY", ""))
     ap.add_argument("--audit-bin")
     ap.add_argument("--database-url")
+    ap.add_argument("--fake-paystack-port", type=int, help="run a fake Paystack on this port (start the API with PAYSTACK_API_URL=http://127.0.0.1:PORT) to test bank withdrawals")
+    ap.add_argument("--verify-seller-cmd", help="shell command that marks the demo seller's identity as verified in the THROWAWAY database")
     a = ap.parse_args()
 
     public_checks(a.base, a.origin)
