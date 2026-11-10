@@ -9,8 +9,27 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"golang.org/x/time/rate"
 )
+
+const RequestIDKey = "request_id"
+const RequestIDHeader = "X-Request-Id"
+
+// RequestID generates a UUID for every request, injects it into the Gin
+// context under RequestIDKey, and echoes it back as X-Request-Id so clients
+// and logs can correlate a request end-to-end.
+func RequestID() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id := c.GetHeader(RequestIDHeader)
+		if id == "" {
+			id = uuid.NewString()
+		}
+		c.Set(RequestIDKey, id)
+		c.Header(RequestIDHeader, id)
+		c.Next()
+	}
+}
 
 func Logger(logger *slog.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -26,23 +45,20 @@ func Logger(logger *slog.Logger) gin.HandlerFunc {
 
 		status := c.Writer.Status()
 		duration := time.Since(start)
+		requestID, _ := c.Get(RequestIDKey)
 
+		attrs := []any{
+			slog.String("method", c.Request.Method),
+			slog.String("path", path),
+			slog.Int("status", status),
+			slog.Duration("duration", duration),
+			slog.String("ip", c.ClientIP()),
+			slog.Any("request_id", requestID),
+		}
 		if status >= 400 {
-			logger.Warn("HTTP Request Error",
-				slog.String("method", c.Request.Method),
-				slog.String("path", path),
-				slog.Int("status", status),
-				slog.Duration("duration", duration),
-				slog.String("ip", c.ClientIP()),
-			)
+			logger.Warn("HTTP Request Error", attrs...)
 		} else {
-			logger.Info("HTTP Request Completed",
-				slog.String("method", c.Request.Method),
-				slog.String("path", path),
-				slog.Int("status", status),
-				slog.Duration("duration", duration),
-				slog.String("ip", c.ClientIP()),
-			)
+			logger.Info("HTTP Request Completed", attrs...)
 		}
 	}
 }

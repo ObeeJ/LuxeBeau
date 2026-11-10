@@ -439,6 +439,32 @@ func (s *Service) ResetPassword(ctx context.Context, email, code, newPassword st
 	return user, nil
 }
 
+// UpdateProfile updates the mutable fields of a user's own profile.
+// Only non-empty values are applied; role and status are immutable here.
+func (s *Service) UpdateProfile(ctx context.Context, userID, name, phone, jurisdiction string) (*domain.User, error) {
+	updates := map[string]any{}
+	if v := strings.TrimSpace(name); v != "" {
+		updates["name"] = v
+	}
+	if v := strings.TrimSpace(phone); v != "" {
+		updates["phone"] = v
+	}
+	if v := strings.TrimSpace(jurisdiction); v != "" {
+		updates["jurisdiction"] = v
+	}
+	if len(updates) == 0 {
+		return nil, ErrInvalidInput
+	}
+	var user domain.User
+	if err := s.db.WithContext(ctx).First(&user, "id = ?", userID).Error; err != nil {
+		return nil, fmt.Errorf("load user: %w", err)
+	}
+	if err := s.db.WithContext(ctx).Model(&user).Updates(updates).Error; err != nil {
+		return nil, fmt.Errorf("update profile: %w", err)
+	}
+	return &user, nil
+}
+
 // Authenticate validates an access token and loads the current user, so a
 // role change or suspension takes effect on the next request.
 func (s *Service) Authenticate(ctx context.Context, accessToken string) (*domain.User, error) {

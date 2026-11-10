@@ -64,7 +64,11 @@ func (h *Handler) Initiate(c *gin.Context) {
 		response.BadRequest(c, "Idempotency-Key must be 80 characters or fewer.")
 		return
 	}
-	uid, _ := c.Get("userID")
+	uid, ok := c.Get("userID")
+	if !ok {
+		response.Fail(c, 401, "UNAUTHORIZED", "Not authenticated.")
+		return
+	}
 	userID, _ := uid.(string)
 	w, err := h.service.Initiate(c.Request.Context(), WithdrawInput{
 		UserID:         userID,

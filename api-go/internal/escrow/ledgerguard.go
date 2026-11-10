@@ -47,6 +47,27 @@ CREATE TRIGGER ledger_entries_no_truncate
   FOR EACH STATEMENT EXECUTE FUNCTION ledger_entries_append_only();
 `
 
+// walletGuardSQL prevents the wallet balance from going negative at the
+// database level. The application already checks balance >= amount before
+// debiting, but under read-committed two concurrent withdrawals can both pass
+// that check before either commits. The constraint is the last line of defence.
+//
+// NOT VALID skips re-checking existing rows (safe: no row should already be
+// negative, but we do not want the migration to fail if one somehow is).
+const walletGuardSQL = `
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'wallets_balance_non_negative'
+      AND conrelid = 'wallets'::regclass
+  ) THEN
+    ALTER TABLE wallets
+      ADD CONSTRAINT wallets_balance_non_negative CHECK (balance >= 0) NOT VALID;
+  END IF;
+END $$;
+`
+
 // EnsureLedgerGuards installs the ledger's database-level rules. Call it once
 // at startup, after the table has been migrated. It does nothing on databases
 // other than PostgreSQL (the unit tests use SQLite).
@@ -56,6 +77,9 @@ func EnsureLedgerGuards(db *gorm.DB) error {
 	}
 	if err := db.Exec(ledgerGuardSQL).Error; err != nil {
 		return fmt.Errorf("install ledger guards: %w", err)
+	}
+	if err := db.Exec(walletGuardSQL).Error; err != nil {
+		return fmt.Errorf("install wallet guard: %w", err)
 	}
 	return nil
 }

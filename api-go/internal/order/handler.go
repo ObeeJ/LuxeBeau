@@ -2,14 +2,20 @@ package order
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"log/slog"
 	"math"
+	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 	"luxebeau/internal/domain"
 	"luxebeau/internal/mail"
+	"luxebeau/internal/middleware"
 	"luxebeau/internal/response"
 )
 
@@ -30,6 +36,7 @@ type OrderHandler struct {
 	fallback  paymentConfirmer
 	transfers transferHandler
 	mailer    *mail.Mailer
+	db        *gorm.DB
 	logger    *slog.Logger
 }
 
@@ -47,8 +54,8 @@ func (h *OrderHandler) WithFallbackConfirmer(c paymentConfirmer) *OrderHandler {
 	return h
 }
 
-func NewOrderHandler(service domain.OrderService, logger *slog.Logger) *OrderHandler {
-	return &OrderHandler{service: service, logger: logger}
+func NewOrderHandler(service domain.OrderService, db *gorm.DB, logger *slog.Logger) *OrderHandler {
+	return &OrderHandler{service: service, db: db, logger: logger}
 }
 
 // WithMailer enables order confirmation emails.
@@ -116,9 +123,29 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 		return
 	}
 
-	buyerID, _ := c.Get("userID")
+	buyerID := c.GetString("userID")
 
-	// Convert handler request items to the service interface type
+	// ── Idempotency ──────────────────────────────────────────────────────────
+	// If the client sends an Idempotency-Key header we look up any prior result
+	// for this (key, user, operation) and return it without re-executing. This
+	// makes the endpoint safe to retry on network timeouts.
+	idempKey := strings.TrimSpace(c.GetHeader("Idempotency-Key"))
+	if idempKey != "" {
+		var rec domain.IdempotencyRecord
+		err := h.db.WithContext(c.Request.Context()).
+			Where("key = ? AND user_id = ? AND operation = ? AND expires_at > ?",
+				idempKey, buyerID, "create_order", time.Now()).
+			First(&rec).Error
+		if err == nil {
+			// Replay the stored response.
+			var stored gin.H
+			if jsonErr := json.Unmarshal([]byte(rec.ResponseJSON), &stored); jsonErr == nil {
+				c.JSON(rec.StatusCode, stored)
+				return
+			}
+		}
+	}
+
 	items := make([]struct {
 		ProductID uint `json:"product_id"`
 		Qty       int  `json:"qty"`
@@ -128,13 +155,48 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 		items[i].Qty = item.Qty
 	}
 
-	order, err := h.service.CreateCheckout(c.Request.Context(), buyerID.(string), items, req.Address, req.City, req.State, req.Phone, req.PayMethod)
+	order, err := h.service.CreateCheckout(c.Request.Context(), buyerID, items, req.Address, req.City, req.State, req.Phone, req.PayMethod)
 	if err != nil {
-		response.Conflict(c, err.Error())
+		// Map internal errors to user-safe messages — never expose stock counts
+		// or product IDs to the client.
+		msg := "Something went wrong placing your order. Please try again."
+		switch {
+		case strings.Contains(err.Error(), "insufficient stock"),
+			strings.Contains(err.Error(), "product") && strings.Contains(err.Error(), "not found"):
+			msg = "One or more items in your bag are no longer available. Please review your cart."
+		case strings.Contains(err.Error(), "insufficient wallet balance"):
+			msg = "Your wallet balance is too low for this order."
+		case strings.Contains(err.Error(), "invalid quantity"):
+			msg = "Check your bag and delivery details: each item needs a quantity from 1 to 100."
+		}
+		response.Conflict(c, msg)
 		return
 	}
 
 	h.sendConfirmation(c, order.ID)
+
+	// ── Store idempotency result ──────────────────────────────────────────────
+	if idempKey != "" {
+		body := gin.H{"order": order}
+		if b, jsonErr := json.Marshal(body); jsonErr == nil {
+			rec := domain.IdempotencyRecord{
+				Key:          idempKey,
+				UserID:       buyerID,
+				Operation:    "create_order",
+				ResponseJSON: string(b),
+				StatusCode:   http.StatusCreated,
+				ExpiresAt:    time.Now().Add(24 * time.Hour),
+			}
+			// Best-effort: a failed store does not fail the order.
+			if dbErr := h.db.WithContext(c.Request.Context()).Create(&rec).Error; dbErr != nil {
+				h.logger.Warn("idempotency record store failed",
+					slog.String("key", idempKey),
+					slog.String("request_id", c.GetString(middleware.RequestIDKey)),
+					slog.Any("error", dbErr))
+			}
+		}
+	}
+
 	response.Created(c, gin.H{"order": order})
 }
 

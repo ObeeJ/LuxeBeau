@@ -276,7 +276,7 @@ func (h *AuthHandler) Google(c *gin.Context) {
 		h.secondFactor(c, user)
 		return
 	case errors.Is(err, ErrGoogleNotConfigured):
-		response.Fail(c, http.StatusServiceUnavailable, "GOOGLE_NOT_CONFIGURED", "Google sign-in is not available right now.")
+		response.Fail(c, http.StatusBadRequest, "SIGN_IN_UNAVAILABLE", "That sign-in method is not available right now.")
 		return
 	case errors.Is(err, ErrAccountSuspended):
 		response.Fail(c, http.StatusForbidden, "ACCOUNT_SUSPENDED", "This account has been suspended.")
@@ -331,31 +331,17 @@ func (h *AuthHandler) UpdateProfile(c *gin.Context) {
 		return
 	}
 	userID := c.GetString("userID")
-	updates := map[string]any{}
-	if req.Name != "" {
-		updates["name"] = strings.TrimSpace(req.Name)
-	}
-	if req.Phone != "" {
-		updates["phone"] = strings.TrimSpace(req.Phone)
-	}
-	if req.Jurisdiction != "" {
-		updates["jurisdiction"] = strings.TrimSpace(req.Jurisdiction)
-	}
-	if len(updates) == 0 {
+	user, err := h.service.UpdateProfile(c.Request.Context(), userID, req.Name, req.Phone, req.Jurisdiction)
+	switch {
+	case errors.Is(err, ErrInvalidInput):
 		response.BadRequest(c, "No fields to update.")
 		return
-	}
-	var user domain.User
-	if err := h.service.db.WithContext(c.Request.Context()).First(&user, "id = ?", userID).Error; err != nil {
-		response.InternalError(c, "Could not load your profile.")
-		return
-	}
-	if err := h.service.db.WithContext(c.Request.Context()).Model(&user).Updates(updates).Error; err != nil {
+	case err != nil:
 		h.logger.Error("update profile failed", slog.Any("error", err))
 		response.InternalError(c, "We couldn't save your profile. Please try again.")
 		return
 	}
-	response.OK(c, gin.H{"user": &user})
+	response.OK(c, gin.H{"user": user})
 }
 
 // AuthMiddleware authenticates the access-token cookie (or a Bearer header

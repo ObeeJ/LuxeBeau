@@ -104,16 +104,24 @@ func HoldOrder(tx *gorm.DB, o *domain.Order) ([]domain.Escrow, error) {
 			// ReleaseEligibleAt stays empty until the seller marks the
 			// goods delivered; only then does the buyer's window start.
 		}
-		if err := tx.Create(&e).Error; err != nil {
+		// GORM treats a zero int as "not set" and applies the column default
+		// (100 bps = 1%). Use a map-based update so the zero is written
+		// explicitly in a single INSERT, avoiding the two-step INSERT+UPDATE.
+		if err := tx.Model(&domain.Escrow{}).Create(map[string]any{
+			"id":               e.ID,
+			"kind":             e.Kind,
+			"reference":        e.Reference,
+			"buyer_id":         e.BuyerID,
+			"payee_id":         e.PayeeID,
+			"title":            e.Title,
+			"amount":           e.Amount,
+			"fee_bps":          e.FeeBps,
+			"state":            e.State,
+			"settlement_rail":  e.SettlementRail,
+			"delivery_city":    e.DeliveryCity,
+			"funded_at":        e.FundedAt,
+		}).Error; err != nil {
 			return nil, err
-		}
-		if buyerPaysFees {
-			// GORM turns a zero on insert into the column default (1%), so the
-			// "no fee from the seller" value has to be written explicitly.
-			if err := tx.Model(&domain.Escrow{}).Where("id = ?", e.ID).Update("fee_bps", 0).Error; err != nil {
-				return nil, err
-			}
-			e.FeeBps = 0
 		}
 		if err := writeLedger(tx, e.ID, "fund", from, "escrow", e.Amount, "order paid, held until delivery"); err != nil {
 			return nil, err
