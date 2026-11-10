@@ -20,7 +20,6 @@
   --color-brand-purple: #8a1fc7;
   --color-brand-purple-deep: #6f16a3;
   --color-brand-purple-wash: #f3e6fb;
-  --glow: rgba(138, 31, 199, 0.38);
   --color-slate-ink: #43206f;
   --color-ash-veil: #66508a;
 
@@ -67,7 +66,7 @@
   --shadow-sm: rgba(42, 11, 72, 0.06) 0px 2px 8px 0px;
   --shadow-sm-2: rgba(42, 11, 72, 0.1) 0px 4px 6px -1px, rgba(42, 11, 72, 0.1) 0px 2px 4px -2px;
   --shadow-lg: rgba(42, 11, 72, 0.12) 0px 4px 24px 0px;
-  --shadow-lg-2: var(--glow) 0px 8px 24px -6px;
+  --shadow-lg-2: rgba(42, 11, 72, 0.12) 0px 8px 24px -6px;
   --shadow-soft-base: rgba(42, 11, 72, 0.06) 0px 4px 24px 0px;
 }
 
@@ -115,8 +114,8 @@
   --shadow-pill: var(--shadow-sm);
   --shadow-card: var(--shadow-sm-2);
   --shadow-float: var(--shadow-lg);
-  --shadow-violet: var(--shadow-lg-2);
-  --shadow-glow: var(--shadow-lg-2);
+  --shadow-violet: var(--shadow-lg);
+  --shadow-glow: var(--shadow-lg);
   --shadow-soft: var(--shadow-soft-base);
 
   --font-sans: var(--font-gt-standard);
