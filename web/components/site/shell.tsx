@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { CalendarDays, CircleUser, Home, LayoutGrid, Package, ShoppingBag, type LucideIcon } from "@/components/icons";
 import { useAuth, useCart } from "@/lib/store";
-import { useAuthModal } from "@/components/auth/auth-dialog";
 import { LuxeBeauMark } from "@/components/site/logo";
 import SiteFooter from "@/components/site/footer";
 import { ScrollTop } from "@/components/site/scroll-top";
@@ -76,7 +75,6 @@ function SideRail() {
   const mounted = useMounted();
   const { count } = useCart();
   const user = useAuth(s => s.user);
-  const showAuth = useAuthModal(s => s.show);
   const bounce = useBounceOnIncrease(count);
 
   return (
@@ -127,14 +125,14 @@ function SideRail() {
             {initials(user.name)}
           </Link>
         ) : (
-          <button
-            onClick={() => showAuth("signin")}
+          <Link
+            href="/signin"
             aria-label="Sign in"
             title="Sign in"
             className="lb-press flex h-[46px] w-[46px] items-center justify-center rounded-full text-muted transition-colors duration-150 hover:text-ink"
           >
             <CircleUser className="h-[22px] w-[22px]" strokeWidth={1.9} aria-hidden />
-          </button>
+          </Link>
         )}
       </div>
     </aside>
@@ -144,7 +142,6 @@ function SideRail() {
 function MobileTopBar() {
   const mounted = useMounted();
   const user = useAuth(s => s.user);
-  const showAuth = useAuthModal(s => s.show);
 
   return (
     <header className="sticky top-0 z-40 flex h-14 items-center justify-between bg-canvas/90 px-4 backdrop-blur md:hidden">
@@ -160,13 +157,13 @@ function MobileTopBar() {
           {initials(user.name)}
         </Link>
       ) : (
-        <button
-          onClick={() => showAuth("signin")}
+        <Link
+          href="/signin"
           className="lb-press inline-flex h-11 items-center gap-1.5 rounded-full bg-brand px-4 text-[14px] font-semibold tracking-[-0.014em] text-surface shadow-glow"
         >
           <CircleUser className="h-[18px] w-[18px]" strokeWidth={2} aria-hidden />
           Sign in
-        </button>
+        </Link>
       )}
     </header>
   );

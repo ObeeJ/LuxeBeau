@@ -13,7 +13,6 @@ import { useAuth } from "@/lib/store";
 import { useMyBookings, useMyOrders, useUpdateProfile, useWallet } from "@/lib/queries";
 import { formatNaira, lagosToday } from "@/lib/format";
 import { type MyBooking, type MyOrder } from "@/lib/api";
-import { useAuthModal } from "@/components/auth/auth-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { FieldError } from "@/components/site/states";
@@ -55,7 +54,6 @@ export default function DashboardHome() {
   const router = useRouter();
   const user = useAuth(s => s.user);
   const status = useAuth(s => s.status);
-  const showAuth = useAuthModal(s => s.show);
   const [tab, setTab] = useState<Tab>("orders");
 
   /* Partners land in their own studio; buyers and admins stay here. */
@@ -102,7 +100,7 @@ export default function DashboardHome() {
       <div className="mx-auto max-w-sm rounded-[28px] bg-surface p-6 text-center shadow-card sm:p-8">
         <h1 className="t-display">Your account</h1>
         <p className="mt-2 text-[16px] text-muted">Sign in to see your orders and bookings.</p>
-        <Button onClick={() => showAuth("signin")} size="lg" className="mt-5">Sign in</Button>
+        <Button asChild size="lg" className="mt-5"><Link href="/signin">Sign in</Link></Button>
       </div>
     );
   }
