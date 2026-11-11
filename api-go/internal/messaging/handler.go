@@ -3,6 +3,7 @@ package messaging
 import (
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"strconv"
 	"time"
@@ -110,18 +111,16 @@ func (h *Handler) Stream(c *gin.Context) {
 	ticker := time.NewTicker(25 * time.Second)
 	defer ticker.Stop()
 
-	c.Stream(func(w gin.ResponseWriter) bool {
+	c.Stream(func(w io.Writer) bool {
 		select {
 		case convID, ok := <-ch:
 			if !ok {
 				return false
 			}
 			fmt.Fprintf(w, "data: %s\n\n", convID)
-			w.(gin.ResponseWriter).Flush()
 			return true
 		case <-ticker.C:
 			fmt.Fprintf(w, ": heartbeat\n\n")
-			w.(gin.ResponseWriter).Flush()
 			return true
 		case <-c.Request.Context().Done():
 			return false
