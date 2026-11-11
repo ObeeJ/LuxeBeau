@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -125,25 +124,32 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 	buyerID := c.GetString("userID")
 
 	// ── Idempotency ──────────────────────────────────────────────────────────
-	// If the client sends an Idempotency-Key header we look up any prior result
-	// for this (key, user, operation) and return it without re-executing. This
-	// makes the endpoint safe to retry on network timeouts.
+	// With an Idempotency-Key header the key is claimed BEFORE the order is
+	// created. The database's unique index picks the winner when two requests
+	// with one key arrive together, so a retry can never create a second order.
 	idempKey := strings.TrimSpace(c.GetHeader("Idempotency-Key"))
-	if idempKey != "" {
-		var rec domain.IdempotencyRecord
-		err := h.db.WithContext(c.Request.Context()).
-			Where("key = ? AND user_id = ? AND operation = ? AND expires_at > ?",
-				idempKey, buyerID, "create_order", time.Now()).
-			First(&rec).Error
-		if err == nil {
-			// Replay the stored response.
-			var stored gin.H
-			if jsonErr := json.Unmarshal([]byte(rec.ResponseJSON), &stored); jsonErr == nil {
-				// Same envelope as the first answer, so clients read it the same way.
-				response.Success(c, rec.StatusCode, stored)
+	var claimID uint
+	if idempKey != "" && h.db != nil {
+		outcome, id, stored := h.claimIdempotency(c.Request.Context(), idempKey, buyerID)
+		switch outcome {
+		case idemReplay:
+			var body gin.H
+			if err := json.Unmarshal([]byte(stored.ResponseJSON), &body); err != nil {
+				h.logger.Error("stored idempotent answer is unreadable", slog.String("key", idempKey), slog.Any("error", err))
+				response.InternalError(c, "We couldn't confirm your earlier order. Please check your orders before trying again.")
 				return
 			}
+			// Same envelope as the first answer, so clients read it the same way.
+			response.Success(c, stored.StatusCode, body)
+			return
+		case idemBusy:
+			response.Conflict(c, "This order is already being placed. Please wait a moment, then check your orders.")
+			return
+		case idemUnavailable:
+			response.Fail(c, http.StatusServiceUnavailable, "TRY_AGAIN", "We couldn't place your order safely right now. Please try again in a moment.")
+			return
 		}
+		claimID = id
 	}
 
 	items := make([]struct {
@@ -169,45 +175,22 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 		case strings.Contains(err.Error(), "invalid quantity"):
 			msg = "Check your bag and delivery details: each item needs a quantity from 1 to 100."
 		}
+		if claimID != 0 {
+			h.releaseIdempotency(c.Request.Context(), claimID) // a failed order must not lock the key
+		}
 		response.Conflict(c, msg)
 		return
 	}
 
 	h.sendConfirmation(c, order.ID)
 
-	// ── Store idempotency result ──────────────────────────────────────────────
-	if idempKey != "" {
-		body := gin.H{"order": order}
-		if b, jsonErr := json.Marshal(body); jsonErr == nil {
-			rec := domain.IdempotencyRecord{
-				Key:          idempKey,
-				UserID:       buyerID,
-				Operation:    "create_order",
-				ResponseJSON: string(b),
-				StatusCode:   http.StatusCreated,
-				ExpiresAt:    time.Now().Add(24 * time.Hour),
-			}
-			if dbErr := h.db.WithContext(c.Request.Context()).Create(&rec).Error; dbErr != nil {
-				// A unique violation means a concurrent retry already stored a
-				// result. Fetch and replay it rather than returning a duplicate order.
-				if msg := strings.ToLower(dbErr.Error()); strings.Contains(msg, "23505") || strings.Contains(msg, "unique") {
-					var existing domain.IdempotencyRecord
-					if fetchErr := h.db.WithContext(c.Request.Context()).
-						Where("key = ? AND user_id = ? AND operation = ? AND expires_at > ?",
-							idempKey, buyerID, "create_order", time.Now()).
-						First(&existing).Error; fetchErr == nil {
-						var stored gin.H
-						if jsonErr2 := json.Unmarshal([]byte(existing.ResponseJSON), &stored); jsonErr2 == nil {
-							response.Success(c, existing.StatusCode, stored)
-							return
-						}
-					}
-				}
-				h.logger.Warn("idempotency record store failed",
-					slog.String("key", idempKey),
-					slog.String("request_id", c.GetString(middleware.RequestIDKey)),
-					slog.Any("error", dbErr))
-			}
+	// ── Store the answer against the claim so retries replay it ─────────────
+	if claimID != 0 {
+		if b, err := json.Marshal(gin.H{"order": order}); err == nil {
+			h.finishIdempotency(c.Request.Context(), claimID, string(b))
+		} else {
+			h.logger.Error("could not encode the order answer for idempotency",
+				slog.String("request_id", c.GetString(middleware.RequestIDKey)), slog.Any("error", err))
 		}
 	}
 
