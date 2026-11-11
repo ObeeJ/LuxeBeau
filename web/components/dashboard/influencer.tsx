@@ -45,8 +45,14 @@ function StatePill({ state, tone }: { state: string; tone: ReturnType<typeof sta
 /* ── Copy link button ───────────────────────────────────────────── */
 function CopyLink({ slug, ownerHandle }: { slug: string; ownerHandle?: string }) {
   const [copied, setCopied] = useState(false);
-  const base = typeof window !== "undefined" ? window.location.origin : "https://myluxebeau.com";
-  const url = ownerHandle ? `${base}/ref/${ownerHandle}/${slug}` : `${base}/ref/-/${slug}`;
+  // The tracking route lives on the Go API, not the Next.js web app.
+  // Strip /api/v1 from the API base to get the root API URL.
+  const apiRoot = process.env.NEXT_PUBLIC_API_URL
+    ? process.env.NEXT_PUBLIC_API_URL.replace(/\/api\/v1\/?$/, "")
+    : "https://luxebeau-api.onrender.com";
+  const url = ownerHandle
+    ? `${apiRoot}/ref/${ownerHandle}/${slug}`
+    : `${apiRoot}/ref/-/${slug}`;
 
   const copy = () => {
     navigator.clipboard.writeText(url).then(() => {

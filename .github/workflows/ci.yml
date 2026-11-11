@@ -1,0 +1,81 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # ── Go API ────────────────────────────────────────────────────────
+  api:
+    name: API (Go)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: api-go
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: api-go/go.mod
+          cache-dependency-path: api-go/go.sum
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Test (race detector)
+        run: go test -race -count=1 ./...
+
+      - name: Build
+        run: CGO_ENABLED=0 go build -trimpath -ldflags="-w -s" -o /dev/null ./cmd/api
+
+  # ── Next.js web ───────────────────────────────────────────────────
+  web:
+    name: Web (Next.js)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Type-check
+        run: pnpm tsc --noEmit
+
+      - name: Unit tests
+        run: pnpm jest --passWithNoTests
+
+      - name: Build
+        run: pnpm next build
+        env:
+          NEXT_PUBLIC_API_URL: https://luxebeau-api.onrender.com/api/v1
+
+  # ── Deploy (main only) ────────────────────────────────────────────
+  # Render auto-deploys from main via its GitHub integration.
+  # This job just confirms the build passed before Render picks it up.
+  # No secrets are needed here; Render watches the repo directly.
+  deploy-check:
+    name: Deploy gate
+    needs: [api, web]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - name: All checks passed
+        run: echo "API and web builds passed. Render will deploy from main."
