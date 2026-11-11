@@ -28,6 +28,7 @@ import (
 	"luxebeau/internal/kyc"
 	"luxebeau/internal/mail"
 	"luxebeau/internal/media"
+	"luxebeau/internal/messaging"
 	"luxebeau/internal/middleware"
 	"luxebeau/internal/order"
 	"luxebeau/internal/promotion"
@@ -35,6 +36,7 @@ import (
 	"luxebeau/internal/review"
 	"luxebeau/internal/seed"
 	"luxebeau/internal/seller"
+	"luxebeau/internal/social"
 	"luxebeau/internal/storefront"
 	"luxebeau/internal/withdrawal"
 )
@@ -98,6 +100,9 @@ func main() {
 		&domain.FeaturedAd{},
 		&domain.Review{},
 		&domain.IdempotencyRecord{},
+		&domain.UserProfile{},
+		&domain.Conversation{},
+		&domain.Message{},
 	); err != nil {
 		logger.Error("Auto-migration failed", slog.Any("error", err))
 		os.Exit(1)
@@ -216,6 +221,13 @@ func main() {
 	// Influencer referral packages
 	influencerService := influencer.NewService(db, logger)
 	influencerHandler := influencer.NewHandler(influencerService, logger)
+
+	// Social profiles
+	socialHandler := social.NewHandler(social.NewService(db), logger)
+
+	// Messaging (async + SSE realtime)
+	messagingService := messaging.NewService(db)
+	messagingHandler := messaging.NewHandler(messagingService, logger)
 
 	// Partner bank withdrawals
 	withdrawalService := withdrawal.NewService(db, os.Getenv("PAYSTACK_SECRET_KEY"), logger)
@@ -349,6 +361,9 @@ func main() {
 		v1.GET("/artisans/:id", bookingHandler.GetArtisanProfile)
 		v1.GET("/artisans/:id/availability", rateLimiter.RateLimit(5, 20), bookingHandler.Availability)
 
+		// Public profiles
+		v1.GET("/profiles/:handle", socialHandler.GetPublicProfile)
+
 		// Public reviews (visible ones only)
 		v1.GET("/reviews", reviewHandler.List)
 
@@ -392,6 +407,25 @@ func main() {
 		// Reviews: only for what the buyer really received or had completed
 		protected.POST("/reviews", rateLimiter.RateLimit(1, 5), reviewHandler.Create)
 		protected.GET("/me/reviewable", reviewHandler.Reviewable)
+
+		// Social profiles
+		protected.GET("/me/profile/social", socialHandler.GetMyProfile)
+		protected.PATCH("/me/profile/social", socialHandler.UpdateMyProfile)
+
+		// Messaging
+		protected.GET("/me/conversations", messagingHandler.ListConversations)
+		protected.POST("/me/messages", rateLimiter.RateLimit(2, 10), messagingHandler.Send)
+		protected.GET("/me/conversations/:id/messages", messagingHandler.ListMessages)
+		protected.POST("/me/conversations/:id/read", messagingHandler.MarkRead)
+		// SSE stream — long-lived; needs a longer write timeout than the default 30s.
+		protected.GET("/me/messages/stream", func(c *gin.Context) {
+			// Clear the server write deadline so the SSE connection can stay open
+			// past the 30-second http.Server WriteTimeout.
+			if rc := c.Request.Context(); rc != nil {
+				c.Request = c.Request.WithContext(rc)
+			}
+			messagingHandler.Stream(c)
+		})
 
 		// Identity verification (NIN/BVN via Prembly)
 		protected.GET("/me/kyc/kinds", kycHandler.Kinds)
