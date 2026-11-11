@@ -3,7 +3,6 @@ package order
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"log/slog"
 	"math"
 	"net/http"
@@ -140,7 +139,8 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 			// Replay the stored response.
 			var stored gin.H
 			if jsonErr := json.Unmarshal([]byte(rec.ResponseJSON), &stored); jsonErr == nil {
-				c.JSON(rec.StatusCode, stored)
+				// Same envelope as the first answer, so clients read it the same way.
+				response.Success(c, rec.StatusCode, stored)
 				return
 			}
 		}

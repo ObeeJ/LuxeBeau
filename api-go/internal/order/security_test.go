@@ -109,7 +109,7 @@ func TestGetOrder_OnlyBuyerOrAdmin(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	db, svc := newSecurityDB(t, "order_owner")
 	seedOrder(t, db, "LB-OWN", "buyer-1", "paid", 1000)
-	h := NewOrderHandler(svc, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	h := NewOrderHandler(svc, db, slog.New(slog.NewTextHandler(io.Discard, nil)))
 
 	get := func(userID, role string) int {
 		r := gin.New()

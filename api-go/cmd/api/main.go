@@ -32,6 +32,7 @@ import (
 	"luxebeau/internal/order"
 	"luxebeau/internal/promotion"
 	"luxebeau/internal/revenue"
+	"luxebeau/internal/review"
 	"luxebeau/internal/seed"
 	"luxebeau/internal/seller"
 	"luxebeau/internal/storefront"
@@ -95,6 +96,8 @@ func main() {
 		&domain.ReservedHandle{},
 		&domain.StorefrontHandleHistory{},
 		&domain.FeaturedAd{},
+		&domain.Review{},
+		&domain.IdempotencyRecord{},
 	); err != nil {
 		logger.Error("Auto-migration failed", slog.Any("error", err))
 		os.Exit(1)
@@ -179,7 +182,7 @@ func main() {
 	catalogHandler := catalog.NewCatalogHandler(catalogService, logger)
 	bookingHandler := booking.NewBookingHandler(bookingService, mailer, images, logger)
 	studio := booking.NewStudio(db, logger)
-	orderHandler := order.NewOrderHandler(orderService, logger).WithMailer(mailer)
+	orderHandler := order.NewOrderHandler(orderService, db, logger).WithMailer(mailer)
 	adminHandler := admin.NewHandler(adminService, mailer, logger)
 	kycHandler := kyc.NewHandler(kycService, logger)
 
@@ -234,6 +237,7 @@ func main() {
 
 	// Struct-based rate limiter: cleanup goroutine respects SIGTERM.
 	rateLimiter := middleware.NewIPRateLimiter(ctx)
+	reviewHandler := review.NewHandler(review.NewService(db, logger), logger)
 
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
@@ -345,6 +349,9 @@ func main() {
 		v1.GET("/artisans/:id", bookingHandler.GetArtisanProfile)
 		v1.GET("/artisans/:id/availability", rateLimiter.RateLimit(5, 20), bookingHandler.Availability)
 
+		// Public reviews (visible ones only)
+		v1.GET("/reviews", reviewHandler.List)
+
 		// Public Storefronts
 		v1.GET("/storefronts/:handle", storefrontHandler.GetPublicStorefront)
 		v1.POST("/storefronts/check-handle", storefrontHandler.CheckHandle)
@@ -381,6 +388,10 @@ func main() {
 
 		// Bookings (the signed-in user's own bookings, role-aware)
 		protected.GET("/me/bookings", bookingHandler.ListMyBookings)
+
+		// Reviews: only for what the buyer really received or had completed
+		protected.POST("/reviews", rateLimiter.RateLimit(1, 5), reviewHandler.Create)
+		protected.GET("/me/reviewable", reviewHandler.Reviewable)
 
 		// Identity verification (NIN/BVN via Prembly)
 		protected.GET("/me/kyc/kinds", kycHandler.Kinds)
@@ -452,6 +463,8 @@ func main() {
 			adminGroup.POST("/escrows/:id/resolve", escrowHandler.AdminResolve)
 			adminGroup.GET("/influencer/packages", influencerHandler.AdminList)
 			adminGroup.GET("/influencer-commissions", influencerHandler.AdminCommissions)
+			adminGroup.GET("/reviews", reviewHandler.AdminList)
+			adminGroup.PATCH("/reviews/:id", reviewHandler.SetStatus)
 			adminGroup.GET("/revenue", revenue.NewHandler(db, logger).Summary)
 			adminGroup.GET("/promotions", promotionHandler.AdminList)
 			adminGroup.PATCH("/promotions/:id/status", promotionHandler.AdminUpdateStatus)

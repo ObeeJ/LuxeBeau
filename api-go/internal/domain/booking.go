@@ -20,6 +20,7 @@ type Artisan struct {
 	Experience    string      `gorm:"type:varchar(50)" json:"experience"`
 	Rating        float64     `gorm:"type:decimal(2,1);default:0.0" json:"rating"`
 	JobsCompleted int         `gorm:"type:integer;default:0" json:"jobs_completed"`
+	ReviewsCount  int         `gorm:"type:integer;default:0" json:"reviews_count"`
 	Verified      bool        `gorm:"type:boolean;default:false" json:"verified"`
 	Available     bool        `gorm:"type:boolean;default:true" json:"available"`
 	ServiceMode   string      `gorm:"type:varchar(10);not null;default:'studio'" json:"service_mode"` // studio, home, both

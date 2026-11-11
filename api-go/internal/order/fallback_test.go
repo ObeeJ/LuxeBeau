@@ -56,7 +56,7 @@ func fire(r *gin.Engine) (int, string) {
 }
 
 func newHandler(o domain.PaymentOutcome) *OrderHandler {
-	return NewOrderHandler(stubOrders{outcome: o}, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	return NewOrderHandler(stubOrders{outcome: o}, nil, slog.New(slog.NewTextHandler(io.Discard, nil)))
 }
 
 // A Paystack payment whose reference is not an order belongs to something else

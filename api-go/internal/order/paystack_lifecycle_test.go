@@ -68,7 +68,7 @@ func TestPaystackEndToEndLifecycleAndInvariants(t *testing.T) {
 
 	userService := auth.NewService(db, userRepo, walletRepo, noopCodes{}, auth.Config{JWTSecret: "test-secret-32-chars-long-key-01"}, logger)
 	orderService := NewOrderService(orderRepo, productRepo, db, logger)
-	orderHandler := NewOrderHandler(orderService, logger)
+	orderHandler := NewOrderHandler(orderService, db, logger)
 
 	// Register test buyer
 	buyer, err := userService.Register(context.Background(), "Amaka Buyer", "amaka@test.ng", "SecurePass123!", "+2348011112222")
