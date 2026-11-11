@@ -5,13 +5,16 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"os"
 	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
 
+	"gorm.io/driver/postgres"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 
 	"luxebeau/internal/domain"
 )
@@ -30,10 +33,7 @@ var dbN atomic.Int64
 func world(t *testing.T) (*Service, *gorm.DB) {
 	t.Helper()
 	name := "file:review-" + strings.ReplaceAll(t.Name(), "/", "_") + "-" + time.Now().Format("150405.000000") + string(rune('a'+dbN.Add(1)%26)) + "?mode=memory&cache=shared"
-	db, err := gorm.Open(sqlite.Open(name), &gorm.Config{})
-	if err != nil {
-		t.Fatal(err)
-	}
+	db := openTestDB(t, name)
 	if err := db.AutoMigrate(&domain.User{}, &domain.Product{}, &domain.Artisan{}, &domain.Order{}, &domain.OrderItem{}, &domain.Escrow{}, &domain.Booking{}, &domain.Review{}); err != nil {
 		t.Fatal(err)
 	}
@@ -59,6 +59,26 @@ func world(t *testing.T) (*Service, *gorm.DB) {
 	db.Omit("Buyer", "Artisan").Create(&domain.Booking{ID: "BK-1", BuyerID: buyer, ArtisanID: 1, ServiceName: "Knotless braids",
 		BookingDate: time.Now(), BookingTime: "10:00", ServiceType: "studio", Amount: 1, Status: domain.BookingCompleted})
 	return NewService(db, slog.New(slog.NewTextHandler(io.Discard, nil))), db
+}
+
+// openTestDB is an in-memory SQLite by default. With TEST_PG_DSN set it uses a
+// real PostgreSQL instead (tables are dropped first so each test starts clean),
+// which is how the queries are checked against the production database engine.
+func openTestDB(t *testing.T, sqliteName string) *gorm.DB {
+	t.Helper()
+	if dsn := os.Getenv("TEST_PG_DSN"); dsn != "" {
+		db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{Logger: logger.Discard})
+		if err != nil {
+			t.Fatal(err)
+		}
+		_ = db.Migrator().DropTable(&domain.Review{}, &domain.Booking{}, &domain.Escrow{}, &domain.OrderItem{}, &domain.Order{}, &domain.Artisan{}, &domain.Product{}, &domain.User{})
+		return db
+	}
+	db, err := gorm.Open(sqlite.Open(sqliteName), &gorm.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return db
 }
 
 func product(t *testing.T, db *gorm.DB, id uint) domain.Product {

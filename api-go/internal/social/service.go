@@ -4,6 +4,7 @@ package social
 import (
 	"context"
 	"errors"
+	"net/url"
 	"regexp"
 	"strings"
 
@@ -16,10 +17,32 @@ import (
 var (
 	ErrHandleTaken   = errors.New("that handle is already taken")
 	ErrHandleInvalid = errors.New("handle must be 3-30 characters: letters, numbers and underscores only")
+	ErrURLInvalid    = errors.New("links must start with https:// and be reasonably short")
 	ErrNotFound      = errors.New("profile not found")
 )
 
+const (
+	maxAvatarURLLen = 500
+	maxWebsiteLen   = 200
+)
+
+// validLink accepts an empty value or an https URL within the length limit. Any
+// other scheme (javascript:, data:, http:) or a relative path is refused, since
+// these values are shown to other people as links and images.
+func validLink(raw string, max int) bool {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return true
+	}
+	if len(raw) > max {
+		return false
+	}
+	u, err := url.Parse(raw)
+	return err == nil && u.Scheme == "https" && u.Host != ""
+}
+
 var handleRe = regexp.MustCompile(`^[a-z0-9_]{3,30}$`)
+var uuidRe = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
 
 type Service struct{ db *gorm.DB }
 
@@ -39,6 +62,9 @@ func (s *Service) validate(in UpdateInput) error {
 	}
 	if len([]rune(in.Bio)) > 300 {
 		return errors.New("bio must be 300 characters or fewer")
+	}
+	if !validLink(in.AvatarURL, maxAvatarURLLen) || !validLink(in.Website, maxWebsiteLen) {
+		return ErrURLInvalid
 	}
 	return nil
 }
@@ -83,29 +109,31 @@ func (s *Service) GetByUserID(ctx context.Context, userID string) (*domain.UserP
 
 // PublicProfile is the full public view of a user's profile page.
 type PublicProfile struct {
-	UserID       string               `json:"user_id"`
-	Name         string               `json:"name"`
-	Role         string               `json:"role"`
-	Verified     bool                 `json:"verified"`
-	AvatarURL    string               `json:"avatar_url"`
-	Bio          string               `json:"bio"`
-	SocialHandle string               `json:"social_handle"`
-	Website      string               `json:"website"`
-	Stats        ProfileStats         `json:"stats"`
+	UserID       string       `json:"user_id"`
+	Name         string       `json:"name"`
+	Role         string       `json:"role"`
+	Verified     bool         `json:"verified"`
+	AvatarURL    string       `json:"avatar_url"`
+	Bio          string       `json:"bio"`
+	SocialHandle string       `json:"social_handle"`
+	Website      string       `json:"website"`
+	Stats        ProfileStats `json:"stats"`
 }
 
+// ProfileStats holds only what a person already shows publicly (their visible
+// reviews). Order and booking counts are private activity and are not exposed.
 type ProfileStats struct {
-	Reviews  int64 `json:"reviews"`
-	Orders   int64 `json:"orders"`
-	Bookings int64 `json:"bookings"`
+	Reviews int64 `json:"reviews"`
 }
 
 // GetPublic returns the public profile for a handle or user ID.
 func (s *Service) GetPublic(ctx context.Context, handle string) (*PublicProfile, error) {
 	var p domain.UserProfile
 	err := s.db.WithContext(ctx).First(&p, "social_handle = ?", strings.ToLower(handle)).Error
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		// Fall back to user ID lookup.
+	if errors.Is(err, gorm.ErrRecordNotFound) && uuidRe.MatchString(handle) {
+		// Fall back to user ID lookup. Only for text shaped like an id: PostgreSQL
+		// rejects anything else for a uuid column, which would turn an unknown
+		// handle into a server error instead of "not found".
 		err = s.db.WithContext(ctx).First(&p, "user_id = ?", handle).Error
 	}
 	if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -124,11 +152,6 @@ func (s *Service) GetPublic(ctx context.Context, handle string) (*PublicProfile,
 	var stats ProfileStats
 	s.db.WithContext(ctx).Model(&domain.Review{}).
 		Where("reviewer_id = ? AND status = 'visible'", p.UserID).Count(&stats.Reviews)
-	s.db.WithContext(ctx).Model(&domain.Order{}).
-		Where("buyer_id = ?", p.UserID).Count(&stats.Orders)
-	s.db.WithContext(ctx).Model(&domain.Booking{}).
-		Where("buyer_id = ?", p.UserID).Count(&stats.Bookings)
-
 	return &PublicProfile{
 		UserID: u.ID, Name: u.Name, Role: u.Role, Verified: u.Verified,
 		AvatarURL: p.AvatarURL, Bio: p.Bio, SocialHandle: p.SocialHandle, Website: p.Website,

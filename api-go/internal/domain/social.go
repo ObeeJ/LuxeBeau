@@ -9,8 +9,10 @@ type UserProfile struct {
 	AvatarURL string `gorm:"type:varchar(500)" json:"avatar_url"`
 	Bio       string `gorm:"type:varchar(300)" json:"bio"`
 	// SocialHandle is the user's chosen @handle for their profile page.
-	// Unique, lowercase, 3-30 chars, letters/numbers/underscores only.
-	SocialHandle string    `gorm:"type:varchar(30);uniqueIndex" json:"social_handle"`
+	// Unique, lowercase, 3-30 chars, letters/numbers/underscores only. Many people
+	// may have no handle at all (stored as an empty string), so only non-empty
+	// handles are held unique.
+	SocialHandle string    `gorm:"type:varchar(30);uniqueIndex:idx_user_profiles_social_handle,where:social_handle <> ''" json:"social_handle"`
 	Website      string    `gorm:"type:varchar(200)" json:"website"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
@@ -20,9 +22,9 @@ type UserProfile struct {
 // The canonical ID is always min(user_a, user_b) + ":" + max(user_a, user_b)
 // so there is only ever one conversation per pair.
 type Conversation struct {
-	ID        string    `gorm:"type:varchar(80);primaryKey" json:"id"`
-	UserA     string    `gorm:"type:uuid;not null;index:idx_conv_a" json:"user_a"`
-	UserB     string    `gorm:"type:uuid;not null;index:idx_conv_b" json:"user_b"`
+	ID    string `gorm:"type:varchar(80);primaryKey" json:"id"`
+	UserA string `gorm:"type:uuid;not null;index:idx_conv_a" json:"user_a"`
+	UserB string `gorm:"type:uuid;not null;index:idx_conv_b" json:"user_b"`
 	// LastAt is denormalised for fast inbox sorting.
 	LastAt    time.Time `gorm:"not null;index" json:"last_at"`
 	CreatedAt time.Time `json:"created_at"`
@@ -30,10 +32,10 @@ type Conversation struct {
 
 // Message is one message in a conversation.
 type Message struct {
-	ID             uint      `gorm:"primaryKey;autoIncrement" json:"id"`
-	ConversationID string    `gorm:"type:varchar(80);not null;index" json:"conversation_id"`
-	SenderID       string    `gorm:"type:uuid;not null" json:"sender_id"`
-	Body           string    `gorm:"type:text;not null" json:"body"`
+	ID             uint   `gorm:"primaryKey;autoIncrement" json:"id"`
+	ConversationID string `gorm:"type:varchar(80);not null;index" json:"conversation_id"`
+	SenderID       string `gorm:"type:uuid;not null" json:"sender_id"`
+	Body           string `gorm:"type:text;not null" json:"body"`
 	// ReadAt is set when the other participant reads the message.
 	ReadAt    *time.Time `json:"read_at,omitempty"`
 	CreatedAt time.Time  `gorm:"index" json:"created_at"`

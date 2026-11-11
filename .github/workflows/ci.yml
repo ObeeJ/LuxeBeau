@@ -15,6 +15,22 @@ jobs:
       run:
         working-directory: api-go
 
+    # A real PostgreSQL for the tests that check database behaviour (unique
+    # indexes, simultaneous requests, uuid columns) that SQLite does not reproduce.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: pw
+          POSTGRES_DB: t
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d t"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
     steps:
       - uses: actions/checkout@v4
 
@@ -28,6 +44,13 @@ jobs:
 
       - name: Test (race detector)
         run: go test -race -count=1 ./...
+
+      # One package at a time (-p 1): these tests share one database and drop
+      # their own tables first, so they must not run in parallel.
+      - name: Test against PostgreSQL
+        run: go test -race -count=1 -p 1 ./internal/order ./internal/review ./internal/social ./internal/messaging
+        env:
+          TEST_PG_DSN: host=localhost port=5432 user=postgres password=pw dbname=t sslmode=disable
 
       - name: Build
         run: CGO_ENABLED=0 go build -trimpath -ldflags="-w -s" -o /dev/null ./cmd/api

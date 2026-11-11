@@ -1,6 +1,8 @@
-// Package media issues one-time Cloudflare Images upload URLs and validates
-// image links. Browsers upload directly to Cloudflare, so the API never
-// handles file bytes; the API only stores delivery URLs from this account.
+// Package media issues one-time Cloudflare Images upload URLs, validates image
+// links, and compresses profile photos. Partner product photos are uploaded by
+// the browser straight to Cloudflare (the API only stores their delivery URLs);
+// profile photos go through the API first so they can be checked, turned upright
+// and compressed.
 package media
 
 import (

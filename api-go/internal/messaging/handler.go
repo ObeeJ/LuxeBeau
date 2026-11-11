@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net/http"
 	"strconv"
 	"time"
 
@@ -21,6 +22,10 @@ type Handler struct {
 func NewHandler(service *Service, logger *slog.Logger) *Handler {
 	return &Handler{service: service, logger: logger}
 }
+
+// heartbeatEvery keeps the live feed alive through proxies and Render's idle
+// timeout. It is a variable so tests can shorten it.
+var heartbeatEvery = 25 * time.Second
 
 func uid(c *gin.Context) string { return c.GetString("userID") }
 
@@ -47,15 +52,14 @@ func (h *Handler) Send(c *gin.Context) {
 		response.BadRequest(c, "Enter a message (max 2000 characters) and a valid recipient.")
 		return
 	}
-	if req.RecipientID == uid(c) {
-		response.BadRequest(c, "You cannot message yourself.")
-		return
-	}
 	msg, err := h.service.Send(c.Request.Context(), uid(c), req.RecipientID, req.Body)
 	switch {
 	case err == nil:
-	case errors.Is(err, ErrEmptyMessage), errors.Is(err, ErrMessageTooLong):
+	case errors.Is(err, ErrEmptyMessage), errors.Is(err, ErrMessageTooLong), errors.Is(err, ErrSelfMessage):
 		response.BadRequest(c, err.Error())
+		return
+	case errors.Is(err, ErrRecipientNotFound):
+		response.NotFound(c, "We couldn't find that person.")
 		return
 	default:
 		h.logger.Error("send message failed", slog.Any("error", err))
@@ -86,6 +90,10 @@ func (h *Handler) ListMessages(c *gin.Context) {
 // MarkRead: POST /me/conversations/:id/read
 func (h *Handler) MarkRead(c *gin.Context) {
 	if err := h.service.MarkRead(c.Request.Context(), uid(c), c.Param("id")); err != nil {
+		if errors.Is(err, ErrNotParticipant) {
+			response.NotFound(c, "Conversation not found.")
+			return
+		}
 		h.logger.Error("mark read failed", slog.Any("error", err))
 		response.InternalError(c, "We couldn't mark messages as read.")
 		return
@@ -106,9 +114,18 @@ func (h *Handler) Stream(c *gin.Context) {
 	c.Header("Cache-Control", "no-cache")
 	c.Header("X-Accel-Buffering", "no") // disable Nginx buffering
 
-	// Send a heartbeat every 25 seconds to keep the connection alive through
-	// proxies and Render's 30-second idle timeout.
-	ticker := time.NewTicker(25 * time.Second)
+	// The server closes ordinary responses after its WriteTimeout (30s). A live
+	// feed has to stay open, so lift the deadline for this one connection.
+	if err := http.NewResponseController(c.Writer).SetWriteDeadline(time.Time{}); err != nil {
+		h.logger.Warn("could not lift the write deadline for the live feed", slog.Any("error", err))
+	}
+	// Say hello straight away: browsers only treat the stream as open once the
+	// first bytes arrive, and the first heartbeat is up to 25 seconds away.
+	fmt.Fprint(c.Writer, ": connected\n\n")
+	c.Writer.Flush()
+
+	// Heartbeats keep the connection alive through proxies and idle timeouts.
+	ticker := time.NewTicker(heartbeatEvery)
 	defer ticker.Stop()
 
 	c.Stream(func(w io.Writer) bool {

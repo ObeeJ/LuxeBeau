@@ -25,7 +25,7 @@ done
 
 ## Rollback
 
-Each migration file includes a comment describing how to reverse it. For constraint additions, the rollback is:
+Each migration file starts with a `ROLLBACK:` comment listing the statements that reverse it. For a constraint or index, the rollback is typically:
 
 ```sql
 ALTER TABLE <table> DROP CONSTRAINT <name>;

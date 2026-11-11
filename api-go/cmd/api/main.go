@@ -417,15 +417,8 @@ func main() {
 		protected.POST("/me/messages", rateLimiter.RateLimit(2, 10), messagingHandler.Send)
 		protected.GET("/me/conversations/:id/messages", messagingHandler.ListMessages)
 		protected.POST("/me/conversations/:id/read", messagingHandler.MarkRead)
-		// SSE stream — long-lived; needs a longer write timeout than the default 30s.
-		protected.GET("/me/messages/stream", func(c *gin.Context) {
-			// Clear the server write deadline so the SSE connection can stay open
-			// past the 30-second http.Server WriteTimeout.
-			if rc := c.Request.Context(); rc != nil {
-				c.Request = c.Request.WithContext(rc)
-			}
-			messagingHandler.Stream(c)
-		})
+		// SSE stream — long-lived; the handler lifts the 30s write deadline itself.
+		protected.GET("/me/messages/stream", messagingHandler.Stream)
 
 		// Identity verification (NIN/BVN via Prembly)
 		protected.GET("/me/kyc/kinds", kycHandler.Kinds)
@@ -448,6 +441,7 @@ func main() {
 
 		// Photo uploads (direct to Cloudflare Images) for partners
 		protected.POST("/me/uploads/image", auth.RequireRole("seller", "artisan", "admin"), rateLimiter.RateLimit(1, 10), images.UploadHandler(logger))
+		protected.POST("/me/profile/avatar", rateLimiter.RateLimit(1, 10), images.AvatarUploadHandler(logger))
 
 		// ── Escrow (held funds + B2B2C escrow links) ─────────
 		protected.GET("/escrows", escrowHandler.List)

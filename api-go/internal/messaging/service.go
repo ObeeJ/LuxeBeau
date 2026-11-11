@@ -21,6 +21,10 @@ var (
 	ErrNotParticipant = errors.New("not a participant in this conversation")
 	ErrMessageTooLong = errors.New("message must be 2000 characters or fewer")
 	ErrEmptyMessage   = errors.New("message cannot be empty")
+	ErrSelfMessage    = errors.New("you cannot message yourself")
+	// ErrRecipientNotFound stops conversations being opened with ids that are
+	// not real users.
+	ErrRecipientNotFound = errors.New("recipient not found")
 )
 
 const maxMessageRunes = 2000
@@ -111,6 +115,16 @@ func (s *Service) Send(ctx context.Context, senderID, recipientID, body string) 
 	if utf8.RuneCountInString(body) > maxMessageRunes {
 		return nil, ErrMessageTooLong
 	}
+	if senderID == recipientID {
+		return nil, ErrSelfMessage
+	}
+	var recipients int64
+	if err := s.db.WithContext(ctx).Model(&domain.User{}).Where("id = ?", recipientID).Count(&recipients).Error; err != nil {
+		return nil, err
+	}
+	if recipients == 0 {
+		return nil, ErrRecipientNotFound
+	}
 	conv, err := s.GetOrCreateConversation(ctx, senderID, recipientID)
 	if err != nil {
 		return nil, err
@@ -144,15 +158,8 @@ func (s *Service) ListConversations(ctx context.Context, userID string) ([]domai
 
 // ListMessages returns messages in a conversation, newest first, with pagination.
 func (s *Service) ListMessages(ctx context.Context, userID, convID string, limit, before int) ([]domain.Message, error) {
-	var conv domain.Conversation
-	if err := s.db.WithContext(ctx).First(&conv, "id = ?", convID).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, ErrNotParticipant
-		}
+	if _, err := s.participantOf(ctx, userID, convID); err != nil {
 		return nil, err
-	}
-	if conv.UserA != userID && conv.UserB != userID {
-		return nil, ErrNotParticipant
 	}
 	if limit <= 0 || limit > 50 {
 		limit = 30
@@ -168,8 +175,27 @@ func (s *Service) ListMessages(ctx context.Context, userID, convID string, limit
 	return msgs, nil
 }
 
-// MarkRead marks all messages in a conversation as read by the caller.
+// participantOf loads a conversation and checks the caller is one of its two people.
+func (s *Service) participantOf(ctx context.Context, userID, convID string) (*domain.Conversation, error) {
+	var conv domain.Conversation
+	if err := s.db.WithContext(ctx).First(&conv, "id = ?", convID).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrNotParticipant
+		}
+		return nil, err
+	}
+	if conv.UserA != userID && conv.UserB != userID {
+		return nil, ErrNotParticipant
+	}
+	return &conv, nil
+}
+
+// MarkRead marks the other person's messages in a conversation as read by the
+// caller. Only the two people in the conversation may do this.
 func (s *Service) MarkRead(ctx context.Context, userID, convID string) error {
+	if _, err := s.participantOf(ctx, userID, convID); err != nil {
+		return err
+	}
 	now := time.Now()
 	return s.db.WithContext(ctx).Model(&domain.Message{}).
 		Where("conversation_id = ? AND sender_id != ? AND read_at IS NULL", convID, userID).
@@ -180,18 +206,4 @@ func (s *Service) MarkRead(ctx context.Context, userID, convID string) error {
 func (s *Service) Subscribe(userID string) (chan string, func()) {
 	ch := s.broker.Subscribe(userID)
 	return ch, func() { s.broker.Unsubscribe(userID, ch) }
-}
-
-func min(a, b string) string {
-	if a < b {
-		return a
-	}
-	return b
-}
-
-func max(a, b string) string {
-	if a > b {
-		return a
-	}
-	return b
 }

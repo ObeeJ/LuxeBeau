@@ -3,7 +3,6 @@ package social
 import (
 	"errors"
 	"log/slog"
-	"net/http"
 
 	"github.com/gin-gonic/gin"
 
@@ -23,7 +22,7 @@ type updateRequest struct {
 	AvatarURL    string `json:"avatar_url"`
 	Bio          string `json:"bio" binding:"max=300"`
 	SocialHandle string `json:"social_handle"`
-	Website      string `json:"website" binding:"omitempty,url"`
+	Website      string `json:"website"`
 }
 
 // GetMyProfile: GET /me/profile/social
@@ -58,6 +57,9 @@ func (h *Handler) UpdateMyProfile(c *gin.Context) {
 	case errors.Is(err, ErrHandleInvalid):
 		response.BadRequest(c, "Handle must be 3-30 characters: letters, numbers and underscores only.")
 		return
+	case errors.Is(err, ErrURLInvalid):
+		response.BadRequest(c, "Your website and photo links must start with https://.")
+		return
 	default:
 		h.logger.Error("update profile failed", slog.Any("error", err))
 		response.InternalError(c, "We couldn't save your profile.")
@@ -80,40 +82,4 @@ func (h *Handler) GetPublicProfile(c *gin.Context) {
 		return
 	}
 	response.OK(c, gin.H{"profile": p})
-}
-
-// UploadAvatar: POST /me/profile/avatar — multipart upload, compress, forward to CF Images.
-// The Images service is injected so this handler has no direct dependency on CF.
-type ImageUploader interface {
-	DirectUploadBytes(ctx interface{ Done() <-chan struct{} }, uploaderID string, data []byte, contentType string) (string, error)
-}
-
-// AvatarUploadHandler returns a gin handler that accepts a multipart image,
-// compresses it, and stores it via Cloudflare Images.
-func AvatarUploadHandler(uploader ImageUploader, logger *slog.Logger) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		fh, err := c.FormFile("avatar")
-		if err != nil {
-			response.BadRequest(c, "Upload a JPEG or PNG image.")
-			return
-		}
-		// Import compress inline to avoid circular import.
-		// The compress package is in the same module.
-		f, err := fh.Open()
-		if err != nil {
-			response.InternalError(c, "We couldn't read the file.")
-			return
-		}
-		defer f.Close()
-
-		ct := fh.Header.Get("Content-Type")
-		if ct == "" {
-			ct = "image/jpeg"
-		}
-
-		// Use the compress package via the media package path.
-		// We call it through the handler to keep the import clean.
-		response.Fail(c, http.StatusNotImplemented, "AVATAR_UPLOAD_PENDING",
-			"Avatar upload via this endpoint is not yet wired. Use the direct upload flow.")
-	}
 }
