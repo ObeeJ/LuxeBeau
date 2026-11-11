@@ -17,6 +17,7 @@ import (
 )
 
 type cfCapture struct {
+	slotsHeld   int // how many compression slots were taken while Cloudflare was receiving the file
 	uploads     int
 	bytes       []byte
 	contentType string
@@ -43,6 +44,7 @@ func fakeCloudflare(t *testing.T, failUpload bool) (*Images, *cfCapture) {
 			return
 		}
 		cap.uploads++
+		cap.slotsHeld = len(compressSlots)
 		cap.bytes, _ = io.ReadAll(f)
 		cap.contentType = hdr.Header.Get("Content-Type")
 		_ = json.NewEncoder(w).Encode(map[string]any{"success": true})
@@ -95,6 +97,9 @@ func TestAvatarUpload_CompressesThenStoresAndReturnsTheDeliveryURL(t *testing.T)
 	_ = json.Unmarshal(w.Body.Bytes(), &out)
 	if out.Data.Upload.ImageURL != "https://imagedelivery.net/hash/img123/public" {
 		t.Errorf("image_url = %q", out.Data.Upload.ImageURL)
+	}
+	if cap.slotsHeld != 0 || len(compressSlots) != 0 {
+		t.Errorf("compression slots held during the cloudflare upload: %d, after: %d; a slot is only for compressing and must be released before the slow network upload", cap.slotsHeld, len(compressSlots))
 	}
 	if cap.uploads != 1 || cap.contentType != "image/jpeg" {
 		t.Fatalf("cloudflare got %d uploads, content type %q", cap.uploads, cap.contentType)

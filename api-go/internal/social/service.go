@@ -44,9 +44,20 @@ func validLink(raw string, max int) bool {
 var handleRe = regexp.MustCompile(`^[a-z0-9_]{3,30}$`)
 var uuidRe = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
 
-type Service struct{ db *gorm.DB }
+type Service struct {
+	db *gorm.DB
+	// validAvatar, when set, decides which avatar URLs are acceptable (ours only).
+	validAvatar func(string) bool
+}
 
 func NewService(db *gorm.DB) *Service { return &Service{db: db} }
+
+// WithAvatarValidator restricts profile photos to URLs the validator accepts
+// (our own image account), so a profile cannot point at an arbitrary website.
+func (s *Service) WithAvatarValidator(valid func(string) bool) *Service {
+	s.validAvatar = valid
+	return s
+}
 
 type UpdateInput struct {
 	AvatarURL    string
@@ -63,7 +74,15 @@ func (s *Service) validate(in UpdateInput) error {
 	if len([]rune(in.Bio)) > 300 {
 		return errors.New("bio must be 300 characters or fewer")
 	}
-	if !validLink(in.AvatarURL, maxAvatarURLLen) || !validLink(in.Website, maxWebsiteLen) {
+	if !validLink(in.Website, maxWebsiteLen) {
+		return ErrURLInvalid
+	}
+	avatar := strings.TrimSpace(in.AvatarURL)
+	if s.validAvatar != nil {
+		if avatar != "" && !s.validAvatar(avatar) {
+			return ErrURLInvalid
+		}
+	} else if !validLink(avatar, maxAvatarURLLen) {
 		return ErrURLInvalid
 	}
 	return nil

@@ -223,7 +223,7 @@ func main() {
 	influencerHandler := influencer.NewHandler(influencerService, logger)
 
 	// Social profiles
-	socialHandler := social.NewHandler(social.NewService(db), logger)
+	socialHandler := social.NewHandler(social.NewService(db).WithAvatarValidator(images.ValidURL), logger)
 
 	// Messaging (async + SSE realtime)
 	messagingService := messaging.NewService(db)

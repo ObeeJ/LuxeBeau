@@ -23,6 +23,20 @@ import (
 // otherwise exhaust memory.
 var compressSlots = make(chan struct{}, 2)
 
+var errBusy = errors.New("all compression slots are busy")
+
+// compressWithSlot compresses an uploaded photo while holding one processing
+// slot, and gives the slot back as soon as compression is done.
+func compressWithSlot(fh *multipart.FileHeader) (*CompressResult, error) {
+	select {
+	case compressSlots <- struct{}{}:
+		defer func() { <-compressSlots }()
+	default:
+		return nil, errBusy
+	}
+	return CompressFromMultipart(fh)
+}
+
 // UploadBytes stores already-compressed image bytes in Cloudflare Images and
 // returns the delivery URL. It asks Cloudflare for a one-time upload URL, then
 // sends the file to it.
@@ -80,14 +94,8 @@ func (i *Images) AvatarUploadHandler(logger *slog.Logger) gin.HandlerFunc {
 			response.Fail(c, http.StatusServiceUnavailable, "UPLOADS_NOT_CONFIGURED", "Photo uploads are not available yet.")
 			return
 		}
-		select {
-		case compressSlots <- struct{}{}:
-			defer func() { <-compressSlots }()
-		default:
-			response.Fail(c, http.StatusServiceUnavailable, "BUSY", "We're processing a lot of photos right now. Please try again in a moment.")
-			return
-		}
-		// Stop reading a huge body early instead of buffering it.
+		// Receive the whole upload (size-limited) BEFORE taking a processing slot, so a
+		// slow or stalled client cannot sit on a slot while it trickles its file in.
 		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxUploadBytes+(1<<20))
 		fh, err := c.FormFile("avatar")
 		if err != nil {
@@ -99,9 +107,14 @@ func (i *Images) AvatarUploadHandler(logger *slog.Logger) gin.HandlerFunc {
 			response.BadRequest(c, "Choose a JPEG or PNG photo.")
 			return
 		}
-		res, err := CompressFromMultipart(fh)
+		// The slot covers only the memory-heavy compression, and is released before
+		// the (network-paced) upload to Cloudflare.
+		res, err := compressWithSlot(fh)
 		switch {
 		case err == nil:
+		case errors.Is(err, errBusy):
+			response.Fail(c, http.StatusServiceUnavailable, "BUSY", "We're processing a lot of photos right now. Please try again in a moment.")
+			return
 		case errors.Is(err, ErrUnsupportedFormat):
 			response.BadRequest(c, "Choose a JPEG or PNG photo.")
 			return

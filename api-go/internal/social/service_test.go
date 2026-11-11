@@ -170,3 +170,30 @@ func TestGetPublic_FindsByHandleOrUserIDAndReportsMissing(t *testing.T) {
 		t.Errorf("err = %v, want ErrNotFound", err)
 	}
 }
+
+// A profile photo must come from our own image account, not any website: an
+// arbitrary https address could be a tracking pixel or hostile content.
+func TestUpsert_AvatarMustBeFromOurImageAccountWhenConfigured(t *testing.T) {
+	s, _ := newSvc(t)
+	s = s.WithAvatarValidator(func(u string) bool { return strings.HasPrefix(u, "https://imagedelivery.net/hash/") })
+	ctx := context.Background()
+	for name, avatar := range map[string]string{
+		"some other website":   "https://evil.example.com/pixel.png",
+		"another account":      "https://imagedelivery.net/otherhash/img/public",
+		"plain http, our host": "http://imagedelivery.net/hash/img/public",
+	} {
+		if _, err := s.Upsert(ctx, ada, UpdateInput{AvatarURL: avatar}); !errors.Is(err, ErrURLInvalid) {
+			t.Errorf("%s: err = %v, want ErrURLInvalid", name, err)
+		}
+	}
+	if _, err := s.Upsert(ctx, ada, UpdateInput{AvatarURL: "https://imagedelivery.net/hash/img1/public"}); err != nil {
+		t.Errorf("our own delivery URL should be accepted: %v", err)
+	}
+	if _, err := s.Upsert(ctx, ada, UpdateInput{AvatarURL: ""}); err != nil {
+		t.Errorf("no avatar should be accepted: %v", err)
+	}
+	// Websites are the person's own link: any https address is fine there.
+	if _, err := s.Upsert(ctx, ada, UpdateInput{Website: "https://ada.example.com"}); err != nil {
+		t.Errorf("a website link should be accepted: %v", err)
+	}
+}
