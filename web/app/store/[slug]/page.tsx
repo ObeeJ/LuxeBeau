@@ -7,7 +7,7 @@ import { ChevronLeft, Package, ShieldCheck, Star } from "@/components/icons";
 import SiteShell, { Container } from "@/components/site/shell";
 import { ProductCard } from "@/components/site/catalog";
 import { Segmented } from "@/components/site/filters";
-import { ReviewFeed } from "@/components/site/reviews";
+import { StoreReviews } from "@/components/site/target-reviews";
 import { LoadError } from "@/components/site/states";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useProducts } from "@/lib/queries";
@@ -123,7 +123,7 @@ export default function StorePage({ params }: { params: Promise<{ slug: string }
               </p>
             </div>
           )}
-          {tab === "reviews" && <ReviewFeed reviews={[]} rating={stats.avg} count={stats.count} />}
+          {tab === "reviews" && <StoreReviews productIds={products.map(p => p.id)} fallback={{ rating: stats.avg, count: stats.count }} />}
         </div>
       </Container>
     </SiteShell>

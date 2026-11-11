@@ -4,7 +4,9 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { PageHeader, Panel, RecordList, Tabs } from "@/components/dashboard/widgets";
+import { ReviewPrompts } from "@/components/dashboard/review-prompts";
 import { OrderRow } from "@/components/dashboard/order-row";
+import EscrowCenter from "@/app/dashboard/escrow/page";
 import { BookingRow } from "@/components/dashboard/booking-row";
 import { EmptyState, LoadError } from "@/components/site/states";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -18,7 +20,7 @@ import { Label } from "@/components/ui/label";
 import { FieldError } from "@/components/site/states";
 import { NG_STATES } from "@/lib/data";
 
-type Tab = "orders" | "bookings" | "account";
+type Tab = "orders" | "bookings" | "trust" | "account";
 
 function ListSkeleton() {
   return (
@@ -115,12 +117,15 @@ export default function DashboardHome() {
     <div className="space-y-5">
       <PageHeader title={`Hi, ${user.name.split(" ")[0]}`} subtitle={user.email} />
 
+      <ReviewPrompts />
+
       <Tabs<Tab>
         value={tab}
         onChange={setTab}
         tabs={[
           { id: "orders", label: "Orders", count: orders.data?.length },
           { id: "bookings", label: "Bookings", count: bookings.data?.length },
+          { id: "trust", label: "Trust" },
           { id: "account", label: "Account" },
         ]}
       />
@@ -174,6 +179,8 @@ export default function DashboardHome() {
           )}
         </div>
       )}
+
+      {tab === "trust" && <EscrowCenter />}
 
       {tab === "account" && (
         <Panel aria-label="Account details">

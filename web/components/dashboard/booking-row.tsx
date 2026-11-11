@@ -5,16 +5,13 @@ import { Loader2 } from "@/components/icons";
 import { StatusPill } from "@/components/dashboard/widgets";
 import { FieldError } from "@/components/site/states";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { useCancelBooking, useCompleteBooking, useConfirmBooking, useMarkNoShow } from "@/lib/queries";
+import { BookingActionDialog, type BookingActionKind } from "@/components/dashboard/booking-action-dialog";
+import { useConfirmBooking } from "@/lib/queries";
+import { canCancel, canComplete, canNoShow, completeBlockedReason, freeCancelText, isLateCancel, noShowBlockedReason } from "@/lib/booking-actions";
 import { type MyBooking } from "@/lib/api";
 import { bookingStart, formatLagosDateTime } from "@/lib/format";
 import { getFriendlyErrorMessage } from "@/lib/errors";
 import { useNow } from "@/lib/use-now";
-
-/* How long after the start an artisan waits before recording a no-show (api-go: domain.NoShowGrace). */
-const NO_SHOW_GRACE_MS = 15 * 60 * 1000;
 
 /* Who cancelled, in words that fit whoever is reading. */
 function cancelledText(b: MyBooking, viewer: "client" | "artisan"): string {
@@ -42,44 +39,36 @@ function statusLabel(b: MyBooking, viewer: "client" | "artisan") {
   return b.status;
 }
 
+/* A button that stays visible when it can't be used and says why in words,
+   linked to the button so screen readers hear it too. */
+function ActionButton({ label, reason, enabled, onClick, id, variant }: { label: string; reason: string; enabled: boolean; onClick: () => void; id: string; variant?: "outline" }) {
+  return (
+    <div className="flex max-w-[16rem] flex-col gap-1">
+      <Button size="sm" variant={variant} onClick={onClick} disabled={!enabled} aria-describedby={!enabled && reason ? id : undefined}>{label}</Button>
+      {!enabled && reason && <span id={id} className="text-[12px] tracking-[-0.017em] text-muted">{reason}</span>}
+    </div>
+  );
+}
+
 /* One booking, as the client or the artisan sees it. Rules (free-cancellation
    notice, late cancellation, no-show) are enforced by the API; this only
    explains them and offers the actions that apply. */
 export function BookingRow({ booking: b, viewer }: { booking: MyBooking; viewer: "client" | "artisan" }) {
-  const cancel = useCancelBooking();
   const confirm = useConfirmBooking();
-  const complete = useCompleteBooking();
-  const noShow = useMarkNoShow();
-  const [cancelling, setCancelling] = useState(false);
-  const [reason, setReason] = useState("");
+  const [dialog, setDialog] = useState<BookingActionKind | null>(null);
   const [error, setError] = useState("");
 
   const start = bookingStart(b.date, b.time);
   const now = useNow();
   const started = start.getTime() <= now;
   const open = b.status === "pending" || b.status === "confirmed";
-  const freeUntil = b.freeCancelUntil ? new Date(b.freeCancelUntil) : null;
-  // The same rule the API applies: only a confirmed booking can be "late".
-  const wouldBeLate = viewer === "client" && b.status === "confirmed" && freeUntil !== null && freeUntil.getTime() < now;
-  const busy = cancel.isPending || confirm.isPending || complete.isPending || noShow.isPending;
+  const busy = confirm.isPending;
   const fail = (fallback: string) => ({ onError: (e: unknown) => setError(getFriendlyErrorMessage(e, fallback)) });
 
-  const submitCancel = (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-    cancel.mutate({ id: b.id, reason: reason.trim() }, { onSuccess: () => setCancelling(false), ...fail("We couldn't cancel this booking.") });
-  };
-
-  let policy = "";
-  if (open && !started && viewer === "client") {
-    if (b.status === "pending") policy = "You can withdraw this request any time before it's confirmed.";
-    else if (b.policyHours === 0) policy = "Free to cancel any time before the appointment.";
-    else if (wouldBeLate) policy = "Cancelling now counts as a late cancellation.";
-    else if (freeUntil) policy = `Free to cancel until ${formatLagosDateTime(freeUntil)}.`;
-  }
+  const policy = open && !started && viewer === "client" ? freeCancelText(b, now) : "";
+  const lateNow = isLateCancel(b, viewer, now);
 
   const verb = viewer === "artisan" && b.status === "pending" ? "Decline" : "Cancel";
-  const who = viewer === "artisan" ? b.client || "the client" : b.with || "your artisan";
   const where = b.serviceType === "home" ? `Home visit${b.address ? `: ${b.address}` : ""}` : "At the studio";
 
   return (
@@ -98,6 +87,8 @@ export function BookingRow({ booking: b, viewer }: { booking: MyBooking; viewer:
             </p>
           )}
           {policy && <p className="mt-1.5 text-[12px] tracking-[-0.017em] text-muted">{policy}</p>}
+          {b.status === "completed" && <p className="mt-1.5 text-[12px] tracking-[-0.017em] text-muted">{viewer === "artisan" ? "You marked this appointment as done." : "The artisan marked this appointment as done."}</p>}
+          {b.status === "no_show" && <p className="mt-1.5 text-[12px] tracking-[-0.017em] text-muted">{viewer === "artisan" ? "Recorded as a no-show. It counts against the client's record." : "Recorded as a no-show. This counts against your record for 90 days."}</p>}
           {b.status === "cancelled" && (
             <p className="mt-1.5 text-[12px] tracking-[-0.017em] text-muted">{cancelledText(b, viewer)}</p>
           )}
@@ -105,55 +96,30 @@ export function BookingRow({ booking: b, viewer }: { booking: MyBooking; viewer:
         <StatusPill status={statusLabel(b, viewer)} />
       </div>
 
-      {open && !cancelling && (
-        <div className="mt-3 flex flex-wrap gap-2">
+      {open && (
+        <div className="mt-3 flex flex-wrap items-start gap-2">
           {viewer === "artisan" && b.status === "pending" && !started && (
             <Button size="sm" onClick={() => { setError(""); confirm.mutate(b.id, fail("We couldn't confirm this booking.")); }} disabled={busy}>
               {confirm.isPending && <Loader2 className="animate-spin" aria-hidden />}
               Confirm
             </Button>
           )}
-          {viewer === "artisan" && b.status === "confirmed" && started && (
+          {viewer === "artisan" && b.status === "confirmed" && (
             <>
-              <Button size="sm" onClick={() => { setError(""); complete.mutate({ id: b.id }, fail("We couldn't update this booking.")); }} disabled={busy}>
-                {complete.isPending && <Loader2 className="animate-spin" aria-hidden />}
-                Mark completed
-              </Button>
-              {now >= start.getTime() + NO_SHOW_GRACE_MS ? (
-                <Button size="sm" variant="outline" onClick={() => { setError(""); noShow.mutate({ id: b.id }, fail("We couldn't update this booking.")); }} disabled={busy}>
-                  Client didn&apos;t come
-                </Button>
-              ) : (
-                <span className="self-center text-[12px] tracking-[-0.017em] text-muted">You can record a no-show 15 minutes after the start.</span>
-              )}
+              <ActionButton label="Mark complete" reason={completeBlockedReason(b, now)} enabled={canComplete(b, now)} onClick={() => setDialog("complete")} id={`${b.id}-complete`} />
+              <ActionButton label="No-show" variant="outline" reason={noShowBlockedReason(b, now)} enabled={canNoShow(b, now)} onClick={() => setDialog("no_show")} id={`${b.id}-noshow`} />
             </>
           )}
-          {!started && (
-            <Button size="sm" variant="outline" onClick={() => { setError(""); setCancelling(true); }} disabled={busy}>
-              {verb}
+          {canCancel(b, now) && (
+            <Button size="sm" variant="outline" onClick={() => { setError(""); setDialog("cancel"); }} disabled={busy} aria-describedby={lateNow ? `${b.id}-late` : undefined}>
+              {viewer === "client" ? "Cancel booking" : verb}
             </Button>
           )}
         </div>
       )}
+      {lateNow && canCancel(b, now) && <span id={`${b.id}-late`} className="sr-only">Cancelling now is recorded as a late cancellation.</span>}
 
-      {open && cancelling && (
-        <form onSubmit={submitCancel} noValidate className="mt-3 rounded-[16px] bg-canvas p-3">
-          {wouldBeLate && (
-            <p className="mb-2 text-[14px] tracking-[-0.014em]">
-              This is inside {b.policyHours} hours of the appointment, so it will be recorded as a late cancellation. {b.artisan || "The artisan"} will see it. You won&apos;t be charged.
-            </p>
-          )}
-          <Label htmlFor={`reason-${b.id}`}>{viewer === "artisan" ? `Tell ${who} why (optional)` : "Reason (optional)"}</Label>
-          <Input id={`reason-${b.id}`} value={reason} onChange={e => setReason(e.target.value)} maxLength={300} className="mt-1.5 h-10 bg-surface" />
-          <div className="mt-2.5 flex gap-2">
-            <Button size="sm" type="submit" disabled={cancel.isPending}>
-              {cancel.isPending && <Loader2 className="animate-spin" aria-hidden />}
-              {viewer === "artisan" ? `${verb} booking` : "Yes, cancel"}
-            </Button>
-            <Button size="sm" type="button" variant="ghost" onClick={() => setCancelling(false)}>Keep it</Button>
-          </div>
-        </form>
-      )}
+      {dialog && <BookingActionDialog kind={dialog} booking={b} viewer={viewer} onClose={() => setDialog(null)} />}
       <FieldError>{error}</FieldError>
     </li>
   );

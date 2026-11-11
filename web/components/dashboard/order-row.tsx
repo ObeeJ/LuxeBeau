@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Loader2 } from "@/components/icons";
 import { StatusPill } from "@/components/dashboard/widgets";
 import { FieldError } from "@/components/site/states";
@@ -19,7 +20,7 @@ export const formatDay = (iso: string) => dayFmt.format(new Date(iso));
 /* One seller's share of the order. The money sits in escrow until the buyer
    confirms delivery, reports a problem, or the confirmation window passes
    (api-go: escrow.HoldOrder, seller.Fulfil, escrow.SweepAutoReleases). */
-function Hold({ hold, showSeller }: { hold: OrderHold; showSeller: boolean }) {
+export function Hold({ hold, showSeller }: { hold: OrderHold; showSeller: boolean }) {
   const release = useReleaseEscrow();
   const dispute = useDisputeEscrow();
   const [reporting, setReporting] = useState(false);
@@ -115,6 +116,9 @@ export function OrderRow({ order, status, subtitle, paymentLabel }: { order: MyO
           <p className="line-clamp-2 text-[16px] tracking-[-0.031em]">{order.itemSummary}</p>
           {subtitle && <p className="truncate text-[14px] tracking-[-0.014em] text-muted">{subtitle}</p>}
           <p className="mt-0.5 text-[12px] tracking-[-0.017em] text-muted">{`${order.id} · ${order.date} · ${paymentLabel}`}</p>
+          <Link href={`/dashboard/orders/${encodeURIComponent(order.id)}`} aria-label={`View details for order ${order.id}`} className="mt-1 inline-block text-[14px] tracking-[-0.014em] text-ink underline underline-offset-4 transition-colors duration-200 hover:text-brand">
+            View order details
+          </Link>
         </div>
         <div className="flex items-center gap-3">
           <span className="text-[16px] tabular-nums tracking-[-0.031em]">{formatNaira(order.totalNGN)}</span>

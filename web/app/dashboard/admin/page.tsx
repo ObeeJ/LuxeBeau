@@ -6,6 +6,9 @@ import { BadgeCheck, Search } from "@/components/icons";
 import { Figures, PageHeader, Panel, StatusPill, Table, Tabs } from "@/components/dashboard/widgets";
 import { ApplicationsPanel } from "@/components/dashboard/applications";
 import { AdminRevenue } from "@/components/dashboard/admin-revenue";
+import { AdminAds } from "@/components/dashboard/admin-ads";
+import { AdminReviews } from "@/components/dashboard/admin-reviews";
+import { AdminUserDetailPanel } from "@/components/dashboard/admin-user-detail";
 import { Photo } from "@/components/site/catalog";
 import { EmptyState, FieldError, LoadError } from "@/components/site/states";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -27,7 +30,7 @@ import { type User } from "@/lib/api";
 import { formatNaira } from "@/lib/format";
 import { getFriendlyErrorMessage } from "@/lib/errors";
 
-type Tab = "applications" | "users" | "orders" | "bookings" | "products" | "escrows" | "revenue";
+type Tab = "applications" | "users" | "orders" | "bookings" | "products" | "escrows" | "revenue" | "ads" | "reviews";
 
 function Loading() {
   return <Skeleton className="h-48 w-full" />;
@@ -52,6 +55,7 @@ export default function AdminDashboard() {
   const [search, setSearch] = useState("");
   const [escrowState, setEscrowState] = useState("all");
   const [error, setError] = useState("");
+  const [detailId, setDetailId] = useState<string | null>(null);
 
   const usersQuery = useAdminUsers({ role, status: userStatus, search });
   const allUsers = useAdminUsers({});
@@ -124,6 +128,8 @@ export default function AdminDashboard() {
           { id: "products", label: "Products" },
           { id: "escrows", label: "Trust" },
           { id: "revenue", label: "Revenue" },
+          { id: "ads", label: "Ads" },
+          { id: "reviews", label: "Reviews" },
         ]}
       />
 
@@ -175,12 +181,13 @@ export default function AdminDashboard() {
                   </td>
                   <td className="py-3 pr-4"><StatusPill status={u.status ?? "active"} /></td>
                   <td className="py-3 text-right">
-                    {u.role !== "admin" && (
-                      <div className="inline-flex gap-1">
+                    <div className="inline-flex gap-1">
+                      <Button size="sm" variant="ghost" onClick={() => setDetailId(u.id)} aria-label={`Details for ${u.name}`}>Details</Button>
+                      {u.role !== "admin" && (<>
                         <Button size="sm" variant="outline" onClick={() => toggleSuspend(u)}>{u.status === "suspended" ? "Reactivate" : "Suspend"}</Button>
                         <Button size="sm" variant="ghost" onClick={() => removeUser(u)}>Remove</Button>
-                      </div>
-                    )}
+                      </>)}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -263,6 +270,12 @@ export default function AdminDashboard() {
       )}
 
       {tab === "revenue" && <AdminRevenue />}
+
+      {tab === "ads" && <AdminAds enabled={isAdmin} />}
+
+      {tab === "reviews" && <AdminReviews enabled={isAdmin} />}
+
+      <AdminUserDetailPanel userId={detailId} onClose={() => setDetailId(null)} />
 
       {tab === "escrows" && (
         <Panel

@@ -9,6 +9,7 @@ import { visitLabel } from "@/components/site/catalog";
 import { Segmented } from "@/components/site/filters";
 import { FieldError, LoadError } from "@/components/site/states";
 import { Skeleton } from "@/components/ui/skeleton";
+import { TargetReviews } from "@/components/site/target-reviews";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -402,6 +403,11 @@ export default function ArtisanPage({ params }: { params: Promise<{ slug: string
             <p className="mt-3 text-[12px] tracking-[-0.017em] text-muted">No payment online. You pay the artisan after your appointment.</p>
           </aside>
         </div>
+
+        <section className="mt-12 border-t border-hairline pt-8" aria-label="Reviews">
+          <h2 className="t-sub mb-4 font-bold">Reviews</h2>
+          <TargetReviews targetType="artisan" targetId={String(artisan.id)} />
+        </section>
       </Container>
 
       {/* Mobile booking bar, above the tab bar */}

@@ -7,6 +7,7 @@ import { Check, ChevronLeft, Minus, Plus, ShieldCheck } from "@/components/icons
 import SiteShell, { Container } from "@/components/site/shell";
 import { Photo, ProductCard, Rating, SectionHeader } from "@/components/site/catalog";
 import { LoadError } from "@/components/site/states";
+import { TargetReviews } from "@/components/site/target-reviews";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { useProducts } from "@/lib/queries";
@@ -151,6 +152,11 @@ export default function ProductPage({ params }: { params: Promise<{ slug: string
             )}
           </div>
         </div>
+
+        <section className="mt-16 border-t border-hairline pt-10" aria-label="Reviews">
+          <h2 className="t-sub mb-4 font-bold">Reviews</h2>
+          <TargetReviews targetType="product" targetId={product.id} fallback={{ rating: product.rating, count: product.reviews }} />
+        </section>
 
         {more.length > 0 && (
           <section className="mt-20 border-t border-hairline pt-10" aria-label="You may also like">

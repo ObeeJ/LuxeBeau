@@ -75,8 +75,7 @@ describe("SiteShell", () => {
 
   it("offers Sign in when signed out", () => {
     render(<SiteShell footer={false}>content</SiteShell>);
-    within(rail()).getByRole("button", { name: "Sign in" }).click();
-    expect(mockShow).toHaveBeenCalledWith("signin");
+    expect(within(rail()).getByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/signin");
   });
 
   it("links to the account when signed in", () => {
