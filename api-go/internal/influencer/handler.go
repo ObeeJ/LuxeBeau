@@ -218,6 +218,31 @@ func (h *Handler) Track(c *gin.Context) {
 	c.Redirect(http.StatusFound, dest)
 }
 
+// GetCommissions: GET /me/influencer-packages/:id/commissions
+// Returns commissions for one of the caller's own packages.
+func (h *Handler) GetCommissions(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		response.NotFound(c, "Package not found")
+		return
+	}
+	// Ownership check: load the package first.
+	pkg, err := h.service.Get(c.Request.Context(), uint(id))
+	if err != nil || pkg.OwnerID != ownerID(c) {
+		response.NotFound(c, "Package not found")
+		return
+	}
+	var commissions []domain.InfluencerCommission
+	if err := h.service.db.WithContext(c.Request.Context()).
+		Where("package_id = ?", id).
+		Order("created_at DESC").Limit(200).
+		Find(&commissions).Error; err != nil {
+		response.InternalError(c, "Failed to fetch commissions")
+		return
+	}
+	response.OK(c, gin.H{"commissions": commissions})
+}
+
 // ── Admin handlers ───────────────────────────────────────────────────────────
 
 // AdminList: GET /admin/influencer-packages — all packages across all owners.

@@ -9,9 +9,9 @@ import "time"
 // them up, but stale rows are harmless.
 type IdempotencyRecord struct {
 	ID           uint      `gorm:"primaryKey;autoIncrement"`
-	Key          string    `gorm:"type:varchar(255);not null"`
-	UserID       string    `gorm:"type:uuid;not null"`
-	Operation    string    `gorm:"type:varchar(60);not null"` // e.g. "create_order"
+	Key          string    `gorm:"type:varchar(255);not null;uniqueIndex:idx_idem_key_user_op"`
+	UserID       string    `gorm:"type:uuid;not null;uniqueIndex:idx_idem_key_user_op"`
+	Operation    string    `gorm:"type:varchar(60);not null;uniqueIndex:idx_idem_key_user_op"` // e.g. "create_order"
 	ResponseJSON string    `gorm:"type:text;not null"`
 	StatusCode   int       `gorm:"type:integer;not null"`
 	ExpiresAt    time.Time `gorm:"not null;index"`

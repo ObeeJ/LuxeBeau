@@ -12,6 +12,7 @@ import { DeliveryZones } from "@/components/dashboard/delivery-zones";
 import { IdentityPanel } from "@/components/dashboard/identity";
 import { PendingApproval } from "@/components/dashboard/pending-approval";
 import { StorefrontEditor } from "@/components/dashboard/storefront-editor";
+import { InfluencerPackages } from "@/components/dashboard/influencer";
 import { SaleRow } from "@/components/dashboard/sale-row";
 import { ImageField } from "@/components/dashboard/image-field";
 import { Photo } from "@/components/site/catalog";
@@ -35,7 +36,7 @@ import { getFriendlyErrorMessage } from "@/lib/errors";
 const CATEGORIES = ["Skincare", "Haircare", "Makeup", "Fragrance", "Body", "Nails", "Grooming", "Jewellery"] as const;
 
 type Editing = { mode: "new" } | { mode: "edit"; product: ApiProduct } | null;
-type Tab = "products" | "orders" | "storefront" | "delivery" | "promote" | "withdraw" | "profile" | "verification";
+type Tab = "products" | "orders" | "storefront" | "delivery" | "promote" | "withdraw" | "influencers" | "profile" | "verification";
 
 export default function SellerDashboard() {
   const user = useAuth(s => s.user);
@@ -121,6 +122,7 @@ export default function SellerDashboard() {
           { id: "delivery", label: "Delivery" },
           { id: "promote", label: "Promote" },
           { id: "withdraw", label: "Withdraw" },
+          { id: "influencers", label: "Influencers" },
           { id: "profile", label: "Profile" },
           { id: "verification", label: "Verification" },
         ]}
@@ -133,6 +135,7 @@ export default function SellerDashboard() {
       {tab === "delivery" && <DeliveryZones />}
       {tab === "promote" && <Promote />}
       {tab === "withdraw" && <Withdraw onVerify={() => setTab("verification")} />}
+      {tab === "influencers" && <InfluencerPackages enabled={enabled} />}
 
       {tab === "profile" && (
         <BusinessProfile

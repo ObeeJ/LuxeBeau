@@ -443,6 +443,7 @@ func main() {
 			sellerGroup.GET("/influencer-packages/:id", influencerHandler.Get)
 			sellerGroup.PATCH("/influencer-packages/:id", influencerHandler.Update)
 			sellerGroup.PATCH("/influencer-packages/:id/state", influencerHandler.SetState)
+			sellerGroup.GET("/influencer-packages/:id/commissions", influencerHandler.GetCommissions)
 		}
 
 		// ── Admin console (internal only) ────────────────────

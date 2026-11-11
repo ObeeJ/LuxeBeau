@@ -187,8 +187,22 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 				StatusCode:   http.StatusCreated,
 				ExpiresAt:    time.Now().Add(24 * time.Hour),
 			}
-			// Best-effort: a failed store does not fail the order.
 			if dbErr := h.db.WithContext(c.Request.Context()).Create(&rec).Error; dbErr != nil {
+				// A unique violation means a concurrent retry already stored a
+				// result. Fetch and replay it rather than returning a duplicate order.
+				if msg := strings.ToLower(dbErr.Error()); strings.Contains(msg, "23505") || strings.Contains(msg, "unique") {
+					var existing domain.IdempotencyRecord
+					if fetchErr := h.db.WithContext(c.Request.Context()).
+						Where("key = ? AND user_id = ? AND operation = ? AND expires_at > ?",
+							idempKey, buyerID, "create_order", time.Now()).
+						First(&existing).Error; fetchErr == nil {
+						var stored gin.H
+						if jsonErr2 := json.Unmarshal([]byte(existing.ResponseJSON), &stored); jsonErr2 == nil {
+							response.Success(c, existing.StatusCode, stored)
+							return
+						}
+					}
+				}
 				h.logger.Warn("idempotency record store failed",
 					slog.String("key", idempKey),
 					slog.String("request_id", c.GetString(middleware.RequestIDKey)),
