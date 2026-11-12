@@ -63,7 +63,11 @@ export async function apiFetch<T>(
   { method = "GET", body, signal, headers: extra, retried = false }: RequestOptions = {},
 ): Promise<T> {
   // Caller headers first, so they can never override the protected ones.
-  const headers: Record<string, string> = { ...extra, Accept: "application/json", [CSRF_HEADER]: "web" };
+  const headers: Record<string, string> = { ...extra, Accept: "application/json" };
+  // The anti-forgery header only matters for requests that change something.
+  // Adding it to reads would make the browser send an extra preflight round
+  // trip to the API before every new address, which is slow on mobile data.
+  if (method !== "GET") headers[CSRF_HEADER] = "web";
   if (body !== undefined) headers["Content-Type"] = "application/json";
 
   let res: Response;
