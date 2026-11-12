@@ -10,8 +10,8 @@ Render (whose free plan is slow and sleeps).
   strips cookies from the answer, so one person's answer can never be cached and
   shown to another.
 - Workers Caching (`"cache": {"enabled": true}` in `wrangler.jsonc`) keeps each
-  answer for 60 seconds, then serves it while refreshing in the background
-  (`Cache-Control: s-maxage=60, stale-while-revalidate=300`). Errors are never kept.
+  answer for 5 minutes, then serves it for up to an hour while refreshing in the
+  background (`Cache-Control: s-maxage=300, stale-while-revalidate=3600`). Errors are never kept.
 - Left out on purpose: `/featured-ads/active` (counts a view per call) and
   `/storefronts/:handle` (depends on the signed-in owner).
 

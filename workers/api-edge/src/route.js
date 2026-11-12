@@ -21,7 +21,7 @@ export function isCacheable(method, pathname) {
 
 // How long the edge may serve an answer, then keep serving it while it refreshes
 // in the background. Browsers keep it briefly too.
-export const CACHE_CONTROL = "public, max-age=15, s-maxage=60, stale-while-revalidate=300";
+export const CACHE_CONTROL = "public, max-age=30, s-maxage=300, stale-while-revalidate=3600";
 
 /** Only `Accept` goes upstream: no cookies, no Authorization, no custom headers. */
 export function upstreamHeaders(incoming) {
