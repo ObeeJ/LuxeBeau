@@ -18,7 +18,10 @@ import (
 )
 
 const (
-	bcryptCost       = 12
+	// bcryptCost 10 is the lowest OWASP recommends. 12 took about two seconds per
+	// sign-in on a small shared CPU. Older, slower hashes still verify and are
+	// moved to this cost the next time their owner signs in.
+	bcryptCost       = 10
 	maxFailedLogins  = 5
 	lockoutDuration  = 15 * time.Minute
 	minPasswordChars = 8
@@ -221,6 +224,8 @@ func (s *Service) Login(ctx context.Context, email, password string) (*domain.Us
 		return nil, ErrInvalidCredentials
 	}
 
+	s.upgradeSlowHash(ctx, user, password, hash)
+
 	if user.FailedLogins > 0 || user.LockedUntil != nil {
 		s.db.WithContext(ctx).Model(user).Updates(map[string]any{"failed_logins": 0, "locked_until": nil})
 	}
@@ -237,6 +242,24 @@ func (s *Service) Login(ctx context.Context, email, password string) (*domain.Us
 		return user, s.requireSecondFactor(ctx, user)
 	}
 	return user, nil
+}
+
+// upgradeSlowHash re-hashes a password stored at a higher cost than the current
+// setting, once, right after the person proved they know it. It never makes a
+// hash cheaper than bcryptCost, and a failure here never blocks the sign-in.
+func (s *Service) upgradeSlowHash(ctx context.Context, user *domain.User, password string, stored []byte) {
+	cost, err := bcrypt.Cost(stored)
+	if err != nil || cost <= bcryptCost || len(user.PasswordHash) == 0 {
+		return
+	}
+	fresh, err := bcrypt.GenerateFromPassword([]byte(password), bcryptCost)
+	if err != nil {
+		return
+	}
+	if err := s.db.WithContext(ctx).Model(&domain.User{}).Where("id = ?", user.ID).
+		Update("password_hash", string(fresh)).Error; err != nil {
+		s.logger.Warn("could not upgrade password hash", slog.String("user_id", user.ID), slog.Any("error", err))
+	}
 }
 
 // requireSecondFactor emails an admin a one-time sign-in code. It always

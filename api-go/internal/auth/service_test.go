@@ -7,6 +7,8 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"github.com/google/uuid"
+	"golang.org/x/crypto/bcrypt"
 	"io"
 	"log/slog"
 	"math/big"
@@ -488,5 +490,67 @@ func TestForgotPasswordAndReset(t *testing.T) {
 	}
 	if loggedIn.ID != user.ID {
 		t.Errorf("login returned different user ID")
+	}
+}
+
+// Hashing a password is deliberately slow; on a small shared CPU, cost 12 made
+// every sign-in take about two seconds. Cost 10 is the lowest OWASP recommends
+// and is about four times quicker.
+func TestPasswordHashes_UseCostTen(t *testing.T) {
+	svc, _, db := newTestService(t)
+	user, err := svc.Register(context.Background(), "Ada Obi", "ada@example.com", "correct-horse", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var stored domain.User
+	db.First(&stored, "id = ?", user.ID)
+	if cost, _ := bcrypt.Cost([]byte(stored.PasswordHash)); cost != 10 {
+		t.Errorf("new password hash cost = %d, want 10", cost)
+	}
+}
+
+// Accounts made with the old, slower setting must still sign in, and are
+// quietly moved to the faster one the first time they do.
+func TestLogin_UpgradesAnOldSlowerHashAndLeavesWeakerOnesAlone(t *testing.T) {
+	svc, _, db := newTestService(t)
+	ctx := context.Background()
+	mk := func(email string, cost int) *domain.User {
+		h, _ := bcrypt.GenerateFromPassword([]byte("correct-horse"), cost)
+		u := &domain.User{ID: uuid.NewString(), Name: "T", Email: email, PasswordHash: string(h), EmailVerified: true, Role: "buyer", Status: "active"}
+		if err := db.Create(u).Error; err != nil {
+			t.Fatal(err)
+		}
+		return u
+	}
+	costOf := func(id string) int {
+		var u domain.User
+		db.First(&u, "id = ?", id)
+		c, _ := bcrypt.Cost([]byte(u.PasswordHash))
+		return c
+	}
+
+	old := mk("old@example.com", 12)
+	if _, err := svc.Login(ctx, "old@example.com", "wrong-password"); !errors.Is(err, ErrInvalidCredentials) {
+		t.Fatalf("wrong password: %v", err)
+	}
+	if costOf(old.ID) != 12 {
+		t.Fatal("a failed sign-in must not change the stored hash")
+	}
+	if _, err := svc.Login(ctx, "old@example.com", "correct-horse"); err != nil {
+		t.Fatalf("an account with a cost-12 hash must still sign in: %v", err)
+	}
+	if c := costOf(old.ID); c != 10 {
+		t.Errorf("hash cost after sign-in = %d, want 10 (upgraded)", c)
+	}
+	if _, err := svc.Login(ctx, "old@example.com", "correct-horse"); err != nil {
+		t.Errorf("sign-in after the upgrade: %v", err)
+	}
+
+	weak := mk("weak@example.com", 4)
+	if _, err := svc.Login(ctx, "weak@example.com", "correct-horse"); err != nil {
+		t.Fatal(err)
+	}
+	if c := costOf(weak.ID); c != 4 {
+		t.Errorf("a hash cheaper than the target was changed to %d; only slower ones are moved down", c)
 	}
 }
