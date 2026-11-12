@@ -72,10 +72,17 @@ func (r *GormRepository) Update(ctx context.Context, ad *domain.FeaturedAd) erro
 }
 
 func (r *GormRepository) UpdateStatus(ctx context.Context, id string, status domain.PromotionStatus) error {
-	return r.db.WithContext(ctx).
+	res := r.db.WithContext(ctx).
 		Model(&domain.FeaturedAd{}).
 		Where("id = ?", id).
-		Update("status", status).Error
+		Update("status", status)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 func (r *GormRepository) IncrementImpression(ctx context.Context, id string) error {

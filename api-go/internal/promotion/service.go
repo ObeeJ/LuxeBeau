@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"regexp"
 	"strings"
 	"time"
 
@@ -14,6 +15,13 @@ import (
 
 	"luxebeau/internal/domain"
 )
+
+// Ad IDs are UUIDs. PostgreSQL answers a malformed one with an error rather than
+// "no rows", which used to surface as a 500, so it is turned away as not found
+// before the database is asked.
+var adIDRe = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
+
+func validAdID(id string) bool { return adIDRe.MatchString(id) }
 
 var (
 	ErrInvalidPlan   = errors.New("invalid promotion plan: choose 7_days, 30_days, or annual")
@@ -158,6 +166,9 @@ func (s *Service) CreatePromotion(ctx context.Context, merchantID string, input 
 func (s *Service) PayWithWallet(ctx context.Context, merchantID string, adID string) error {
 	if s.db == nil {
 		return errors.New("database connection not available")
+	}
+	if !validAdID(adID) {
+		return ErrAdNotFound
 	}
 
 	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
@@ -345,6 +356,9 @@ func (s *Service) AdminUpdateStatus(ctx context.Context, id string, status domai
 	default:
 		return ErrInvalidStatus
 	}
+	if !validAdID(id) {
+		return ErrAdNotFound
+	}
 	// Payment, not an admin click, is what makes an ad live.
 	if status == domain.PromotionStatusActive {
 		ad, err := s.repo.GetByID(ctx, id)
@@ -355,5 +369,11 @@ func (s *Service) AdminUpdateStatus(ctx context.Context, id string, status domai
 			return ErrAdNotPaid
 		}
 	}
-	return s.repo.UpdateStatus(ctx, id, status)
+	if err := s.repo.UpdateStatus(ctx, id, status); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrAdNotFound
+		}
+		return err
+	}
+	return nil
 }
