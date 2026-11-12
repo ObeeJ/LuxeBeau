@@ -255,6 +255,10 @@ func main() {
 
 	// Struct-based rate limiter: cleanup goroutine respects SIGTERM.
 	rateLimiter := middleware.NewIPRateLimiter(ctx)
+	// Public catalogue answers are kept for 20 seconds so most requests skip the
+	// database. Never on routes whose answer depends on who is asking, and not on
+	// /featured-ads/active, which counts an ad view per call.
+	publicCache := middleware.NewPublicCache(20*time.Second, 300)
 	reviewHandler := review.NewHandler(review.NewService(db, logger), logger)
 
 	gin.SetMode(gin.ReleaseMode)
@@ -359,28 +363,29 @@ func main() {
 		v1.POST("/auth/logout", authHandler.Logout)
 
 		// Public Catalog
-		v1.GET("/products", catalogHandler.ListProducts)
-		v1.GET("/products/:id", catalogHandler.GetProduct)
+		v1.GET("/products", publicCache.Middleware(), catalogHandler.ListProducts)
+		v1.GET("/products/:id", publicCache.Middleware(), catalogHandler.GetProduct)
 
 		// Public Artisans
-		v1.GET("/artisans", bookingHandler.ListArtisans)
-		v1.GET("/artisans/:id", bookingHandler.GetArtisanProfile)
+		v1.GET("/artisans", publicCache.Middleware(), bookingHandler.ListArtisans)
+		v1.GET("/artisans/:id", publicCache.Middleware(), bookingHandler.GetArtisanProfile)
 		v1.GET("/artisans/:id/availability", rateLimiter.RateLimit(5, 20), bookingHandler.Availability)
 
 		// Public profiles
 		v1.GET("/profiles/:handle", socialHandler.GetPublicProfile)
 
 		// Public reviews (visible ones only)
-		v1.GET("/reviews", reviewHandler.List)
+		v1.GET("/reviews", publicCache.Middleware(), reviewHandler.List)
 
 		// Public Storefronts
+		// Not cached: the answer depends on the sign-in cookie (an owner sees their own draft).
 		v1.GET("/storefronts/:handle", storefrontHandler.GetPublicStorefront)
 		v1.POST("/storefronts/check-handle", storefrontHandler.CheckHandle)
 		v1.POST("/storefronts/theme-preview", storefrontHandler.ThemePreview)
 
 		// Featured Ads & Sponsored Spotlights
 		v1.GET("/featured-ads/active", promotionHandler.ListActive)
-		v1.GET("/featured-ads/pricing", promotionHandler.PricingInfo)
+		v1.GET("/featured-ads/pricing", publicCache.Middleware(), promotionHandler.PricingInfo)
 		v1.POST("/featured-ads/:id/click", promotionHandler.RecordClick)
 	}
 
