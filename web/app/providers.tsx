@@ -7,12 +7,18 @@ import { ToastProvider } from "@/components/ui/slide-in-notifications";
 import { AuthDialog } from "@/components/auth/auth-dialog";
 import { fetchSessionUser } from "@/lib/queries";
 import { useAuth } from "@/lib/store";
+import { hasSessionHint } from "@/lib/session-hint";
 
 /* Resolves the cookie session once on load so every page knows who is
    signed in without storing credentials in the browser. */
 function SessionSync() {
   useEffect(() => {
     let active = true;
+    // Never signed in on this browser: skip the two failing requests.
+    if (!hasSessionHint()) {
+      useAuth.setState({ user: null, status: "signedOut" });
+      return;
+    }
     fetchSessionUser().then(user => {
       if (!active) return;
       if (user) useAuth.getState().signIn(user);

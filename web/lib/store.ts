@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { type Product, type User } from "@/lib/api";
+import { clearSessionHint, markSessionHint } from "@/lib/session-hint";
 
 /* ── Auth store ──────────────────────────────────────────────
    Holds the signed-in profile for rendering. The session itself is an
@@ -21,8 +22,8 @@ interface AuthState {
 export const useAuth = create<AuthState>()((set, get) => ({
   user: null,
   status: "loading",
-  signIn: user => set({ user, status: "signedIn" }),
-  signOut: () => set({ user: null, status: "signedOut" }),
+  signIn: user => { markSessionHint(); set({ user, status: "signedIn" }); },
+  signOut: () => { clearSessionHint(); set({ user: null, status: "signedOut" }); },
   isAuthed: () => Boolean(get().user),
   updateUser: updated =>
     set(state => (state.user ? { user: { ...state.user, ...updated } } : {})),
