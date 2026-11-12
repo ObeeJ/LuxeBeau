@@ -22,7 +22,15 @@ type Config struct {
 	SMTPPort     int
 	SMTPUsername string
 	SMTPPassword string
-	DevDir       string // when set and SMTP is not, messages are written here
+	// CloudflareAccountID and CloudflareEmailToken send through Cloudflare Email
+	// Service over HTTPS (needs an onboarded Cloudflare-DNS domain). They take
+	// priority over every other provider.
+	CloudflareAccountID  string
+	CloudflareEmailToken string
+	// BrevoAPIKey sends over HTTPS instead of SMTP. Use it where SMTP ports are
+	// blocked (Render's free plan). When set it takes priority over SMTP.
+	BrevoAPIKey string
+	DevDir      string // when set and SMTP is not, messages are written here
 }
 
 // Mailer renders branded templates and hands them to a Sender.
@@ -37,6 +45,10 @@ type Mailer struct {
 func New(cfg Config, logger *slog.Logger) *Mailer {
 	var sender Sender = disabledSender{}
 	switch {
+	case cfg.CloudflareAccountID != "" && cfg.CloudflareEmailToken != "":
+		sender = CloudflareSender{AccountID: cfg.CloudflareAccountID, APIToken: cfg.CloudflareEmailToken}
+	case cfg.BrevoAPIKey != "":
+		sender = BrevoSender{APIKey: cfg.BrevoAPIKey}
 	case cfg.SMTPHost != "":
 		port := cfg.SMTPPort
 		if port == 0 {
@@ -47,7 +59,7 @@ func New(cfg Config, logger *slog.Logger) *Mailer {
 		sender = FileSender{Dir: cfg.DevDir}
 		logger.Warn("email: writing messages to a local directory (development only)")
 	default:
-		logger.Warn("email: no SMTP_HOST configured; verification codes cannot be delivered")
+		logger.Warn("email: no email provider configured; set CF_EMAIL_API_TOKEN + CF_ACCOUNT_ID, BREVO_API_KEY or SMTP_HOST; verification codes cannot be delivered")
 	}
 	return NewWithSender(sender, cfg.From, cfg.AppURL, logger)
 }

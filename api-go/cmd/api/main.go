@@ -143,13 +143,16 @@ func main() {
 	// Email (Cloudflare Email Service over SMTP in production)
 	smtpPort, _ := strconv.Atoi(envOrDefault("SMTP_PORT", "465"))
 	mailer := mail.New(mail.Config{
-		From:         os.Getenv("EMAIL_FROM"),
-		AppURL:       envOrDefault("APP_URL", "http://localhost:3000"),
-		SMTPHost:     os.Getenv("SMTP_HOST"),
-		SMTPPort:     smtpPort,
-		SMTPUsername: os.Getenv("SMTP_USERNAME"),
-		SMTPPassword: os.Getenv("SMTP_PASSWORD"),
-		DevDir:       os.Getenv("MAIL_DEV_DIR"),
+		From:                 os.Getenv("EMAIL_FROM"),
+		AppURL:               envOrDefault("APP_URL", "http://localhost:3000"),
+		SMTPHost:             os.Getenv("SMTP_HOST"),
+		SMTPPort:             smtpPort,
+		SMTPUsername:         os.Getenv("SMTP_USERNAME"),
+		SMTPPassword:         os.Getenv("SMTP_PASSWORD"),
+		CloudflareAccountID:  os.Getenv("CF_ACCOUNT_ID"),
+		CloudflareEmailToken: os.Getenv("CF_EMAIL_API_TOKEN"),
+		BrevoAPIKey:          os.Getenv("BREVO_API_KEY"),
+		DevDir:               os.Getenv("MAIL_DEV_DIR"),
 	}, logger)
 
 	// Product and artisan photos (Cloudflare Images direct uploads)
