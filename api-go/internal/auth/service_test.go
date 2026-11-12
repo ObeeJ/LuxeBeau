@@ -554,3 +554,34 @@ func TestLogin_UpgradesAnOldSlowerHashAndLeavesWeakerOnesAlone(t *testing.T) {
 		t.Errorf("a hash cheaper than the target was changed to %d; only slower ones are moved down", c)
 	}
 }
+
+// If the password was changed (a reset) between sign-in reading the old hash and
+// the upgrade writing the new one, the upgrade must do nothing: otherwise it
+// would put the OLD password back.
+func TestUpgradeSlowHash_NeverOverwritesAPasswordChangedMeanwhile(t *testing.T) {
+	svc, _, db := newTestService(t)
+	ctx := context.Background()
+	oldHash, _ := bcrypt.GenerateFromPassword([]byte("old-password"), 12)
+	u := &domain.User{ID: uuid.NewString(), Name: "T", Email: "race@example.com", PasswordHash: string(oldHash), EmailVerified: true, Role: "buyer", Status: "active"}
+	if err := db.Create(u).Error; err != nil {
+		t.Fatal(err)
+	}
+	// Sign-in has read the user (holding the old hash)...
+	read := *u
+	// ...and before it writes, a password reset stores a different hash.
+	resetHash, _ := bcrypt.GenerateFromPassword([]byte("brand-new-password"), 10)
+	if err := db.Model(&domain.User{}).Where("id = ?", u.ID).Update("password_hash", string(resetHash)).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	svc.upgradeSlowHash(ctx, &read, "old-password", []byte(read.PasswordHash))
+
+	var after domain.User
+	db.First(&after, "id = ?", u.ID)
+	if after.PasswordHash != string(resetHash) {
+		t.Error("the upgrade overwrote a password that was changed meanwhile: the reset was undone")
+	}
+	if bcrypt.CompareHashAndPassword([]byte(after.PasswordHash), []byte("brand-new-password")) != nil {
+		t.Error("the new password no longer works")
+	}
+}

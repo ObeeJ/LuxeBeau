@@ -256,7 +256,11 @@ func (s *Service) upgradeSlowHash(ctx context.Context, user *domain.User, passwo
 	if err != nil {
 		return
 	}
-	if err := s.db.WithContext(ctx).Model(&domain.User{}).Where("id = ?", user.ID).
+	// Compare-and-swap: only write if the stored hash is still the one this
+	// sign-in read. If a password reset or change landed meanwhile, do nothing,
+	// so the upgrade can never put an old password back.
+	if err := s.db.WithContext(ctx).Model(&domain.User{}).
+		Where("id = ? AND password_hash = ?", user.ID, user.PasswordHash).
 		Update("password_hash", string(fresh)).Error; err != nil {
 		s.logger.Warn("could not upgrade password hash", slog.String("user_id", user.ID), slog.Any("error", err))
 	}
