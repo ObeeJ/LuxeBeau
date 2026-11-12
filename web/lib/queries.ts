@@ -70,11 +70,20 @@ async function fetchProducts(search: string) {
 }
 
 /* `search` is matched server-side (name/brand ILIKE, catalog/repository.go). */
-export function useProducts(search = "") {
+/* Server-rendered data handed to React Query. Only real, non-empty data is used:
+   a failed or empty server fetch must not count as fresh, or the page would show
+   "nothing here" for minutes instead of fetching in the browser. */
+export function seedOptions<T>(initial?: T[] | null): { initialData?: T[]; initialDataUpdatedAt?: () => number } {
+  if (!initial || initial.length === 0) return {};
+  return { initialData: initial, initialDataUpdatedAt: () => Date.now() };
+}
+
+export function useProducts(search = "", initialData?: Product[] | null) {
   return useQuery({
     queryKey: ["products", search],
     staleTime: CATALOGUE_STALE,
     queryFn: () => fetchProducts(search),
+    ...seedOptions(initialData),
   });
 }
 
@@ -87,7 +96,7 @@ export function useProduct(slug: string) {
   });
 }
 
-export function useArtisans() {
+export function useArtisans(initialData?: Artisan[] | null) {
   return useQuery({
     queryKey: ["artisans"],
     staleTime: CATALOGUE_STALE,
@@ -96,6 +105,7 @@ export function useArtisans() {
       const data = await apiFetch("/artisans", artisansResponseSchema);
       return data.artisans.map(toArtisan);
     },
+    ...seedOptions(initialData),
   });
 }
 

@@ -1,5 +1,5 @@
 import { render, screen, fireEvent } from "@testing-library/react";
-import Home from "./page";
+import HomeContent from "./home-content";
 import { useProducts, useArtisans } from "@/lib/queries";
 
 jest.mock("@/lib/queries", () => ({
@@ -39,7 +39,7 @@ describe("Home page", () => {
       isError: false,
       refetch: jest.fn(),
     });
-    render(<Home />);
+    render(<HomeContent />);
     const statuses = screen.getAllByRole("status", { name: "Loading" });
     expect(statuses.length).toBeGreaterThanOrEqual(1);
   });
@@ -52,7 +52,7 @@ describe("Home page", () => {
       isError: true,
       refetch,
     });
-    render(<Home />);
+    render(<HomeContent />);
     const alerts = screen.getAllByRole("alert");
     expect(alerts.length).toBeGreaterThanOrEqual(1);
     const retryBtns = screen.getAllByRole("button", { name: /try again/i });
@@ -67,7 +67,7 @@ describe("Home page", () => {
       isError: false,
       refetch: jest.fn(),
     });
-    render(<Home />);
+    render(<HomeContent />);
     const emptyMsgs = screen.getAllByText(/New products are on the way/i);
     expect(emptyMsgs.length).toBeGreaterThanOrEqual(1);
   });
@@ -95,7 +95,7 @@ describe("Home page", () => {
       refetch: jest.fn(),
     });
 
-    const { container } = render(<Home />);
+    const { container } = render(<HomeContent />);
     const matches = screen.getAllByText(/Real Unique Product 0/i);
     expect(matches.length).toBeGreaterThanOrEqual(1);
 
