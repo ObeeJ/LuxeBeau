@@ -27,6 +27,11 @@ type Config struct {
 	// priority over every other provider.
 	CloudflareAccountID  string
 	CloudflareEmailToken string
+	// RelayURL and RelaySecret send through the luxebeau-mail-relay Cloudflare
+	// Worker over HTTPS (free; delivers via Gmail SMTP). Used when Cloudflare
+	// Email Service is not configured.
+	RelayURL    string
+	RelaySecret string
 	// BrevoAPIKey sends over HTTPS instead of SMTP. Use it where SMTP ports are
 	// blocked (Render's free plan). When set it takes priority over SMTP.
 	BrevoAPIKey string
@@ -47,6 +52,8 @@ func New(cfg Config, logger *slog.Logger) *Mailer {
 	switch {
 	case cfg.CloudflareAccountID != "" && cfg.CloudflareEmailToken != "":
 		sender = CloudflareSender{AccountID: cfg.CloudflareAccountID, APIToken: cfg.CloudflareEmailToken}
+	case cfg.RelayURL != "" && cfg.RelaySecret != "":
+		sender = RelaySender{URL: cfg.RelayURL, Secret: cfg.RelaySecret}
 	case cfg.BrevoAPIKey != "":
 		sender = BrevoSender{APIKey: cfg.BrevoAPIKey}
 	case cfg.SMTPHost != "":
@@ -59,7 +66,7 @@ func New(cfg Config, logger *slog.Logger) *Mailer {
 		sender = FileSender{Dir: cfg.DevDir}
 		logger.Warn("email: writing messages to a local directory (development only)")
 	default:
-		logger.Warn("email: no email provider configured; set CF_EMAIL_API_TOKEN + CF_ACCOUNT_ID, BREVO_API_KEY or SMTP_HOST; verification codes cannot be delivered")
+		logger.Warn("email: no email provider configured; set CF_EMAIL_API_TOKEN + CF_ACCOUNT_ID, MAIL_RELAY_URL + MAIL_RELAY_SECRET, BREVO_API_KEY or SMTP_HOST; verification codes cannot be delivered")
 	}
 	return NewWithSender(sender, cfg.From, cfg.AppURL, logger)
 }

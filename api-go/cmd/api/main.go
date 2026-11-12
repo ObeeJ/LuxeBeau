@@ -151,8 +151,11 @@ func main() {
 		SMTPPassword:         os.Getenv("SMTP_PASSWORD"),
 		CloudflareAccountID:  os.Getenv("CF_ACCOUNT_ID"),
 		CloudflareEmailToken: os.Getenv("CF_EMAIL_API_TOKEN"),
-		BrevoAPIKey:          os.Getenv("BREVO_API_KEY"),
-		DevDir:               os.Getenv("MAIL_DEV_DIR"),
+		RelayURL:             os.Getenv("MAIL_RELAY_URL"),
+		RelaySecret:          os.Getenv("MAIL_RELAY_SECRET"),
+
+		BrevoAPIKey: os.Getenv("BREVO_API_KEY"),
+		DevDir:      os.Getenv("MAIL_DEV_DIR"),
 	}, logger)
 
 	// Product and artisan photos (Cloudflare Images direct uploads)

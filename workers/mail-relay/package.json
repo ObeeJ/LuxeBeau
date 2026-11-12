@@ -1,0 +1,7 @@
+{
+  "name": "luxebeau-mail-relay",
+  "private": true,
+  "type": "module",
+  "scripts": { "test": "node --test test/validate.test.js" },
+  "dependencies": { "worker-mailer": "1.2.1" }
+}
