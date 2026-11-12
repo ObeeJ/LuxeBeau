@@ -5,6 +5,20 @@ import { artisanPhoto, categoryPhoto } from "@/lib/photos";
 export const API_BASE =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080/api/v1";
 
+/* Optional Cloudflare edge cache for public catalogue reads (see workers/api-edge).
+   When set, products, artisans, reviews and ad pricing are fetched from the
+   nearest Cloudflare location instead of the API server. Leave unset to always
+   use the API. */
+export const EDGE_BASE = process.env.NEXT_PUBLIC_EDGE_API_URL ?? "";
+
+// Must match the allow-list in workers/api-edge/src/route.js: only answers that
+// are the same for everyone. Never personal, counted or write requests.
+const EDGE_READS = [/^\/(products|artisans)(\/[A-Za-z0-9_-]+)?$/, /^\/reviews$/, /^\/featured-ads\/pricing$/];
+function isEdgeRead(path: string): boolean {
+  const p = path.split("?")[0];
+  return EDGE_READS.some(re => re.test(p));
+}
+
 /* The Go API wraps every payload as { success, data, error }. */
 const envelope = z.object({
   success: z.boolean(),
@@ -70,17 +84,42 @@ export async function apiFetch<T>(
   if (method !== "GET") headers[CSRF_HEADER] = "web";
   if (body !== undefined) headers["Content-Type"] = "application/json";
 
+  // Public catalogue reads are answered from Cloudflare's nearest location when
+  // the edge cache is configured. They carry no cookies, so they are the same for
+  // everyone; if the edge has any problem we simply ask the API directly.
+  let edgeRes: Response | undefined;
+  if (method === "GET" && EDGE_BASE && isEdgeRead(path)) {
+    try {
+      const r = await fetch(`${EDGE_BASE}${path}`, {
+        method: "GET",
+        headers: { Accept: "application/json" },
+        credentials: "omit",
+        signal,
+      });
+      if (r.ok) edgeRes = r;
+    } catch {
+      /* fall through to the API */
+    }
+    if (!edgeRes && signal?.aborted) {
+      throw new ApiError("NETWORK", "Connection lost. Check your internet connection and try again.", 0);
+    }
+  }
+
   let res: Response;
-  try {
-    res = await fetch(`${API_BASE}${path}`, {
-      method,
-      headers,
-      credentials: "include",
-      body: body !== undefined ? JSON.stringify(body) : undefined,
-      signal,
-    });
-  } catch {
-    throw new ApiError("NETWORK", "Connection lost. Check your internet connection and try again.", 0);
+  if (edgeRes) {
+    res = edgeRes;
+  } else {
+    try {
+      res = await fetch(`${API_BASE}${path}`, {
+        method,
+        headers,
+        credentials: "include",
+        body: body !== undefined ? JSON.stringify(body) : undefined,
+        signal,
+      });
+    } catch {
+      throw new ApiError("NETWORK", "Connection lost. Check your internet connection and try again.", 0);
+    }
   }
 
   if (res.status === 401 && !retried && !path.startsWith("/auth/")) {

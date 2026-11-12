@@ -1,0 +1,7 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "luxebeau-api-edge",
+  "main": "src/index.js",
+  "compatibility_date": "2026-11-01",
+  "cache": { "enabled": true }
+}

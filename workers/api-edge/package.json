@@ -1,0 +1,6 @@
+{
+  "name": "luxebeau-api-edge",
+  "private": true,
+  "type": "module",
+  "scripts": { "test": "node --test test/route.test.js" }
+}
