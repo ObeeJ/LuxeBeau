@@ -18,9 +18,10 @@ type Audience = "Everyone" | "Her" | "Him";
 
 interface Props {
   initialAll?: Product[];
+  fetchedAt?: number;
 }
 
-export default function ShopContent({ initialAll }: Props) {
+export default function ShopContent({ initialAll, fetchedAt }: Props) {
   const searchParams = useSearchParams();
   const q = (searchParams.get("q") ?? "").trim();
   const [category, setCategory] = useState<string>(searchParams.get("category") ?? "All");
@@ -30,8 +31,8 @@ export default function ShopContent({ initialAll }: Props) {
 
   // Seed React Query with server data so the first render is instant.
   // If the user types a new search, React Query fetches fresh results.
-  const all = useProducts("", initialAll);
-  const results = useProducts(q, q ? undefined : initialAll);
+  const all = useProducts("", initialAll, fetchedAt);
+  const results = useProducts(q, q ? undefined : initialAll, fetchedAt);
 
   const categories = useMemo(() => {
     const seen = new Map<string, string | undefined>();

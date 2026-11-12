@@ -32,14 +32,15 @@ const RAIL_ITEM =
 interface Props {
   initialProducts?: Product[];
   initialArtisans?: Artisan[];
+  fetchedAt?: number;
 }
 
-export default function HomeContent({ initialProducts, initialArtisans }: Props) {
+export default function HomeContent({ initialProducts, initialArtisans, fetchedAt }: Props) {
   const { add } = useCart();
 
   // Seed React Query with server data — no client fetch fires on first load.
-  const products = useProducts("", initialProducts);
-  const artisans = useArtisans(initialArtisans);
+  const products = useProducts("", initialProducts, fetchedAt);
+  const artisans = useArtisans(initialArtisans, fetchedAt);
 
   const list = useMemo(() => products.data ?? [], [products.data]);
   const artisanList = useMemo(() => artisans.data ?? [], [artisans.data]);

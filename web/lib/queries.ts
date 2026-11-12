@@ -72,18 +72,20 @@ async function fetchProducts(search: string) {
 /* `search` is matched server-side (name/brand ILIKE, catalog/repository.go). */
 /* Server-rendered data handed to React Query. Only real, non-empty data is used:
    a failed or empty server fetch must not count as fresh, or the page would show
-   "nothing here" for minutes instead of fetching in the browser. */
-export function seedOptions<T>(initial?: T[] | null): { initialData?: T[]; initialDataUpdatedAt?: () => number } {
+   "nothing here" for minutes instead of fetching in the browser. `fetchedAt` is when
+   the server got the data (a static page can be days old): anything older than the
+   stale time is refreshed in the browser straight away. */
+export function seedOptions<T>(initial?: T[] | null, fetchedAt?: number): { initialData?: T[]; initialDataUpdatedAt?: number | (() => number) } {
   if (!initial || initial.length === 0) return {};
-  return { initialData: initial, initialDataUpdatedAt: () => Date.now() };
+  return { initialData: initial, initialDataUpdatedAt: fetchedAt ?? (() => Date.now()) };
 }
 
-export function useProducts(search = "", initialData?: Product[] | null) {
+export function useProducts(search = "", initialData?: Product[] | null, fetchedAt?: number) {
   return useQuery({
     queryKey: ["products", search],
     staleTime: CATALOGUE_STALE,
     queryFn: () => fetchProducts(search),
-    ...seedOptions(initialData),
+    ...seedOptions(initialData, fetchedAt),
   });
 }
 
@@ -96,7 +98,7 @@ export function useProduct(slug: string) {
   });
 }
 
-export function useArtisans(initialData?: Artisan[] | null) {
+export function useArtisans(initialData?: Artisan[] | null, fetchedAt?: number) {
   return useQuery({
     queryKey: ["artisans"],
     staleTime: CATALOGUE_STALE,
@@ -105,7 +107,7 @@ export function useArtisans(initialData?: Artisan[] | null) {
       const data = await apiFetch("/artisans", artisansResponseSchema);
       return data.artisans.map(toArtisan);
     },
-    ...seedOptions(initialData),
+    ...seedOptions(initialData, fetchedAt),
   });
 }
 

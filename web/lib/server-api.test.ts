@@ -16,14 +16,17 @@ describe("server-side catalogue fetch", () => {
     (global as unknown as { fetch: unknown }).fetch = fetchMock;
   });
 
-  it("returns the catalogue and lets Next cache it for a minute", async () => {
+  it("returns the catalogue, cached at build time only (no background refresh)", async () => {
     fetchMock.mockResolvedValue(ok({ products: [product] }));
     const out = await fetchProductsServer();
     expect(out).toHaveLength(1);
     expect(out?.[0].name).toBe("Black soap");
     const [url, init] = fetchMock.mock.calls[0];
     expect(String(url)).toContain("/products?limit=100");
-    expect(init.next).toEqual({ revalidate: 60 });
+    // A background refresh (ISR) hangs about 40% of page loads on this Cloudflare
+    // setup, so pages are fully static: fetched once at build, no revalidate.
+    expect(init.cache).toBe("force-cache");
+    expect(init.next?.revalidate).toBeUndefined();
     expect(Object.keys(init.headers)).toEqual(["Accept"]); // no cookies, no custom headers
   });
 

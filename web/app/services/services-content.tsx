@@ -17,9 +17,10 @@ type Visit = "any" | "studio" | "home";
 
 interface Props {
   initialArtisans?: Artisan[];
+  fetchedAt?: number;
 }
 
-export default function ServicesContent({ initialArtisans }: Props) {
+export default function ServicesContent({ initialArtisans, fetchedAt }: Props) {
   const searchParams = useSearchParams();
   const q = (searchParams.get("q") ?? "").trim().toLowerCase();
   const [city, setCity] = useState(searchParams.get("city") ?? "");
@@ -27,7 +28,7 @@ export default function ServicesContent({ initialArtisans }: Props) {
 
   // Seed React Query with server data — no client fetch on first load.
   const { data: artisans = [], isLoading, isError, refetch } =
-    useArtisans(initialArtisans);
+    useArtisans(initialArtisans, fetchedAt);
 
   const cities = useMemo(() => {
     const live = artisans.map((a) => a.city).filter(Boolean) as string[];
