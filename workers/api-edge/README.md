@@ -21,5 +21,7 @@ The web app uses it when `NEXT_PUBLIC_EDGE_API_URL` is set at build time
     npm test            # route rules
     npx wrangler deploy
 
-If `wrangler deploy` fails with `fetch failed`, retry with
-`NODE_OPTIONS=--dns-result-order=ipv4first`.
+If `wrangler deploy` fails with `fetch failed` (a machine with no IPv6 route
+makes Node's default connection racing time out), use:
+
+    NODE_OPTIONS="--dns-result-order=ipv4first --network-family-autoselection-attempt-timeout=5000" npx wrangler deploy
